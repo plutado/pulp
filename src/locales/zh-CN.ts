@@ -2431,4 +2431,12 @@ export const zhCN: Catalog = {
   'render.media.stems-failed': '无法混合该曲目的分轨：{reason}',
   'music.version.full': '完整版',
   'ui.say-strip-dismiss.aria-label': '关闭此消息',
+  // ---------------------------------------------------------------- known but missing (milestone 32)
+  'results.summary.missing': '{name} — 不在此电脑上',
+  'results.badge.missing': '缺失',
+  'results.badge.missing.tip': '素材库的目录列出了它，但其文件不在此电脑上',
+  'info.row.missing': '缺失',
+  'info.value.missing': '素材库的目录中列出，但不在此电脑上。将文件放到 {path}，它就会出现在这里',
+  'stage.empty.file-missing': '此文件不在此电脑上：仅在素材库的目录中列出。',
+  'browse.stock.missing': { other: '其 {items} 个项目中，有 {count} 个在目录中列出但不在此电脑上。' },
 };

@@ -130,4 +130,9 @@ export const enGB: Catalog = {
   'lottie.param.color.text': '{name} text colour',
   'lottie.element.colors': 'Colours',
   'lottie.fit.center': 'Its own size, centred',
+  // ---------------------------------------------------------------- known but missing (milestone 32)
+  'results.badge.missing.tip': 'The library\'s catalogue lists it, but its file is not on this computer',
+  'info.value.missing': 'Listed in the library\'s catalogue, but not on this computer. Put the file at {path} and it appears here',
+  'browse.stock.missing': { one: 'Of its {items} items, {count} is listed by its catalogue but not on this computer.', other: 'Of its {items} items, {count} are listed by its catalogue but not on this computer.' },
+  'stage.empty.file-missing': 'This file is not on this computer: the library\'s catalogue only lists it.',
 };

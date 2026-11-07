@@ -207,10 +207,12 @@ async function withLibraries(index: LibraryIndex): Promise<LibraryIndex> {
   if (settings.stockLibraries.length === 0) return index;
   const roots = new Map(getStore().roots().map((r) => [resolve(r.path), r.online]));
   const counted = new Map<string, number>();
+  const missing = new Map<string, number>();
   for (const e of [...index.templates, ...index.media]) counted.set(e.root, (counted.get(e.root) ?? 0) + 1);
+  for (const m of index.media) if (m.missing) missing.set(m.root, (missing.get(m.root) ?? 0) + 1);
   const stockLibraries: StockLibraryState[] = settings.stockLibraries.map((l) => {
     const drive = driveOf(l.path);
-    return { ...l, online: roots.get(resolve(l.path)) ?? existsSync(l.path), items: counted.get(resolve(l.path)) ?? 0, ...(drive ? { drive: drive.name } : {}) };
+    return { ...l, online: roots.get(resolve(l.path)) ?? existsSync(l.path), items: counted.get(resolve(l.path)) ?? 0, ...(missing.get(resolve(l.path)) ? { missing: missing.get(resolve(l.path)) } : {}), ...(drive ? { drive: drive.name } : {}) };
   });
   return { ...index, stockLibraries };
 }

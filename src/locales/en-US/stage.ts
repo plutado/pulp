@@ -12,6 +12,7 @@ export const stage = {
   'stage.play.pause.aria-label': 'Pause',
   'stage.empty.template-offline': 'This template\'s folder is offline. It will load again when the folder is back.',
   'stage.empty.file-offline': 'This file\'s folder is offline.',
+  'stage.empty.file-missing': 'This file is not on this computer: the library\'s catalog only lists it.',
   'stage.note.image-slot': 'Image slot: {message}',
   'stage.note.template-error': 'Template error: {message}',
   'stage.note.template-error.unknown': 'Template error: unknown',

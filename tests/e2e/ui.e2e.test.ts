@@ -24,7 +24,7 @@ import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeMusicFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7388,6 +7388,48 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`(() => { const s = document.getElementById('say-strip'); if (!s.hidden) document.getElementById('say-strip-dismiss').click(); return true; })()`);
         // The takes go, so the recording tests later start from none, as they expect.
         await rm(join(userData, 'Recordings'), { recursive: true, force: true });
+      }
+    }, 120_000);
+  });
+
+  describe('known as well as owned (milestone 32)', () => {
+    it('lists everything a stock library\'s catalog names, the files not on this computer grayed out', async () => {
+      await writeCatalogFixture(stockDir);
+      const card = (name: string) => page.eval<{ missing: boolean; badge: boolean; opacity: number; filter: string } | null>(`(() => {
+        const li = [...document.querySelectorAll('#results li[data-id]')].find((l) => l.querySelector('.name')?.textContent === ${JSON.stringify(name)});
+        if (!li) return null;
+        const cs = getComputedStyle(li);
+        // The words are on the badge in the grid, and on the name's tooltip in either view.
+        return { missing: li.classList.contains('missing'), badge: (li.querySelector('.name')?.dataset.tip ?? '').includes('Not on this computer'), opacity: Number(cs.opacity), filter: cs.filter };
+      })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // What is here and what is missing, side by side.
+        await fire('#search', 'whoosh', 'input');
+        await until(async () => (await card('Whoosh Hard')) !== null && (await card('Whoosh Soft')) !== null, 'both whooshes listed', 30_000);
+        const hard = (await card('Whoosh Hard'))!;
+        const soft = (await card('Whoosh Soft'))!;
+        expect(hard.missing && hard.badge, 'the missing one marked').toBe(true);
+        expect(hard.opacity, 'grayed out').toBeLessThan(0.6);
+        expect(hard.filter).toContain('grayscale');
+        expect(soft.missing || soft.badge, 'the one on this computer is not').toBe(false);
+        expect(soft.opacity).toBe(1);
+
+        // Chosen, it says plainly that it is not here.
+        await page.eval(`[...document.querySelectorAll('#results li[data-id]')].find((l) => l.querySelector('.name')?.textContent === 'Whoosh Hard').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('preview-empty').textContent.includes('not on this computer')`), 'the stage saying it is missing');
+
+        // The library says how much of it is missing.
+        await fire('#search', '', 'input');
+        await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node="stock"]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+        await until(() => page.eval<boolean>(`([...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(stockDir)})?.dataset.tip ?? '').includes('2 are listed by its catalog but not on this computer')`), 'the library\'s count of what is missing');
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+        await rm(join(stockDir, 'catalog.csv'), { force: true });
       }
     }, 120_000);
   });

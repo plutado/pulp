@@ -542,4 +542,11 @@ export const library = {
   'info.row.paired-sound': 'Sound',
   'info.value.paired-sound': 'A sound effect made for this clip plays with it, wherever it is placed or rendered',
   'music.version.full': 'Full',
+  // ---------------------------------------------------------------- known but missing (milestone 32)
+  'results.summary.missing': '{name} — Not on this computer',
+  'results.badge.missing': 'Missing',
+  'results.badge.missing.tip': 'The library\'s catalog lists it, but its file is not on this computer',
+  'info.row.missing': 'Missing',
+  'info.value.missing': 'Listed in the library\'s catalog, but not on this computer. Put the file at {path} and it appears here',
+  'browse.stock.missing': { one: 'Of its {items} items, {count} is listed by its catalog but not on this computer.', other: 'Of its {items} items, {count} are listed by its catalog but not on this computer.' },
 } as const;

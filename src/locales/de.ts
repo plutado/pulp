@@ -2432,4 +2432,12 @@ export const de: Catalog = {
   'render.media.stems-failed': 'Die Stems des Titels ließen sich nicht mischen: {reason}',
   'music.version.full': 'Vollständig',
   'ui.say-strip-dismiss.aria-label': 'Diese Meldung schließen',
+  // ---------------------------------------------------------------- known but missing (milestone 32)
+  'results.summary.missing': '{name} — Nicht auf diesem Computer',
+  'results.badge.missing': 'Fehlt',
+  'results.badge.missing.tip': 'Der Katalog der Bibliothek führt es auf, aber die Datei ist nicht auf diesem Computer',
+  'info.row.missing': 'Fehlt',
+  'info.value.missing': 'Im Katalog der Bibliothek aufgeführt, aber nicht auf diesem Computer. Legen Sie die Datei unter {path} ab, dann erscheint sie hier',
+  'stage.empty.file-missing': 'Diese Datei ist nicht auf diesem Computer: Der Katalog der Bibliothek führt sie nur auf.',
+  'browse.stock.missing': { one: 'Von ihren {items} Elementen führt der Katalog {count} auf, das nicht auf diesem Computer ist.', other: 'Von ihren {items} Elementen führt der Katalog {count} auf, die nicht auf diesem Computer sind.' },
 };

@@ -96,6 +96,7 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const fps = meta.fps ?? 25;
     rows.push({ label: tr('info.row.duration'), value: `${clockLabel(meta.duration)} · ${formatTimecode(Math.round(meta.duration * fps), fps)}`, icon: 'duration' });
   }
+  if (entry.missing) rows.push({ label: tr('info.row.missing'), value: tr('info.value.missing', { path: entry.path }), tone: 'warn' });
   // A track's cuts, a song's stems, a transition's sound (milestone 32).
   if (entry.versions?.length) rows.push({ label: tr('info.row.versions'), value: tr('info.value.versions', { lengths: entry.versions.map((v) => versionLabel(v.label, tr('music.version.full'))).join(' · ') }) });
   if (entry.stemParts?.length) rows.push({ label: tr('info.row.stems'), value: tr('info.value.stems', { stems: entry.stemParts.map((v) => v.label).join(' · ') }) });

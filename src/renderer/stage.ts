@@ -876,7 +876,7 @@ export function stageShowMedia(entry: MediaEntry): void {
   // Volume and mute are the player's, not each file's.
   applyPlayer();
   if (entry.offline) {
-    bindText(els.previewEmpty, 'stage.empty.file-offline');
+    bindText(els.previewEmpty, entry.missing ? 'stage.empty.file-missing' : 'stage.empty.file-offline');
     return;
   }
   els.previewEmpty.hidden = true;

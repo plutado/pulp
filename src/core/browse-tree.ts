@@ -139,7 +139,7 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
       scope: { label: l.name, root, kind: 'stock' as const },
       // What a person needs to hear about a library on a drive that is not there: which drive, and that nothing is lost.
       get description() {
-        if (l.online) return tr('browse.stock.online', { path: l.path });
+        if (l.online) return l.missing ? `${tr('browse.stock.online', { path: l.path })} ${tr('browse.stock.missing', { count: l.missing, items: l.items })}` : tr('browse.stock.online', { path: l.path });
         // The whole library, whatever a search narrows the row's count to.
         return l.drive ? tr('browse.stock.offline.drive', { drive: l.drive, count: l.items }) : tr('browse.stock.offline.folder', { path: l.path, count: l.items });
       },

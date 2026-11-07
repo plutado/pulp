@@ -203,7 +203,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
@@ -253,6 +253,8 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
+  // Listed by the library's catalog, not on this computer (milestone 32).
+  if (entry.kind === 'media' && entry.missing) badges.push({ id: 'missing', label: tr('results.badge.missing'), tip: tr('results.badge.missing.tip') });
   // Music and sound effects in a stock library (milestone 32).
   if (entry.kind === 'media' && entry.versions?.length) badges.push({ id: 'versions', label: tr('results.badge.versions', { count: entry.versions.length }), tip: tr('results.badge.versions.tip', { lengths: entry.versions.map((v) => versionLabel(v.label, tr('music.version.full'))).join(', ') }) });
   if (entry.kind === 'media' && entry.stemParts?.length) badges.push({ id: 'stems', label: tr('results.badge.stems', { count: entry.stemParts.length }), tip: tr('results.badge.stems.tip', { stems: entry.stemParts.map((v) => v.label).join(', ') }) });

@@ -23,10 +23,12 @@ import { isLottieCandidate } from './lottie';
 import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { groupClipSets } from './clip-set';
+import { CATALOG_FILES, parseCatalog } from './library-catalog';
 import { groupMusicVersions, groupStems, pairTransitionSounds } from './music-groups';
 import { listZipFile, unpackedPath } from './zip-archive';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
 import { inferMediaType, inferMoods, inferThemes } from './taxonomy';
+import { normalizeTag } from './tags';
 import type { MediaLookup } from './media-serve';
 import type { MediaMetadata } from './media-meta';
 import { thumbUrlFor, wantsThumbnail } from './thumbnails';
@@ -713,6 +715,50 @@ export class LibraryStore {
 
       await walk(rootPath, 0);
 
+      // The library's own catalog (milestone 32): everything it lists whose file is not here is a
+      // known but missing item, so the whole collection is seen, and what is missing from it.
+      for (const catalogName of CATALOG_FILES) {
+        const catalogPath = join(rootPath, catalogName);
+        let catalogInfo;
+        let rows;
+        try {
+          catalogInfo = await stat(catalogPath);
+          rows = parseCatalog(await readFile(catalogPath, 'utf8'), catalogName);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') problems.push({ path: catalogPath, message: `could not read the library's catalog: ${(err as Error).message}` });
+          continue;
+        }
+        for (const row of rows) {
+          const full = join(rootPath, ...row.path.split('/'));
+          const kind = mediaKindForPath(full);
+          if (!kind) continue;
+          const key = itemKey('media', full, this.builtInRoot);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          stats.visited += 1;
+          const stored = existing.get(key);
+          if (stored && stored.mtime_ms === catalogInfo.mtimeMs && (JSON.parse(stored.entry) as MediaEntry).missing) {
+            stats.kept += 1;
+            continue;
+          }
+          stats.loaded += 1;
+          const segments = [...new Set([...folderTags(rootPath, dirname(full)), ...row.keywords.map(normalizeTag).filter(Boolean)])];
+          const inferredType = inferMediaType(kind, segments);
+          const inferredThemes = inferThemes(segments);
+          const inferredMoods = inferMoods(segments);
+          const media: MediaEntry = {
+            kind: 'media', key, id: itemId(key), path: full, root: rootPath,
+            name: row.name ?? basename(full, extname(full)), mediaKind: kind, ext: extname(full).toLowerCase(),
+            size: 0, mtimeMs: catalogInfo.mtimeMs, tags: segments, missing: true,
+            ...(inferredType ? { type: inferredType } : {}),
+            ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+            ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
+          };
+          upserts.push({ key, kind: 'media', size: 0, mtimeMs: catalogInfo.mtimeMs, entry: media });
+        }
+        break;
+      }
+
       this.db.exec('BEGIN');
       try {
         const upsert = this.db.prepare(
@@ -786,7 +832,8 @@ export class LibraryStore {
     const duplicates: LibraryProblem[] = [];
     for (const row of rows) {
       const entry = JSON.parse(row.entry) as LibraryEntry;
-      if (offline.has(row.root)) entry.offline = true;
+      // A missing item is refused everywhere an offline one is (milestone 32).
+      if (offline.has(row.root) || (entry.kind === 'media' && entry.missing)) entry.offline = true;
       const t = thumbByKey.get(row.key);
       if (t && t.size === row.size && t.mtime_ms === row.mtime_ms) entry.thumbnail = thumbUrlFor(row.id);
       // The base themes come with the entry: the manifest's for templates, the folders' for media.
@@ -857,7 +904,7 @@ export class LibraryStore {
       .prepare(
         'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
           'LEFT JOIN media_meta ON media_meta.key = items.key AND media_meta.size = items.size AND media_meta.mtime_ms = items.mtime_ms ' +
-          "WHERE items.kind = 'media' AND roots.online = 1 AND media_meta.key IS NULL ORDER BY items.rowid LIMIT ?",
+          "WHERE items.kind = 'media' AND roots.online = 1 AND media_meta.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL ORDER BY items.rowid LIMIT ?",
       )
       .all(limit) as unknown as { entry: string }[];
     return rows.map((r) => JSON.parse(r.entry) as MediaEntry);
@@ -879,7 +926,7 @@ export class LibraryStore {
       .prepare(
         'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
           'LEFT JOIN thumbs ON thumbs.key = items.key AND thumbs.size = items.size AND thumbs.mtime_ms = items.mtime_ms ' +
-          'WHERE roots.online = 1 AND thumbs.key IS NULL ORDER BY items.rowid LIMIT ?',
+          "WHERE roots.online = 1 AND thumbs.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL ORDER BY items.rowid LIMIT ?",
       )
       .all(limit * 2) as unknown as { entry: string }[];
     return rows.map((r) => JSON.parse(r.entry) as LibraryEntry).filter(wantsThumbnail).slice(0, limit);

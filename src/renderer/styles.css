@@ -670,6 +670,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results .card:hover, .results .row:hover { background: var(--panel-2); }
 .results li[aria-selected="true"] { background: var(--panel-2); outline: 1px solid var(--accent); }
 .results li.offline { opacity: 0.55; }
+/* Known from the library's catalog but not on this computer (milestone 32): grayed out, its picture
+   a well, so what is here and what is missing read apart at a glance. */
+.results li.missing { opacity: 0.45; filter: grayscale(1); }
 .results .spacer { grid-column: 1 / -1; }
 .results .meta.empty { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--font-caption); }
 /* Nothing here: outlines where cards would be, and the reason over them. The outlines are a hint

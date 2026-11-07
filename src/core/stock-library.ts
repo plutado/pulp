@@ -29,6 +29,8 @@ export interface StockLibraryState extends StockLibrary {
   drive?: string;
   /** How many items Pulp knows in it, reachable or not. */
   items: number;
+  /** How many of them its catalog lists but are not on this computer (milestone 32). */
+  missing?: number;
 }
 
 /** Read back from settings.json: only well-formed entries, each path once. */

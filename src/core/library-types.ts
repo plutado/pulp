@@ -110,6 +110,12 @@ export interface MediaEntry {
    * stems, placed as one audio layer whose stems switch on and off. `pairedSound` is the id of a
    * sound made for this clip — a transition's whoosh — which plays with it.
    */
+  /**
+   * Known but not on this computer (milestone 32): listed by the library's own catalog, its file
+   * not there. Shown grayed out, refused for use as an offline item is (the index flags it
+   * offline too), and the same item — same key — once the file arrives.
+   */
+  missing?: true;
   partOf?: string;
   versions?: { id: string; label: string; seconds?: number }[];
   stemParts?: { id: string; label: string }[];

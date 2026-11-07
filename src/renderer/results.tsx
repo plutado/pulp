@@ -61,7 +61,7 @@ function optionId(entry: LibraryEntry): string {
 const viewport = signal({ width: 0, height: 0 });
 const scrollTop = signal(0);
 
-const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package', sound: 'speaker-high', 'clip-set': 'repeat', archive: 'package', versions: 'clock', stems: 'stack' };
+const BADGE_ICONS: Partial<Record<BadgeId, IconName>> = { alpha: 'checkerboard', loop: 'repeat', vertical: 'device-mobile', square: 'square', pack: 'package', sound: 'speaker-high', 'clip-set': 'repeat', archive: 'package', missing: 'question', versions: 'clock', stems: 'stack' };
 
 /** The words as outlined tags, then the icons in a group of their own (milestone 66). */
 function Badges({ badges }: { badges: ResultBadge[] }) {
@@ -102,14 +102,15 @@ interface ItemProps {
 function summary(entry: LibraryEntry): string {
   const { name, meta } = entryLabel(entry);
   const tags = entry.tags.length ? ` · ${entry.tags.map(tagLabel).join(', ')}` : '';
-  return (entry.offline ? t('results.summary.offline', { name, meta }) : t('results.summary', { name, meta })) + tags;
+  const missing = entry.kind === 'media' && entry.missing;
+  return (missing ? t('results.summary.missing', { name }) : entry.offline ? t('results.summary.offline', { name, meta }) : t('results.summary', { name, meta })) + tags;
 }
 
 function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio: number }) {
   return (
     <li
       id={optionId(entry)}
-      class={`card${entry.offline ? ' offline' : ''}`}
+      class={`card${entry.offline ? ' offline' : ''}${entry.kind === 'media' && entry.missing ? ' missing' : ''}`}
       role="option"
       data-id={entry.id}
       data-kind={entry.kind}
@@ -142,7 +143,7 @@ function Row({ entry, selected, onSelect }: ItemProps) {
   return (
     <li
       id={optionId(entry)}
-      class={`row${entry.offline ? ' offline' : ''}`}
+      class={`row${entry.offline ? ' offline' : ''}${entry.kind === 'media' && entry.missing ? ' missing' : ''}`}
       role="option"
       data-id={entry.id}
       data-kind={entry.kind}
