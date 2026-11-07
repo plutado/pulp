@@ -2431,4 +2431,5 @@ export const de: Catalog = {
   'render.media.stems-missing': 'Die Stems des Titels sind nicht in der Bibliothek.',
   'render.media.stems-failed': 'Die Stems des Titels ließen sich nicht mischen: {reason}',
   'music.version.full': 'Vollständig',
+  'ui.say-strip-dismiss.aria-label': 'Diese Meldung schließen',
 };

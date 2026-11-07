@@ -7343,6 +7343,55 @@ describe.skipIf(!electron)('inspector UI', () => {
     }
   });
 
+  describe('a message said while the tray is hidden', () => {
+    it('shows it over the window — a finished recording, with the tray away — and on the tray\'s own line once the tray is there', async () => {
+      const strip = () => page.eval<{ hidden: boolean; text: string; error: boolean }>(`(() => { const s = document.getElementById('say-strip'); return { hidden: s.hidden, text: document.getElementById('say-strip-text').textContent, error: s.classList.contains('error') }; })()`);
+      const pressed = () => page.eval<boolean>(`document.getElementById('record-audio').getAttribute('aria-pressed') === 'true'`);
+      /** One short take, start to saved: the message lands wherever this test is looking. */
+      const record = async () => {
+        await page.eval(`document.getElementById('record-audio').click()`);
+        await until(pressed, 'the recorder listening');
+        await until(() => page.eval<string>(`document.getElementById('rec-time').textContent`).then((t0) => t0 >= '0:01'), 'a second on tape');
+        await page.eval(`document.getElementById('rec-stop').click()`);
+        await until(async () => !(await pressed()), 'the recorder stopped');
+      };
+      try {
+        // Nothing collected and nothing queued: the tray takes no room at all (milestone 42), and
+        // its line of status is not in the window to carry what the recorder says.
+        await fire('#search', '', 'input');
+        await page.eval(`[...document.querySelectorAll('#collection .collection-card button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        await until(() => page.eval<boolean>(`document.getElementById('app').classList.contains('tray-empty')`), 'the tray out of the window');
+
+        await record();
+        await until(async () => !(await strip()).hidden, 'the message over the window');
+        expect((await strip()).text).toMatch(/^Recorded 0:0\d into Recordings\.$/);
+        expect((await strip()).error, 'a confirmation, not an error').toBe(false);
+        expect(await page.eval<boolean>(`document.getElementById('say-strip').checkVisibility()`), 'really visible, not a hidden element\'s text').toBe(true);
+        // Dismissed, it goes (a confirmation would also fade by itself, as the tray\'s line does).
+        await page.eval(`document.getElementById('say-strip-dismiss').click()`);
+        await until(async () => (await strip()).hidden, 'dismissed');
+
+        // With the tray in the window and open, the same message lands on its own line; no strip.
+        await clickResult('Lower Third Bar');
+        await until(() => page.eval<boolean>(`!document.getElementById('add-to-collection').disabled`), 'the add button');
+        await page.eval(`document.getElementById('add-to-collection').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-empty')`), 'the tray in the window');
+        await page.eval(`(() => { if (document.getElementById('app').classList.contains('tray-collapsed')) document.getElementById('tray-toggle').click(); return true; })()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('app').classList.contains('tray-collapsed')`), 'the tray open');
+        await record();
+        await until(() => page.eval<boolean>(`/^Recorded 0:0\\d into Recordings\\.$/.test(document.getElementById('collection-note').textContent)`), "the tray's own line carrying it");
+        expect((await strip()).hidden, 'no second copy over the window').toBe(true);
+      } finally {
+        await page.eval(`(() => { if (document.getElementById('record-audio').getAttribute('aria-pressed') === 'true') document.getElementById('rec-stop').click(); return true; })()`);
+        await page.eval(`[...document.querySelectorAll('#collection .collection-card button[aria-label="Remove from the collection"]')].forEach((b) => b.click())`);
+        await page.eval(`(() => { const s = document.getElementById('say-strip'); if (!s.hidden) document.getElementById('say-strip-dismiss').click(); return true; })()`);
+        // The takes go, so the recording tests later start from none, as they expect.
+        await rm(join(userData, 'Recordings'), { recursive: true, force: true });
+      }
+    }, 120_000);
+  });
+
   describe('zipped downloads (milestone 32)', () => {
     it('browses a zip without unpacking it, previews a file from it, and unpacks only that file when it is used', async () => {
       const zip = join(stockDir, 'Downloads', 'Motion Pack.zip');

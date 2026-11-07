@@ -465,6 +465,13 @@
       <button id="rec-dismiss" type="button" data-i18n="ui.rec-dismiss"></button>
     </span>
   </div>
+  <!-- The collection tray's line of status, shown over the window while the line itself is not in
+       it — the tray takes no room while empty (milestone 42) and collapsed shows only its head —
+       so a message said then (a recording that failed to save) is still read. -->
+  <div id="say-strip" class="say-strip" role="status" hidden>
+    <span id="say-strip-text" class="say-strip-text"></span>
+    <button id="say-strip-dismiss" type="button" class="icon-button" data-icon="x" data-icon-size="14" data-i18n-attr="aria-label:ui.say-strip-dismiss.aria-label"></button>
+  </div>
   <section id="start-screen" class="start-screen" hidden data-i18n-attr="aria-label:ui.start-screen.aria-label">
     <div class="start-inner">
       <header class="start-head">

@@ -286,6 +286,7 @@ export const markup = {
   'ui.rec-stop': 'Stop',
   'ui.rec-open-settings': 'Open Settings',
   'ui.rec-dismiss': 'Close',
+  'ui.say-strip-dismiss.aria-label': 'Dismiss this message',
   'ui.start-screen.aria-label': 'Home',
   'ui.start-screen.pulp': 'Pulp',
   'ui.start-screen.browse-customize-and-render-motion': 'Browse, customize and render motion-graphics templates.',

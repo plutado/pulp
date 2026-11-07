@@ -1610,6 +1610,20 @@ progress { width: 100%; margin: 2px 0; }
 .rec-strip button { padding: 2px 10px; border-radius: 10px; }
 .rec-denied { color: var(--text-secondary); max-width: 480px; }
 
+/* The tray's one line of status while that line is not in the window (an empty tray takes no
+   room, a collapsed one shows only its head): the same strip the recorder uses, under its spot
+   when both are up. A confirmation fades as the tray's line does; an error stays until dismissed,
+   replaced, or the tray's own line is back to carry it. */
+.say-strip { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 59;
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  max-width: min(680px, calc(100vw - 24px));
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 8px 24px var(--shadow-strong); }
+.say-strip[hidden] { display: none; }
+.say-strip-text { color: var(--text-secondary); }
+.say-strip.error .say-strip-text { color: var(--danger); }
+.say-strip.error { border-color: var(--danger); }
+#rec-strip:not([hidden]) + .say-strip { top: 52px; }
+
 /* ---------------------------------------------------------------- recording from a camera (milestone 64) */
 
 #record-video[aria-pressed="true"] { color: var(--danger); border-color: var(--danger); }

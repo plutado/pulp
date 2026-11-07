@@ -12,7 +12,7 @@ import { setCollection, setEditing, initialAppState } from '../../src/core/app-s
 import { NOTE_MS } from '../../src/core/tray-note';
 import type { TemplateEntry } from '../../src/core/library-types';
 import { validManifest } from '../fixtures';
-import { initCollection } from '../../src/renderer/tray';
+import { initCollection, sayInTray } from '../../src/renderer/tray';
 import { appState } from '../../src/renderer/store';
 
 function template(key: string): TemplateEntry {
@@ -20,6 +20,8 @@ function template(key: string): TemplateEntry {
 }
 
 const MARKUP = `
+  <div id="app" class="app"></div>
+  <div id="say-strip" hidden><span id="say-strip-text"></span></div>
   <progress id="tray-progress"></progress>
   <button id="collection-render"></button>
   <button id="collection-apply"></button>
@@ -96,5 +98,53 @@ describe('the collection tray\'s status line', () => {
     expect(note().textContent, 'one left, and the message is stale').toBe('');
     appState.value = setCollection(appState.value, emptyCollection);
     expect(note().textContent, 'nothing collected: only the summary speaks').toBe('');
+  });
+});
+
+/**
+ * The same line while it is not in the window (the tray away, or collapsed to its head): the
+ * message shows in a strip over the window instead, with the line's own manners.
+ */
+describe('a message said while the tray\'s line is not in the window', () => {
+  const strip = () => document.getElementById('say-strip')!;
+  const app = () => document.getElementById('app')!;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = MARKUP;
+    appState.value = initialAppState;
+    initCollection();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows over the window only while the line is away, and says the same words', () => {
+    sayInTray('Saved.');
+    expect(strip().hidden, 'the line is in the window: no second copy').toBe(true);
+    app().classList.add('tray-empty');
+    sayInTray('Recorded 0:02 into Recordings.');
+    expect(strip().hidden).toBe(false);
+    expect(strip().textContent).toContain('Recorded 0:02 into Recordings.');
+    expect(strip().classList.contains('error')).toBe(false);
+  });
+
+  it('fades a confirmation, keeps an error, and covers the collapsed tray too', () => {
+    app().classList.add('tray-collapsed');
+    sayInTray('Done.');
+    vi.advanceTimersByTime(6100);
+    expect(strip().hidden, 'a confirmation gets out of the way').toBe(true);
+    sayInTray('The recording could not be saved: disk full', true);
+    expect(strip().classList.contains('error')).toBe(true);
+    vi.advanceTimersByTime(60_000);
+    expect(strip().hidden, 'an error waits to be read').toBe(false);
+  });
+
+  it('goes the moment the tray\'s own line is back to carry the message', () => {
+    app().classList.add('tray-empty');
+    sayInTray('The recording could not be saved: disk full', true);
+    expect(strip().hidden).toBe(false);
+    app().classList.remove('tray-empty');
+    vi.advanceTimersByTime(600);
+    expect(strip().hidden).toBe(true);
   });
 });

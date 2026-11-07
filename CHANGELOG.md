@@ -8,6 +8,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **A message said while the collection tray is hidden is now seen.** The tray's one line of status carried every such message — a recording that failed to save, a project note, a refusal — but an empty tray takes no room and a collapsed one shows only its head, so the words went unread. Said then, the message now shows in a strip over the window (where the recording strip sits), with the same manners: a confirmation fades, an error stays until dismissed or until the tray's own line is back to carry it.
+- **Adding the same stock library twice in quick succession could add it twice.** Both adds read the settings before either wrote them; the write now checks again.
+
 - **A camera take begins the moment Record is pressed.** It used to wait for Pulp to open the take's file first, which lost the take's first moments, and a Stop pressed within that half second on a slow machine dropped the recording with nothing said. Seen on Windows CI as a silent take that was never saved. Escape on the camera preview now turns the camera off at the key.
 
 - **A voice recording appears in Recordings only once it is whole.** The take was written straight into the folder, and on Windows a file written in place is listed before its bytes are, so the library's watcher (and the end-to-end test, on Windows CI) could read a WAV whose header was not there yet. It is written to a hidden partial file and renamed into place, as a camera take already was.

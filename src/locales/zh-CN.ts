@@ -2430,4 +2430,5 @@ export const zhCN: Catalog = {
   'render.media.stems-missing': '该曲目的分轨不在素材库中。',
   'render.media.stems-failed': '无法混合该曲目的分轨：{reason}',
   'music.version.full': '完整版',
+  'ui.say-strip-dismiss.aria-label': '关闭此消息',
 };

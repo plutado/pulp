@@ -80,6 +80,49 @@ export function sayInTray(text: string, isError = false): void {
   trayNote(text, isError);
 }
 
+// ---------------------------------------------------------------- the line while the tray is away
+
+/**
+ * Whether the tray's own note line is in the window: the tray takes no room while empty
+ * (milestone 42), and collapsed it shows only its head. The shell keeps these classes current.
+ */
+function noteLineVisible(): boolean {
+  const app = document.getElementById('app');
+  return app !== null && !app.classList.contains('tray-empty') && !app.classList.contains('tray-collapsed');
+}
+
+let stripTimer: ReturnType<typeof setTimeout> | undefined;
+let stripWatch: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * The same note over the window, in the recorder strip's spot, while the tray's line is not there
+ * to carry it. It follows the line's own rules (src/core/tray-note.ts): a confirmation fades, an
+ * error waits — here for its dismiss button, a message that replaces it, or the tray's line coming
+ * back, which the strip watches for since collecting an item or expanding the tray brings it.
+ */
+function sayInStrip(note: TrayNote): void {
+  const strip = $('say-strip');
+  clearTimeout(stripTimer);
+  clearInterval(stripWatch);
+  if (note.kind === 'none') {
+    strip.hidden = true;
+    return;
+  }
+  strip.classList.toggle('error', note.kind === 'error');
+  $('say-strip-text').textContent = note.text;
+  strip.hidden = false;
+  if (noteFades(note)) stripTimer = setTimeout(hideStrip, NOTE_MS);
+  stripWatch = setInterval(() => {
+    if (noteLineVisible()) hideStrip();
+  }, 500);
+}
+
+function hideStrip(): void {
+  clearTimeout(stripTimer);
+  clearInterval(stripWatch);
+  $('say-strip').hidden = true;
+}
+
 /** The collection's own actions: Render all, Apply to all, Open and Save. */
 export function initCollection(): void {
   mountCollection($('collection'));
@@ -98,7 +141,11 @@ export function initCollection(): void {
   };
   const say = (text: string, bad = false) => {
     noteFor = appState.value.collection;
-    paint(sayNote(text, bad));
+    const next = sayNote(text, bad);
+    paint(next);
+    // Said while the line itself is not in the window: over the window instead, or nobody reads it.
+    if (noteLineVisible()) hideStrip();
+    else sayInStrip(next);
   };
   // The project's messages land on the same line: it is the one place in the window that already
   // says what happened to a file (milestone 27).
@@ -196,6 +243,7 @@ function initDropTarget(onDrop: (id: string) => void): void {
 
 export function initTray(onDropItem: (id: string) => void): void {
   mountQueue($('queue'));
+  $('say-strip-dismiss').addEventListener('click', hideStrip);
   initCollection();
   initDropTarget(onDropItem);
   initDragNotice();

@@ -736,7 +736,8 @@ export async function addStockLibrary(path: string): Promise<{ ok: true; index: 
   const allowed = canAddLibrary(path, settings.stockLibraries, ownFolders());
   if (!allowed.ok) return allowed;
   const library: StockLibrary = { path, name: defaultLibraryName(path), addedAt: new Date().toISOString() };
-  await updateSettings((s) => ({ ...s, stockLibraries: [...s.stockLibraries, library] }));
+  // Checked again inside the write: two quick adds both read the settings before either wrote them.
+  await updateSettings((s) => (s.stockLibraries.some((l) => samePlace(l.path, path)) ? s : { ...s, stockLibraries: [...s.stockLibraries, library] }));
   return { ok: true, index: await rescan() };
 }
 
