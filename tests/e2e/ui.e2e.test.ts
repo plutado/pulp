@@ -7371,9 +7371,13 @@ describe.skipIf(!electron)('inspector UI', () => {
         await openTab('output');
         await optLength('3');
         await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        // The single set's test before this one rendered a Swoosh too, and its card can still be in the
+        // queue when this one starts; wait for a render that was not there before.
+        const swooshRenders = `[...document.querySelectorAll('#queue .job-card[draggable="true"]')].filter((c) => c.querySelector('.job-name').textContent === 'Swoosh').map((c) => c.dataset.file)`;
+        const before = await page.eval<string[]>(swooshRenders);
         await page.eval(`document.getElementById('drag-prepare').click()`);
-        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Swoosh')`), 'the render of the set', 90_000);
-        const file = await page.eval<string>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => c.querySelector('.job-name').textContent === 'Swoosh').dataset.file`);
+        await until(async () => (await page.eval<string[]>(swooshRenders)).some((f) => !before.includes(f)), 'the render of the set', 90_000);
+        const file = (await page.eval<string[]>(swooshRenders)).find((f) => !before.includes(f))!;
         const pixels = (x: number, y: number) => {
           const run = spawnSync(ffmpeg.path, ['-v', 'error', '-i', file, '-vf', `fps=10,crop=1:1:${x}:${y},format=rgb24`, '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 64 * 1024 * 1024 });
           const out: number[][] = [];
@@ -7534,6 +7538,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         }, 'the results narrowed to the section');
       } finally {
         await fire('#search', '', 'input');
+        // The section chosen above scopes the results; later tests list into the whole library.
+        await page.eval(`(() => { if (!document.getElementById('scope-chip').hidden) document.getElementById('scope-chip-clear').click(); return true; })()`);
         await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
         await rm(join(stockDir, 'catalog.csv'), { force: true });
       }
