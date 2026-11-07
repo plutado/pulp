@@ -6,7 +6,7 @@
 
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { encodePng } from '../src/core/png';
 
@@ -71,7 +71,8 @@ export async function snapshotTree(root: string): Promise<Record<string, string>
     for (const name of (await readdir(dir)).sort()) {
       const path = join(dir, name);
       const info = await stat(path);
-      const key = relative(root, path);
+      // The same on every platform: Windows' own separator would otherwise be in the keys.
+      const key = relative(root, path).split(sep).join('/');
       if (info.isDirectory()) {
         out[`${key}/`] = 'dir';
         await walk(path);
