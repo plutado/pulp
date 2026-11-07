@@ -14,6 +14,7 @@
  * set are kept in settings.json.
  */
 
+import { unreadableNote } from '../core/unreadable-media';
 import { templateDefaultSize } from '../core/aspect';
 import { imageGrantKey, imageGrantRequests, imageRequestKey, imageRequests, imageSlots } from '../core/image-slot';
 import { blockStates, layerClipChoices, layerImageChoices, type BlockState } from '../core/layer-layout';
@@ -875,6 +876,22 @@ export function stageShowMedia(entry: MediaEntry): void {
   loudnessClear();
   // Volume and mute are the player's, not each file's.
   applyPlayer();
+  if (entry.unreadable) {
+    // What Pulp cannot open: its note in words, and its preview where it has one (milestone 32).
+    delete els.previewEmpty.dataset.i18n;
+    els.previewEmpty.textContent = unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext);
+    els.previewEmpty.hidden = false;
+    els.previewEmpty.classList.add('unreadable-note');
+    if (entry.thumbnail) {
+      els.mediaImage.hidden = false;
+      els.mediaImage.onload = () => setPreviewShape(els.mediaImage.naturalWidth || 16, els.mediaImage.naturalHeight || 9);
+      els.mediaImage.src = entry.thumbnail;
+      s.still = true;
+      updateTransport();
+    }
+    return;
+  }
+  els.previewEmpty.classList.remove('unreadable-note');
   if (entry.offline) {
     bindText(els.previewEmpty, entry.missing ? 'stage.empty.file-missing' : 'stage.empty.file-offline');
     return;

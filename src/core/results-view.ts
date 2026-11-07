@@ -6,6 +6,7 @@
  * stylesheet sizes cards from these numbers rather than the other way round.
  */
 
+import { unreadableNote } from './unreadable-media';
 import { versionLabel } from './music-groups';
 import { entryLabel } from './app-state';
 import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
@@ -203,7 +204,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing' | 'unreadable';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
@@ -253,6 +254,8 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
+  // A file Pulp cannot read, listed with what it needs (milestone 32).
+  if (entry.kind === 'media' && entry.unreadable) badges.push({ id: 'unreadable', label: tr('results.badge.unreadable'), tip: unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext) });
   // Listed by the library's catalog, not on this computer (milestone 32).
   if (entry.kind === 'media' && entry.missing) badges.push({ id: 'missing', label: tr('results.badge.missing'), tip: tr('results.badge.missing.tip') });
   // Music and sound effects in a stock library (milestone 32).

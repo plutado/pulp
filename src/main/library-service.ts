@@ -17,6 +17,7 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import { clipSetNaturalSeconds } from '../core/clip-set';
+import { listZipFile, readZipMember } from '../core/zip-archive';
 import { browsable, browsableFile, unpackForUse, whenUnpacked } from './archive-service';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
@@ -349,6 +350,19 @@ async function generatePendingThumbnails(): Promise<void> {
         try {
           // A turn per item, not for the whole queue, so a hover-scrub strip can get in between.
           ok = await heavyWork(async () => {
+            // A file Pulp cannot read shows its preview (milestone 32): a picture or clip beside it,
+            // or the thumbnail inside it; read for the poster only, never written into the library.
+            if (entry.kind === 'media' && entry.unreadable?.preview) {
+              const preview = entry.unreadable.preview;
+              if ('file' in preview) {
+                const result = await nodeRunner(ffmpegPath!, mediaThumbArgs(preview.file, out, undefined, /\.(mp4|mov|m4v|webm)$/i.test(preview.file)));
+                return result.code === 0 && existsSync(out);
+              }
+              const member = (await listZipFile(preview.zip)).find((m) => m.name === preview.member);
+              if (!member) return false;
+              const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, null), await readZipMember(preview.zip, member));
+              return scaled.code === 0 && existsSync(out);
+            }
             if (entry.kind === 'media' && isLayeredPath(entry.path)) {
               // A layered file's thumbnail is its composite as the file shows it, shrunk like a poster (milestone 33).
               const read = await layeredFileFor(entry.path);

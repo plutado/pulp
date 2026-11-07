@@ -2,6 +2,7 @@
 
 import type { StockLibraryState } from './stock-library';
 import type { ClipSetFiles } from './clip-set';
+import type { UnreadablePreview } from './unreadable-media';
 import type { TemplateManifest, ValidationIssue } from './manifest';
 import type { MediaMetadata } from './media-meta';
 import type { MediaSequence } from './media-sequence';
@@ -116,6 +117,13 @@ export interface MediaEntry {
    * offline too), and the same item — same key — once the file arrives.
    */
   missing?: true;
+  /**
+   * A file Pulp cannot read (milestone 32) — a motion-graphics project, a disc image, camera raw —
+   * listed rather than skipped: `ext` names the format, whose note says what it needs
+   * (src/core/unreadable-media.ts), and `preview` what shows it, where something does. Refused for
+   * use as an offline item is (the index flags it offline).
+   */
+  unreadable?: { ext: string; preview?: UnreadablePreview };
   partOf?: string;
   versions?: { id: string; label: string; seconds?: number }[];
   stemParts?: { id: string; label: string }[];

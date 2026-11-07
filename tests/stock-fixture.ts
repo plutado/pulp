@@ -181,3 +181,23 @@ export async function writeCatalogFixture(root: string, format: 'csv' | 'json' =
   const quote = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
   await writeFile(join(root, 'catalog.csv'), ['Path,Name,Keywords', ...rows.map((r) => [r.path, r.name, r.keywords].map(quote).join(','))].join('\r\n') + '\r\n');
 }
+
+/**
+ * Files Pulp cannot read, as a stock library holds them beside its media (milestone 32): an After
+ * Effects project with a poster beside it, a Motion Graphics template carrying its own thumbnail
+ * (it is a zip), a disc image with nothing to show, and a readme that is not media at all. The
+ * project and the disc are a few bytes of nothing: their contents are never read.
+ */
+export async function writeUnreadableFixture(root: string): Promise<void> {
+  const { writeZip } = await import('../src/core/zip');
+  const dir = join(root, 'Projects');
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, 'Title Reveal.aep'), Buffer.from('not really an After Effects project'));
+  await writeFile(join(dir, 'Title Reveal.png'), stillPng(120, 40, 160));
+  await writeFile(join(dir, 'Lower Third.mogrt'), writeZip([
+    { name: 'definition.json', data: Buffer.from('{}') },
+    { name: 'thumb.png', data: stillPng(30, 160, 90) },
+  ]));
+  await writeFile(join(dir, 'Old Collection.iso'), Buffer.from('not really a disc'));
+  await writeFile(join(dir, 'Read Me.txt'), 'A synthetic test folder.\n');
+}

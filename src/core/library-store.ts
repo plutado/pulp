@@ -20,10 +20,10 @@ import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
 import { folderTags, itemId, itemKey, loadLottie, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
 import { isLottieCandidate } from './lottie';
-import { unreadableDesignNote } from './layered';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { groupClipSets } from './clip-set';
 import { CATALOG_FILES, parseCatalog } from './library-catalog';
+import { embeddedPreview, sidecarPreview, unreadableFormat, type UnreadablePreview } from './unreadable-media';
 import { groupMusicVersions, groupStems, pairTransitionSounds } from './music-groups';
 import { listZipFile, unpackedPath } from './zip-archive';
 import { PACK_FILENAME, parsePackManifest, slug } from './pack';
@@ -654,9 +654,54 @@ export class LibraryStore {
               } else problems.push(loaded);
               continue;
             }
-            // A design file Pulp does not read is named with the export that works, not skipped silently (milestone 33).
-            const note = unreadableDesignNote(entry.name, extname(entry.name));
-            if (note) problems.push({ path: full, message: note });
+            // A file Pulp cannot read is listed, not skipped (milestones 33 and 32): an item with a plain
+            // note of what it needs, and its preview where one exists — beside it, or inside it.
+            const format = unreadableFormat(entry.name);
+            if (!format) continue;
+            if (fileCount >= maxFiles) {
+              if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
+              truncated = true;
+              return;
+            }
+            fileCount += 1;
+            stats.visited += 1;
+            const ukey = itemKey('media', full, this.builtInRoot);
+            seen.add(ukey);
+            let uinfo;
+            try {
+              uinfo = await stat(full);
+            } catch (err) {
+              problems.push({ path: full, message: `could not stat file: ${(err as Error).message}` });
+              seen.delete(ukey);
+              continue;
+            }
+            const beside = sidecarPreview(entry.name, entries.filter((e) => e.isFile()).map((e) => e.name));
+            const ustored = existing.get(ukey);
+            const wasPreview = ustored ? (JSON.parse(ustored.entry) as MediaEntry).unreadable?.preview : undefined;
+            const sameBeside = beside ? wasPreview && 'file' in wasPreview && wasPreview.file === join(dir, beside) : !wasPreview || 'zip' in wasPreview;
+            if (ustored && ustored.size === uinfo.size && ustored.mtime_ms === uinfo.mtimeMs && sameBeside) {
+              stats.kept += 1;
+              continue;
+            }
+            stats.loaded += 1;
+            let preview: UnreadablePreview | undefined = beside ? { file: join(dir, beside) } : undefined;
+            if (!preview) {
+              // A zip-based format (a Motion Graphics template, a Sketch file) may carry its own thumbnail.
+              const inside = await listZipFile(full).then((ms) => embeddedPreview(ms.map((m) => m.name)), () => null);
+              if (inside) preview = { zip: full, member: inside };
+            }
+            const usegments = folderTags(rootPath, dir);
+            const uType = inferMediaType(format.kind, usegments);
+            const uThemes = inferThemes(usegments);
+            const umedia: MediaEntry = {
+              kind: 'media', key: ukey, id: itemId(ukey), path: full, root: rootPath,
+              name: basename(entry.name, extname(entry.name)), mediaKind: format.kind, ext: format.ext,
+              size: uinfo.size, mtimeMs: uinfo.mtimeMs, tags: usegments,
+              unreadable: { ext: format.ext, ...(preview ? { preview } : {}) },
+              ...(uType ? { type: uType } : {}),
+              ...(uThemes.length > 0 ? { themes: uThemes } : {}),
+            };
+            upserts.push({ key: ukey, kind: 'media', size: uinfo.size, mtimeMs: uinfo.mtimeMs, entry: umedia });
             continue;
           }
           if (fileCount >= maxFiles) {
@@ -833,7 +878,7 @@ export class LibraryStore {
     for (const row of rows) {
       const entry = JSON.parse(row.entry) as LibraryEntry;
       // A missing item is refused everywhere an offline one is (milestone 32).
-      if (offline.has(row.root) || (entry.kind === 'media' && entry.missing)) entry.offline = true;
+      if (offline.has(row.root) || (entry.kind === 'media' && (entry.missing || entry.unreadable))) entry.offline = true;
       const t = thumbByKey.get(row.key);
       if (t && t.size === row.size && t.mtime_ms === row.mtime_ms) entry.thumbnail = thumbUrlFor(row.id);
       // The base themes come with the entry: the manifest's for templates, the folders' for media.
@@ -904,7 +949,7 @@ export class LibraryStore {
       .prepare(
         'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
           'LEFT JOIN media_meta ON media_meta.key = items.key AND media_meta.size = items.size AND media_meta.mtime_ms = items.mtime_ms ' +
-          "WHERE items.kind = 'media' AND roots.online = 1 AND media_meta.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL ORDER BY items.rowid LIMIT ?",
+          "WHERE items.kind = 'media' AND roots.online = 1 AND media_meta.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL AND json_extract(items.entry, '$.unreadable') IS NULL ORDER BY items.rowid LIMIT ?",
       )
       .all(limit) as unknown as { entry: string }[];
     return rows.map((r) => JSON.parse(r.entry) as MediaEntry);
@@ -926,7 +971,7 @@ export class LibraryStore {
       .prepare(
         'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
           'LEFT JOIN thumbs ON thumbs.key = items.key AND thumbs.size = items.size AND thumbs.mtime_ms = items.mtime_ms ' +
-          "WHERE roots.online = 1 AND thumbs.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL ORDER BY items.rowid LIMIT ?",
+          "WHERE roots.online = 1 AND thumbs.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL AND (json_extract(items.entry, '$.unreadable') IS NULL OR json_extract(items.entry, '$.unreadable.preview') IS NOT NULL) ORDER BY items.rowid LIMIT ?",
       )
       .all(limit * 2) as unknown as { entry: string }[];
     return rows.map((r) => JSON.parse(r.entry) as LibraryEntry).filter(wantsThumbnail).slice(0, limit);

@@ -29,6 +29,7 @@ import { entryType } from './taxonomy';
 import { formatTimecode } from './timecode';
 import { lottieFormatLabel } from './lottie-types';
 import { tr } from './i18n';
+import { unreadableNote } from './unreadable-media';
 import { formatDateTime, formatNumber } from './locale-format';
 
 /** The sections of the panel, in the order they are shown; each named in the interface's language now (a getter). */
@@ -96,6 +97,8 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const fps = meta.fps ?? 25;
     rows.push({ label: tr('info.row.duration'), value: `${clockLabel(meta.duration)} · ${formatTimecode(Math.round(meta.duration * fps), fps)}`, icon: 'duration' });
   }
+  // A file Pulp cannot read: what it is, what it needs, and that the picture is only its preview (milestone 32).
+  if (entry.unreadable) rows.push({ label: tr('info.row.unreadable'), value: [unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext), entry.unreadable.preview ? tr('info.value.unreadable.preview') : ''].filter(Boolean).join(' '), tone: 'warn' });
   if (entry.missing) rows.push({ label: tr('info.row.missing'), value: tr('info.value.missing', { path: entry.path }), tone: 'warn' });
   // A track's cuts, a song's stems, a transition's sound (milestone 32).
   if (entry.versions?.length) rows.push({ label: tr('info.row.versions'), value: tr('info.value.versions', { lengths: entry.versions.map((v) => versionLabel(v.label, tr('music.version.full'))).join(' · ') }) });

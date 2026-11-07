@@ -24,7 +24,7 @@ import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writeUnreadableFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -5607,9 +5607,9 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => (await image()).src.includes('/composite?hide=') || /composite$/.test((await image()).src), 'the PDF recomposited');
       await until(async () => (await image()).loaded, 'the new PDF picture', 60_000);
 
-      // A Sketch file in the folder is named with the export that works, not skipped silently.
-      const problems = await page.eval<string[]>(`[...document.querySelectorAll('#library-summary .problem')].map((p) => p.textContent)`);
-      expect(problems.some((p) => p.includes('Sketch') && p.includes('export'))).toBe(true);
+      // A Sketch file in the folder is named with the export that works, not skipped silently — an
+      // item of its own since milestone 32, its note on the card rather than a line of problems.
+      expect(await onResult<string>('design', '(li) => li.classList.contains("unreadable") ? [...li.querySelectorAll(".badge")].map((b) => b.dataset.tip ?? b.title ?? "").join(" ") : ""')).toMatch(/Sketch file.*export its artboards/);
       await openTab('parameters');
     }, 180_000);
 
@@ -7432,6 +7432,56 @@ describe.skipIf(!electron)('inspector UI', () => {
         await rm(join(stockDir, 'catalog.csv'), { force: true });
       }
     }, 120_000);
+  });
+
+  describe('files Pulp cannot read (milestone 32)', () => {
+    it('lists them with a plain note of what they need and their preview, instead of skipping them', async () => {
+      await writeUnreadableFixture(stockDir);
+      const card = (name: string) => page.eval<{ badge: boolean; tip: string; pictured: boolean } | null>(`(() => {
+        const li = [...document.querySelectorAll('#results li[data-id]')].find((l) => l.querySelector('.name')?.textContent === ${JSON.stringify(name)} && l.classList.contains('unreadable'));
+        if (!li) return null;
+        const img = li.querySelector('img');
+        return { badge: li.classList.contains('unreadable'), tip: li.querySelector('.name')?.dataset.tip ?? '', pictured: !!img && img.naturalWidth > 0 };
+      })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // The project, the template and the disc are listed; the readme is not.
+        await fire('#search', 'title reveal', 'input');
+        await until(async () => (await card('Title Reveal')) !== null, 'the After Effects project listed', 30_000);
+        expect((await card('Title Reveal'))!.tip).toContain('Pulp cannot open this file');
+        await fire('#search', 'old collection', 'input');
+        await until(async () => (await card('Old Collection')) !== null, 'the disc image listed');
+        await fire('#search', 'read me', 'input');
+        await sleep(500);
+        expect(await resultNames(), 'a readme is not media').not.toContain('Read Me');
+
+        // Chosen: its preview on the stage, with the note in plain words over it. (Choosing also
+        // puts its thumbnail first, ahead of the fresh install's queue of bundled posters.)
+        const choose = (name: string) => page.eval(`[...document.querySelectorAll('#results li[data-id]')].find((l) => l.querySelector('.name')?.textContent === ${JSON.stringify(name)} && l.classList.contains('unreadable')).click()`);
+        await fire('#search', 'title reveal', 'input');
+        await until(async () => (await card('Title Reveal')) !== null, 'the project again');
+        await choose('Title Reveal');
+        await until(() => page.eval<boolean>(`document.getElementById('preview-empty').textContent.includes('is an After Effects project, which Pulp cannot open; render it from After Effects')`), 'the note on the stage');
+        // Its picture is its preview: the poster beside it, and the thumbnail inside the template.
+        await until(async () => (await card('Title Reveal'))?.pictured === true, 'the project pictured by its poster', 90_000);
+        await fire('#search', 'lower third', 'input');
+        await until(async () => (await card('Lower Third')) !== null, 'the template');
+        await choose('Lower Third');
+        await until(async () => (await card('Lower Third'))?.pictured === true, 'the template pictured by its own thumbnail', 90_000);
+        // On the stage, the preview shows with the note over it.
+        await fire('#search', 'title reveal', 'input');
+        await until(async () => (await card('Title Reveal')) !== null, 'the project once more');
+        await choose('Title Reveal');
+        await until(() => page.eval<boolean>(`(document.getElementById('media-image')?.naturalWidth ?? 0) > 0 && !document.getElementById('media-image').hidden && document.getElementById('preview-empty').classList.contains('unreadable-note')`), 'its preview on the stage under the note');
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+        await rm(join(stockDir, 'Projects'), { recursive: true, force: true });
+      }
+    }, 240_000);
   });
 
   describe('zipped downloads (milestone 32)', () => {
