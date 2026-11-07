@@ -19,12 +19,12 @@ describe('reading a catalog', () => {
   it('reads CSV with quotes, any column order and the usual column names', () => {
     expect(parseCsv('a,"b, c","d ""e"""\r\n1,2,3\n')).toEqual([['a', 'b, c', 'd "e"'], ['1', '2', '3']]);
     expect(parseCatalog('Title,File,Tags\n"Night, Sky",Backgrounds\\Night.png,night;stars\n', 'catalog.csv'))
-      .toEqual([{ path: 'Backgrounds/Night.png', name: 'Night, Sky', keywords: ['night', 'stars'] }]);
+      .toEqual([{ path: 'Backgrounds/Night.png', name: 'Night, Sky', keywords: ['night', 'stars'], category: [] }]);
   });
 
   it('reads JSON as an array or as items, keywords as a list or a string', () => {
-    expect(parseCatalog('[{"path":"a.png","keywords":"x, y"}]', 'catalog.json')).toEqual([{ path: 'a.png', keywords: ['x', 'y'] }]);
-    expect(parseCatalog('{"items":[{"file":"b.wav","title":"B","tags":["z"]}]}', 'catalog.json')).toEqual([{ path: 'b.wav', name: 'B', keywords: ['z'] }]);
+    expect(parseCatalog('[{"path":"a.png","keywords":"x, y"}]', 'catalog.json')).toEqual([{ path: 'a.png', keywords: ['x', 'y'], category: [] }]);
+    expect(parseCatalog('{"items":[{"file":"b.wav","title":"B","tags":["z"]}]}', 'catalog.json')).toEqual([{ path: 'b.wav', name: 'B', keywords: ['z'], category: [] }]);
   });
 
   it('leaves out a path that would leave the library, and a file with no path column', () => {

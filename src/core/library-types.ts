@@ -136,6 +136,13 @@ export interface MediaEntry {
    * file, which is read only when the item is placed or rendered (src/core/library-preview.ts).
    */
   preview?: MediaPreview;
+  /**
+   * The library's own category for this item (milestone 32), as its catalog spells it, outermost
+   * first ("Backgrounds", "Fire"). Normalized into `tags` for search, fed to the taxonomy beside
+   * the folder names, and listed under the library's node in the browse tree, so the collection
+   * browses the way it was organized.
+   */
+  category?: string[];
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

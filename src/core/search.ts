@@ -185,7 +185,9 @@ function entryHaystack(entry: LibraryEntry): { name: string; names: string[]; wo
   const extra =
     entry.kind === 'template'
       ? [entry.manifest.id, entry.manifest.description ?? '', entry.manifest.category, entry.manifest.author ?? '', ...(entry.manifest.styles ?? [])]
-      : [entry.ext, entry.mediaKind, entry.meta?.codec ?? '', resolutionLabel(entry.meta?.width, entry.meta?.height) ?? ''];
+      : [entry.ext, entry.mediaKind, entry.meta?.codec ?? '', resolutionLabel(entry.meta?.width, entry.meta?.height) ?? '',
+         // The file's own name, for when the library's catalog shows the item under another (milestone 32).
+         entry.path.split(/[\\/]/).pop() ?? ''];
   if (source) extra.push(source.name, source.description);
   extra.push(entryType(entry) ?? '', ...(entry.themes ?? []));
   const text = [name, ...entry.tags, ...extra].join(' ').toLowerCase();

@@ -7410,11 +7410,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
         await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
 
-        // What is here and what is missing, side by side.
+        // What is here and what is missing, side by side. The one that is here shows under the
+        // catalog's own name for it (milestone 32's organization item).
         await fire('#search', 'whoosh', 'input');
-        await until(async () => (await card('Whoosh Hard')) !== null && (await card('Whoosh Soft')) !== null, 'both whooshes listed', 30_000);
+        await until(async () => (await card('Whoosh Hard')) !== null && (await card('Soft Pass By')) !== null, 'both whooshes listed', 30_000);
         const hard = (await card('Whoosh Hard'))!;
-        const soft = (await card('Whoosh Soft'))!;
+        const soft = (await card('Soft Pass By'))!;
         expect(hard.missing && hard.badge, 'the missing one marked').toBe(true);
         expect(hard.opacity, 'grayed out').toBeLessThan(0.6);
         expect(hard.filter).toContain('grayscale');
@@ -7429,6 +7430,45 @@ describe.skipIf(!electron)('inspector UI', () => {
         await fire('#search', '', 'input');
         await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node="stock"]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
         await until(() => page.eval<boolean>(`([...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(stockDir)})?.dataset.tip ?? '').includes('2 are listed by its catalog but not on this computer')`), 'the library\'s count of what is missing');
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+        await rm(join(stockDir, 'catalog.csv'), { force: true });
+      }
+    }, 120_000);
+
+    it('browses the way the collection was organized: its names find it, its categories map onto the taxonomy, and its sections sit under its node', async () => {
+      await writeCatalogFixture(stockDir);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // Found by the collection's name for it, and still by the file's own.
+        await fire('#search', 'soft pass', 'input');
+        await until(async () => (await resultNames()).includes('Soft Pass By'), 'found by the catalog\'s name', 30_000);
+        await fire('#search', 'whoosh soft', 'input');
+        await until(async () => (await resultNames()).includes('Soft Pass By'), 'still found by the file\'s own name');
+        // Its category, "Whooshes", is mapped onto the taxonomy: it answers for the whoosh type.
+        await fire('#search', 'type:whoosh', 'input');
+        await until(async () => (await resultNames()).includes('Soft Pass By'), 'typed by its category');
+        // The Info tab says the category in the collection's own words.
+        await clickResult('Soft Pass By');
+        await openTab('info');
+        await until(() => page.eval<boolean>(`(() => { const t = document.getElementById('region-inspector').textContent; return t.includes('Category') && t.includes('Whooshes'); })()`), 'the Info tab naming its category');
+
+        // Under the library's node, its own sections: the catalog's categories beside the folders
+        // of what the catalog does not name, each narrowing to that section.
+        await fire('#search', '', 'input');
+        await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node="stock"]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+        const sectionNode = `[...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(stockDir)} + ':whooshes')`;
+        await until(() => page.eval<boolean>(`!!${sectionNode}`), 'the Whooshes section under the library');
+        expect(await page.eval<string>(`${sectionNode}.textContent`), 'in the collection\'s own words').toContain('Whooshes');
+        await page.eval(`${sectionNode}.click()`);
+        await until(async () => {
+          const names = await resultNames();
+          return names.includes('Soft Pass By') && names.includes('Whoosh Hard') && !names.includes('Blue Wash');
+        }, 'the results narrowed to the section');
       } finally {
         await fire('#search', '', 'input');
         await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);

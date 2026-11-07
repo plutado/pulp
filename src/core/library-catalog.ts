@@ -4,17 +4,22 @@
  * `catalog.csv` or `catalog.json`. Pulp lists every item in it — the files on
  * this computer as usual, and the ones that are not as known but missing,
  * shown grayed out — so a person sees the whole collection and what is
- * missing from it.
+ * missing from it. What the catalog says of an item — its name, its category,
+ * its keywords, its preview — is the library's own organization, and the item
+ * carries it, so the collection browses and searches the way it was organized
+ * rather than only by its folder names.
  *
  * - **CSV**: a header row naming the columns. `path` (or `file`, `filename`)
  *   is required: the item's path inside the library, with / or \ between
- *   folders. `name` (or `title`), `keywords` (or `tags`, separated by
- *   semicolons or commas) and `preview` (or `thumbnail`, `thumb`: the path of
- *   the item's small preview, milestone 32) are optional. Quoted fields as
- *   spreadsheets write them.
+ *   folders. Optional: `name` (or `title`); `keywords` (or `tags`, separated
+ *   by semicolons or commas); `category` (or `categories`, `folder`,
+ *   `section`: the item's place in the library's own organization, levels
+ *   separated by /, \, > or |, outermost first — "Backgrounds > Fire"); and
+ *   `preview` (or `thumbnail`, `thumb`: the path of the item's small preview,
+ *   milestone 32). Quoted fields as spreadsheets write them.
  * - **JSON**: an array of rows, or `{ "items": [...] }`, each with `path` and
- *   optionally `name`, `keywords` (an array or a separated string) and
- *   `preview`.
+ *   optionally `name`, `keywords` (an array or a separated string),
+ *   `category` (an array of levels or a separated string) and `preview`.
  *
  * A path that would leave the library, or names no media Pulp reads, is left
  * out. Pure: the store reads the file and hands the text here.
@@ -28,6 +33,8 @@ export interface CatalogRow {
   path: string;
   name?: string;
   keywords: string[];
+  /** The item's place in the library's own organization, outermost first; empty when the catalog gives none. */
+  category: string[];
   /** The item's small preview inside the library, when the catalog names one; the same form as `path`. */
   preview?: string;
 }
@@ -43,6 +50,10 @@ function safeRelative(raw: string): string | null {
 
 const keywordsOf = (v: unknown): string[] =>
   (Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(/[;,]/) : []).map((k) => k.trim()).filter(Boolean);
+
+/** A category cell: one chain of levels, outermost first — "Backgrounds > Fire", "Music/Calm" — or a JSON array. */
+const categoryOf = (v: unknown): string[] =>
+  (Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(/[/\\>|]/) : []).map((c) => c.trim()).filter(Boolean);
 
 /** Split CSV text into rows of fields, honoring quotes and doubled quotes. */
 export function parseCsv(text: string): string[][] {
@@ -74,12 +85,12 @@ export function parseCsv(text: string): string[][] {
 /** A catalog's rows, from its text and its file name. Throws only on JSON that is not JSON. */
 export function parseCatalog(text: string, fileName: string): CatalogRow[] {
   const out: CatalogRow[] = [];
-  const push = (path: unknown, name: unknown, keywords: unknown, preview: unknown) => {
+  const push = (path: unknown, name: unknown, keywords: unknown, category: unknown, preview: unknown) => {
     const p = typeof path === 'string' ? safeRelative(path) : null;
     if (!p) return;
     const n = typeof name === 'string' && name.trim() !== '' ? name.trim() : undefined;
     const v = typeof preview === 'string' ? safeRelative(preview) : null;
-    out.push({ path: p, ...(n ? { name: n } : {}), keywords: keywordsOf(keywords), ...(v ? { preview: v } : {}) });
+    out.push({ path: p, ...(n ? { name: n } : {}), keywords: keywordsOf(keywords), category: categoryOf(category), ...(v ? { preview: v } : {}) });
   };
   if (/\.json$/i.test(fileName)) {
     const data = JSON.parse(text) as unknown;
@@ -87,7 +98,7 @@ export function parseCatalog(text: string, fileName: string): CatalogRow[] {
     for (const item of items) {
       if (!item || typeof item !== 'object') continue;
       const r = item as Record<string, unknown>;
-      push(r.path ?? r.file, r.name ?? r.title, r.keywords ?? r.tags, r.preview ?? r.thumbnail ?? r.thumb);
+      push(r.path ?? r.file, r.name ?? r.title, r.keywords ?? r.tags, r.category ?? r.categories ?? r.folder ?? r.section, r.preview ?? r.thumbnail ?? r.thumb);
     }
     return out;
   }
@@ -98,7 +109,8 @@ export function parseCatalog(text: string, fileName: string): CatalogRow[] {
   if (pathAt < 0) return out;
   const nameAt = col('name', 'title');
   const keysAt = col('keywords', 'tags', 'keyword');
+  const categoryAt = col('category', 'categories', 'folder', 'section');
   const previewAt = col('preview', 'thumbnail', 'thumb');
-  for (const r of rows) push(r[pathAt], nameAt >= 0 ? r[nameAt] : undefined, keysAt >= 0 ? r[keysAt] : undefined, previewAt >= 0 ? r[previewAt] : undefined);
+  for (const r of rows) push(r[pathAt], nameAt >= 0 ? r[nameAt] : undefined, keysAt >= 0 ? r[keysAt] : undefined, categoryAt >= 0 ? r[categoryAt] : undefined, previewAt >= 0 ? r[previewAt] : undefined);
   return out;
 }

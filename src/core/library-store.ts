@@ -305,6 +305,9 @@ export class LibraryStore {
       // keywords, its preview — joins the item as the walk reaches it, and what it lists that is not
       // here is added after the walk as known but missing.
       const catalog = await readCatalog(rootPath, problems);
+      /** The catalog's row for each file it names, by full path: its name, category and keywords join the item as the walk reaches it. */
+      const catalogByPath = new Map<string, CatalogRow>();
+      if (catalog) for (const row of catalog.rows) catalogByPath.set(join(rootPath, ...row.path.split('/')), row);
       /** A preview the catalog names, by the full path of the media it is for; only files that exist. */
       const catalogPreviews = new Map<string, string>();
       /** Every file a catalog names as a preview: an item's, not an item. */
@@ -840,17 +843,23 @@ export class LibraryStore {
           const stored = existing.get(key);
           const extras = fileExtras.get(entry.name) ?? {};
           const preview = previewsFor(dir, entry.name, basename(entry.name, extname(entry.name)), kind, sidecarOf.get(entry.name));
-          // Unchanged, still in the same group or pairing, and with the same previews: kept as it is.
+          // The library's own organization (milestone 32): the catalog's name, category and keywords
+          // join the item here, so it browses and searches as the collection was organized. The
+          // category's words come after the folders', so where both name a type the catalog's wins.
+          const catalogRow = catalogByPath.get(full);
+          const name = catalogRow?.name ?? basename(entry.name, extname(entry.name));
+          const segments = [...new Set([...folderTags(rootPath, dir), ...(catalogRow ? [...catalogRow.keywords, ...catalogRow.category].map(normalizeTag).filter(Boolean) : [])])];
+          // Unchanged, still in the same group or pairing, with the same previews and the same catalog row: kept as it is.
           const sameExtras = (row: ItemRow) => {
             const was = JSON.parse(row.entry) as MediaEntry;
-            return was.partOf === extras.partOf && was.pairedSound === extras.pairedSound && samePreview(was.preview, preview);
+            return was.partOf === extras.partOf && was.pairedSound === extras.pairedSound && samePreview(was.preview, preview) &&
+              was.name === name && JSON.stringify(was.tags) === JSON.stringify(segments) && JSON.stringify(was.category ?? []) === JSON.stringify(catalogRow?.category ?? []);
           };
           if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs && sameExtras(stored)) {
             stats.kept += 1;
             continue;
           }
           stats.loaded += 1;
-          const segments = folderTags(rootPath, dir);
           const inferredType = inferMediaType(kind, segments);
           const inferredThemes = inferThemes(segments);
           const inferredMoods = inferMoods(segments);
@@ -860,13 +869,14 @@ export class LibraryStore {
             id: itemId(key),
             path: full,
             root: rootPath,
-            name: basename(entry.name, extname(entry.name)),
+            name,
             mediaKind: kind,
             ext: extname(entry.name).toLowerCase(),
             size: info.size,
             mtimeMs: info.mtimeMs,
             tags: segments,
             ...extras,
+            ...(catalogRow?.category.length ? { category: catalogRow.category } : {}),
             ...(preview ? { preview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
@@ -886,6 +896,8 @@ export class LibraryStore {
           const full = join(rootPath, ...row.path.split('/'));
           const kind = mediaKindForPath(full);
           if (!kind) continue;
+          // A file inside an archive's unpack folder is the archive's item, present or not — never a missing one.
+          if (archiveTargets.has(full)) continue;
           const key = itemKey('media', full, this.builtInRoot);
           if (seen.has(key)) continue;
           seen.add(key);
@@ -898,7 +910,7 @@ export class LibraryStore {
             continue;
           }
           stats.loaded += 1;
-          const segments = [...new Set([...folderTags(rootPath, dirname(full)), ...row.keywords.map(normalizeTag).filter(Boolean)])];
+          const segments = [...new Set([...folderTags(rootPath, dirname(full)), ...[...row.keywords, ...row.category].map(normalizeTag).filter(Boolean)])];
           const inferredType = inferMediaType(kind, segments);
           const inferredThemes = inferThemes(segments);
           const inferredMoods = inferMoods(segments);
@@ -906,6 +918,7 @@ export class LibraryStore {
             kind: 'media', key, id: itemId(key), path: full, root: rootPath,
             name: row.name ?? basename(full, extname(full)), mediaKind: kind, ext: extname(full).toLowerCase(),
             size: 0, mtimeMs: catalog.mtimeMs, tags: segments, missing: true,
+            ...(row.category.length ? { category: row.category } : {}),
             ...(preview ? { preview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),

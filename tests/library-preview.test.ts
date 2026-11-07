@@ -83,8 +83,8 @@ describe('which files are an item\'s previews', () => {
 
   it('reads the preview column of a catalog', () => {
     expect(parseCatalog('Path,Thumbnail\nClips/A.mov,Previews/A.jpg\nClips/B.mov,\n', 'catalog.csv')).toEqual([
-      { path: 'Clips/A.mov', keywords: [], preview: 'Previews/A.jpg' },
-      { path: 'Clips/B.mov', keywords: [] },
+      { path: 'Clips/A.mov', keywords: [], category: [], preview: 'Previews/A.jpg' },
+      { path: 'Clips/B.mov', keywords: [], category: [] },
     ]);
     expect(parseCatalog('[{"path":"a.mov","preview":"../out.jpg"},{"path":"b.mov","thumb":"t/b.png"}]', 'catalog.json').map((r) => r.preview)).toEqual([undefined, 't/b.png']);
   });

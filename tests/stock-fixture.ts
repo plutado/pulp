@@ -164,22 +164,24 @@ export async function writeMusicFixture(root: string, ffmpegPath?: string): Prom
 /**
  * A library's own catalog (milestone 32), listing the files `writeStockFixture` makes and two more
  * that are not on this computer — as a collection's catalog lists the whole set whatever was
- * downloaded.
+ * downloaded. Each row carries the collection's own organization: a name, keywords and a category
+ * ("Color Washes"; "Whooshes", which the taxonomy knows as the whoosh type; one hierarchical).
+ * The texture is left out of the catalog, so a file a catalog does not name keeps its folder's ways.
  */
 export const CATALOG_MISSING = ['Backgrounds/Night Sky.png', 'Sound Effects/Whoosh Hard.wav'] as const;
 export async function writeCatalogFixture(root: string, format: 'csv' | 'json' = 'csv'): Promise<void> {
   const rows = [
-    { path: 'Backgrounds/Blue Wash.png', name: 'Blue Wash', keywords: 'calm;sky' },
-    { path: 'Backgrounds/Night Sky.png', name: 'Night Sky (4K)', keywords: 'night;sky;stars' },
-    { path: 'Sound Effects/Whoosh Soft.wav', name: 'Whoosh Soft', keywords: 'whoosh' },
-    { path: 'Sound Effects/Whoosh Hard.wav', name: 'Whoosh Hard', keywords: 'whoosh;impact' },
+    { path: 'Backgrounds/Blue Wash.png', name: 'Blue Wash', keywords: 'calm;sky', category: 'Color Washes' },
+    { path: 'Backgrounds/Night Sky.png', name: 'Night Sky (4K)', keywords: 'night;sky;stars', category: 'Color Washes > Night' },
+    { path: 'Sound Effects/Whoosh Soft.wav', name: 'Soft Pass By', keywords: 'whoosh', category: 'Whooshes' },
+    { path: 'Sound Effects/Whoosh Hard.wav', name: 'Whoosh Hard', keywords: 'whoosh;impact', category: 'Whooshes' },
   ];
   if (format === 'json') {
-    await writeFile(join(root, 'catalog.json'), JSON.stringify({ items: rows.map((r) => ({ ...r, keywords: r.keywords.split(';') })) }, null, 1));
+    await writeFile(join(root, 'catalog.json'), JSON.stringify({ items: rows.map((r) => ({ ...r, keywords: r.keywords.split(';'), category: r.category.split(' > ') })) }, null, 1));
     return;
   }
   const quote = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  await writeFile(join(root, 'catalog.csv'), ['Path,Name,Keywords', ...rows.map((r) => [r.path, r.name, r.keywords].map(quote).join(','))].join('\r\n') + '\r\n');
+  await writeFile(join(root, 'catalog.csv'), ['Path,Name,Keywords,Category', ...rows.map((r) => [r.path, r.name, r.keywords, r.category].map(quote).join(','))].join('\r\n') + '\r\n');
 }
 
 /**

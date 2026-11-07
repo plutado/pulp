@@ -97,6 +97,8 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const fps = meta.fps ?? 25;
     rows.push({ label: tr('info.row.duration'), value: `${clockLabel(meta.duration)} · ${formatTimecode(Math.round(meta.duration * fps), fps)}`, icon: 'duration' });
   }
+  // The library's own category for the item (milestone 32), as its catalog spells it.
+  if (entry.category?.length) rows.push({ label: tr('info.row.category'), value: entry.category.join(' › ') });
   // A file Pulp cannot read: what it is, what it needs, and that the picture is only its preview (milestone 32).
   if (entry.unreadable) rows.push({ label: tr('info.row.unreadable'), value: [unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext), entry.unreadable.preview ? tr('info.value.unreadable.preview') : ''].filter(Boolean).join(' '), tone: 'warn' });
   if (entry.missing) rows.push({ label: tr('info.row.missing'), value: tr('info.value.missing', { path: entry.path }), tone: 'warn' });

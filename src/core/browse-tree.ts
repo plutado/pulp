@@ -20,6 +20,7 @@
  */
 
 import { samePlace, type StockLibraryState } from './stock-library';
+import { normalizeTag } from './tags';
 import type { Scope } from './app-state';
 import { BROWSE_CATEGORIES, categoryScope, MATCHING_SETS, typeScope } from './categories';
 import { rootLabel, typeLabel } from './display';
@@ -51,10 +52,30 @@ function bump(map: Map<string, number>, key: string): void {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
+/**
+ * The library's own section for an entry (milestone 32): the outermost level of
+ * the category its catalog gives it, else the top folder it lies under — the
+ * collection's own words, so a stock library browses the way it was organized.
+ * Null for an item at the library's root, which belongs to no section.
+ */
+function entrySection(entry: LibraryEntry): string | null {
+  if (entry.kind === 'media' && entry.category?.length) return entry.category[0]!;
+  const place = entry.kind === 'media' ? entry.path : entry.dir;
+  const rel = place.slice(entry.root.length).replace(/\\/g, '/').replace(/^\/+/, '');
+  const parts = rel.split('/');
+  return parts.length > 1 ? parts[0]! : null;
+}
+
 export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonly string[], builtInRoot: string | undefined, stock: readonly StockLibraryState[] = []): TreeNode[] {
   const byType = new Map<string, number>();
   const byRoot = new Map<string, number>();
   const byPack = new Map<string, { name: string; count: number }>();
+  // A stock library's own sections (milestone 32), per library: by the tag its words normalize
+  // to, so "Lower Thirds" in the catalog and a Lower Thirds folder are one section, labeled as
+  // the collection spells it.
+  const normPlace = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  const stockPathByRoot = new Map(stock.map((l) => [normPlace(l.path), l.path]));
+  const sectionsByLibrary = new Map<string, Map<string, { name: string; count: number }>>();
   let untyped = 0;
   let favorites = 0;
   let recent = 0;
@@ -65,6 +86,18 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
     if (type) bump(byType, type);
     else untyped += 1;
     bump(byRoot, entry.root);
+    const stockPath = stockPathByRoot.get(normPlace(entry.root));
+    if (stockPath !== undefined) {
+      const own = entrySection(entry);
+      const tag = own === null ? '' : normalizeTag(own);
+      if (own !== null && tag !== '') {
+        const sections = sectionsByLibrary.get(stockPath) ?? new Map<string, { name: string; count: number }>();
+        const section = sections.get(tag) ?? { name: own, count: 0 };
+        section.count += 1;
+        sections.set(tag, section);
+        sectionsByLibrary.set(stockPath, sections);
+      }
+    }
     if (entry.kind === 'template' && entry.pack) {
       const p = byPack.get(entry.pack.slug) ?? { name: entry.pack.name, count: 0 };
       p.count += 1;
@@ -144,7 +177,16 @@ export function buildBrowseTree(entries: readonly LibraryEntry[], roots: readonl
         return l.drive ? tr('browse.stock.offline.drive', { drive: l.drive, count: l.items }) : tr('browse.stock.offline.folder', { path: l.path, count: l.items });
       },
       ...(l.online ? {} : { offline: true as const }),
-      children: [],
+      // Its own sections (milestone 32): the catalog's categories, else its top-level folders,
+      // in the collection's own words. Each narrows to the library and the section's tag.
+      children: [...(sectionsByLibrary.get(l.path) ?? new Map<string, { name: string; count: number }>())].sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([tag, section]): TreeNode => ({
+        id: `stock:${l.path}:${tag}`,
+        label: section.name,
+        count: section.count,
+        scope: { label: section.name, root, filter: `tag:${tag}`, kind: 'folder' as const },
+        get description() { return tr('browse.stock.section.description', { library: l.name }); },
+        children: [],
+      })),
     };
   });
   const stockSection: TreeNode[] = libraries.length === 0 ? [] : [{
