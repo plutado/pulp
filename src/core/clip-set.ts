@@ -47,6 +47,12 @@ export interface ClipSetTiming {
   outro: number;
 }
 
+/** Which of a set's parts carry a sound stream; a part not named carries none. */
+export type ClipSetSound = Partial<Record<ClipSetPart, boolean>>;
+
+/** The rate every part's sound is brought to before it is joined. */
+export const CLIP_SET_AUDIO_RATE = 48000;
+
 const SEPARATORS = /[\s_\-.]+/g;
 
 /** A name as words, for matching: "Lower_Third-Swoosh (In)" → "lower third swoosh in". */
@@ -266,6 +272,13 @@ export interface StitchLayer {
   timing: ClipSetTiming;
   /** The decoder its parts must be read with, where ffmpeg's own would lose their alpha (`alphaDecoderFor`). */
   decoder?: string;
+  /** Which parts carry sound; absent is none. A part without it is silence for its span, so the parts need not match. */
+  sound?: ClipSetSound;
+}
+
+/** Whether any part of any layer carries sound: whether a stitch has an audio stream to write. */
+export function stitchHasSound(layers: readonly StitchLayer[]): boolean {
+  return layers.some((l) => CLIP_SET_PARTS.some((part) => l.files[part] !== undefined && l.sound?.[part] === true));
 }
 
 /**
@@ -273,16 +286,26 @@ export interface StitchLayer {
  * own parts — its intro once, its loop repeated, its outro at the end — then laid over the one
  * below it, bottom first, alpha blended, so the layers move together however their parts differ.
  * One layer is the plain stitch.
+ *
+ * With `withSound`, the parts' sounds are joined the same way into `[set_a]`, which the output
+ * maps beside the picture: a part that carries sound is trimmed to its span like its picture (a
+ * looped part's sound repeats with it), a part without any is silence for its span, so a set whose
+ * intro is silent and whose loop hums still joins; several layers' sounds are mixed. Without it,
+ * or when no part carries sound, the output has no audio stream.
  */
-export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: number, video: { fps: number; width: number; height: number }): string[] {
+export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: number, video: { fps: number; width: number; height: number }, withSound = false): string[] {
   const inputs: string[] = [];
   const chains: string[] = [];
   const norm = `fps=${video.fps},scale=${video.width}:${video.height}:force_original_aspect_ratio=decrease,pad=${video.width}:${video.height}:(ow-iw)/2:(oh-ih)/2:color=black@0,format=rgba,setsar=1`;
+  const sound = withSound && stitchHasSound(layers);
+  const anorm = `aresample=${CLIP_SET_AUDIO_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo`;
   const stitched: string[] = [];
+  const stitchedSound: string[] = [];
   layers.forEach((layer, k) => {
     const spans = clipSetSpans(layer.timing, length);
     const labels: string[] = [];
-    const add = (file: string, from: number, duration: number, loop: boolean) => {
+    const soundLabels: string[] = [];
+    const add = (part: ClipSetPart, file: string, from: number, duration: number, loop: boolean) => {
       if (duration <= 1e-6) return;
       const n = inputs.filter((a) => a === '-i').length;
       if (loop) inputs.push('-stream_loop', '-1');
@@ -290,13 +313,22 @@ export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: 
       inputs.push('-i', file);
       chains.push(`[${n}:v]trim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},setpts=PTS-STARTPTS,${norm}[p${n}]`);
       labels.push(`[p${n}]`);
+      if (!sound) return;
+      if (layer.sound?.[part]) chains.push(`[${n}:a]atrim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS,${anorm}[q${n}]`);
+      else chains.push(`aevalsrc=0:d=${duration.toFixed(6)}:s=${CLIP_SET_AUDIO_RATE},${anorm}[q${n}]`);
+      soundLabels.push(`[q${n}]`);
     };
-    if (layer.files.intro) add(layer.files.intro, 0, spans.intro, false);
-    add(layer.files.loop, 0, spans.loop, true);
-    if (layer.files.outro) add(layer.files.outro, spans.outroFrom, spans.outro, false);
+    if (layer.files.intro) add('intro', layer.files.intro, 0, spans.intro, false);
+    add('loop', layer.files.loop, 0, spans.loop, true);
+    if (layer.files.outro) add('outro', layer.files.outro, spans.outroFrom, spans.outro, false);
     const out = layers.length === 1 ? '[set]' : `[l${k}]`;
     chains.push(`${labels.join('')}concat=n=${labels.length}:v=1:a=0${out}`);
     stitched.push(out);
+    if (sound) {
+      const outSound = layers.length === 1 ? '[set_a]' : `[la${k}]`;
+      chains.push(`${soundLabels.join('')}concat=n=${soundLabels.length}:v=0:a=1${outSound}`);
+      stitchedSound.push(outSound);
+    }
   });
   if (layers.length > 1) {
     // Each layer over the ones below it; the alpha of both is kept, so a set stays transparent.
@@ -306,9 +338,11 @@ export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: 
       chains.push(`${below}${above}overlay=format=rgb:eof_action=pass,format=rgba${out}`);
       below = out;
     });
+    // The layers' sounds together, none ducked for the others.
+    if (sound) chains.push(`${stitchedSound.join('')}amix=inputs=${stitchedSound.length}:duration=longest:normalize=0[set_a]`);
   }
   const graph = chains.join(';');
-  return ['-v', 'error', '-nostdin', ...inputs, '-filter_complex', graph, '-map', '[set]', '-an', '-frames:v', String(Math.max(1, Math.round(length * video.fps)))];
+  return ['-v', 'error', '-nostdin', ...inputs, '-filter_complex', graph, '-map', '[set]', ...(sound ? ['-map', '[set_a]'] : ['-an']), '-frames:v', String(Math.max(1, Math.round(length * video.fps)))];
 }
 
 /**

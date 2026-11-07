@@ -24,6 +24,7 @@ import { isCubeFile, lutFilter } from '../core/clip-clean';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem, lookupMedia, probeClipSet, prepareForUse } from './library-service';
 import { clipSetLayersFramesArgs } from '../core/clip-set';
+import { clipSetFile } from './clip-set-service';
 import { templateDefaultSize } from '../core/aspect';
 
 /** One clip, ready for a template page: its frames in window order, as data URLs. */
@@ -99,12 +100,17 @@ export async function resolveClipSource(ffprobePath: string, id: string): Promis
  * probed on the spot when the library's background pass has not run, the same
  * reason `resolveClipSource` probes.
  */
-export async function resolveClipAudio(ffprobePath: string, id: string): Promise<{ path: string; hasAudio: boolean } | null> {
+export async function resolveClipAudio(ffprobePath: string, id: string, setSeconds?: number): Promise<{ path: string; hasAudio: boolean } | null> {
   // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
   await prepareForUse([id]);
   const found = lookupClipItem(id);
-  // A clip set's layer is silent for now: its parts' sounds are not stitched (milestone 32).
-  if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) return null;
+  if (!found || found.kind !== 'media' || found.entry.sequence) return null;
+  // A clip set's sound is its parts' stitched to the length it plays for (milestone 32): the
+  // stretch of the graphic from its delay, which the caller knows, else its own length.
+  if (found.entry.clipSet) {
+    const made = await clipSetFile(id, setSeconds);
+    return made.ok ? { path: made.path, hasAudio: made.hasAudio } : null;
+  }
   const meta = found.entry.meta ?? (ffprobePath ? await probeMedia(ffprobePath, found.entry.path, nodeRunner) : null);
   if (!meta) return null;
   // A clip with no sound of its own plays the sound made for it — a transition's whoosh
@@ -246,10 +252,15 @@ export async function readClipFrames(
   value: ClipValue,
   source: ClipSource,
   drawnHeight: number,
+  /** Read this file as the clip instead of the item's own — a clip set stitched into one (milestone 32), for a cut on the track. */
+  asFile?: string,
 ): Promise<{ ok: true; data: ClipFrameData } | { ok: false; problem: ClipReadProblem }> {
   // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
   await prepareForUse([id]);
-  const found = lookupClipItem(id);
+  const looked = lookupClipItem(id);
+  const found = looked && asFile !== undefined && looked.kind === 'media'
+    ? { ...looked, entry: { ...looked.entry, path: asFile, clipSet: undefined, clipSetLayers: undefined } as MediaEntry }
+    : looked;
   if (!found) return { ok: false, problem: { kind: 'not-a-clip' } };
   const window = clipWindow(value, source);
   if (window.frames === 0) return { ok: false, problem: { kind: 'no-frames' } };
@@ -260,7 +271,7 @@ export async function readClipFrames(
   // Twice the drawn height, rounded up to a proxy step: sharp enough for a scaled or rotated
   // layer, and stable while a window is resized, so nothing is decoded twice for a few pixels.
   const side = clipProxySize(drawnHeight * 2);
-  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}`;
+  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${asFile ?? ''}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
   const frames = found.kind === 'drawn'
@@ -350,15 +361,28 @@ export async function loadTrackFrames(raw: unknown): Promise<{ cuts: (TrackCutFr
       cuts.push(null);
       continue;
     }
-    const source = await resolveClipSource(ffmpeg.ok ? ffprobePathFor(ffmpeg.path) : '', cut.id);
-    if (!source) {
+    const measured = await resolveClipSource(ffmpeg.ok ? ffprobePathFor(ffmpeg.path) : '', cut.id);
+    if (!measured) {
       cuts.push(null);
       continue;
+    }
+    // A clip set on the track is a cut of the set stitched once, each part once (milestone 32): read
+    // from its set file as one clip, so a trimmed cut shows the frames the trim says.
+    let asFile: string | undefined;
+    let source = measured;
+    if (measured.set) {
+      const made = await clipSetFile(cut.id);
+      if (!made.ok) {
+        cuts.push(null);
+        continue;
+      }
+      asFile = made.path;
+      source = { frames: measured.frames, fps: measured.fps };
     }
     const first = Math.max(0, Math.round(from * source.fps));
     const last = Math.min(source.frames - 1, Math.max(first, Math.round(to * source.fps) - 1));
     const value: ClipValue = { ...EMPTY_CLIP, id: cut.id, inPoint: first, outPoint: last, ending: 'once' };
-    const read = await readClipFrames(ffmpeg.ok ? ffmpeg.path : '', cut.id, value, source, height);
+    const read = await readClipFrames(ffmpeg.ok ? ffmpeg.path : '', cut.id, value, source, height, asFile);
     cuts.push(read.ok ? { srcs: read.data.srcs, fps: source.fps, first } : null);
   }
   return { cuts };

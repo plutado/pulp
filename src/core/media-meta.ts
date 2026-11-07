@@ -4,7 +4,7 @@
  * ffprobe lives in media-probe.ts.
  */
 
-import type { ClipSetTiming } from './clip-set';
+import type { ClipSetSound, ClipSetTiming } from './clip-set';
 import { tr } from './i18n';
 import { moodsFromText } from './taxonomy';
 
@@ -35,6 +35,10 @@ export interface MediaMetadata {
    * set's own length while the others repeat their loops to meet it.
    */
   layers?: ClipSetTiming[];
+  /** For a clip set: which parts carry a sound stream — `audioCodec` is then the first such part's. */
+  partsSound?: ClipSetSound;
+  /** For a clip set of several layers: each layer's, in the entry's order. */
+  layersSound?: ClipSetSound[];
   /**
    * Measured from the library's small preview, not the file (milestone 32): only the length is
    * known, when a preview clip or sound gave it. The picture's size, rate, codec and alpha are

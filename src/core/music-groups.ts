@@ -226,6 +226,35 @@ export function soundIdsFor(
   return { id: entry.id };
 }
 
+/**
+ * A placed track picks its cut again when the graphic's length changes (milestone 32): every
+ * audio layer whose sound is one cut of a track in several lengths is given the cut that fits
+ * `length` now, by the same rule it was placed by. Layers that are not a track's cut, or whose
+ * cut still fits, are left as they are; null when nothing changed, so a caller writes nothing.
+ */
+export function repickVersions<L extends { type: string; sound?: { id: string | null } | null }>(
+  layers: Readonly<Record<string, readonly L[]>>,
+  length: number | undefined,
+  media: readonly { id: string; versions?: { id: string; label: string; seconds?: number }[] }[],
+  lookup: MediaLookupFn,
+): Record<string, L[]> | null {
+  const groupOf = (id: string) => media.find((m) => m.versions?.some((v) => v.id === id));
+  let changed = false;
+  const out: Record<string, L[]> = {};
+  for (const [block, stack] of Object.entries(layers)) {
+    out[block] = stack.map((layer) => {
+      if (layer.type !== 'audio' || !layer.sound?.id) return layer;
+      const group = groupOf(layer.sound.id);
+      if (!group?.versions) return layer;
+      const picked = pickVersion(measuredVersions(group.versions, lookup), length)?.id;
+      if (!picked || picked === layer.sound.id) return layer;
+      changed = true;
+      return { ...layer, sound: { ...layer.sound, id: picked } };
+    });
+  }
+  return changed ? out : null;
+}
+
 /** A cut's label as the window shows it: the length its name said, or "Full" for the track's plain file. */
 export function versionLabel(label: string, full: string): string {
   return label === '' ? full : label;

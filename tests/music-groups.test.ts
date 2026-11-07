@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { groupMusicVersions, groupStems, musicLengthOf, pairTransitionSounds, pickVersion } from '../src/core/music-groups';
+import { groupMusicVersions, groupStems, musicLengthOf, pairTransitionSounds, pickVersion, repickVersions } from '../src/core/music-groups';
 
 describe('a track in several lengths', () => {
   it('reads the length a name says, in the ways stock music writes it', () => {
@@ -130,5 +130,26 @@ describe('music and sound effects in a library (generated files)', () => {
     // Read where they are: nothing written into the library.
     expect(await snapshotTree(lib)).toEqual(before);
     store.close();
+  });
+});
+
+describe('a placed track when the graphic\'s length changes (milestone 32)', () => {
+  const group = { id: 'sunrise', versions: [{ id: 'full', label: '', seconds: 30 }, { id: 'v15', label: '15s', seconds: 15 }, { id: 'v6', label: '6s', seconds: 6 }] };
+  const lookup = () => undefined;
+  const sound = (id: string) => ({ id, inPoint: 0, outPoint: -1, ending: 'once', delay: 0, volume: 1, muted: false, fadeIn: 0, fadeOut: 0 });
+
+  it('picks the cut that fits the new length again, and leaves every other layer alone', () => {
+    const layers = { card: [{ type: 'text', text: 'Hi' }, { type: 'audio', sound: sound('v6') }, { type: 'audio', sound: sound('other') }] };
+    // Five seconds: the 6 s cut still fits; nothing changes.
+    expect(repickVersions(layers, 5, [group], lookup)).toBeNull();
+    // Twenty seconds: the 30 s full track is the shortest that covers it.
+    const longer = repickVersions(layers, 20, [group], lookup)!;
+    const card = longer.card!;
+    expect(card[1]!.sound!.id).toBe('full');
+    expect(card[0]).toBe(layers.card[0]);
+    expect(card[2]).toBe(layers.card[2]);
+    // Forty seconds: nothing covers it, so the longest; back at eight, the 15 s cut.
+    expect(repickVersions(layers, 40, [group], lookup)!.card![1]!.sound!.id).toBe('full');
+    expect(repickVersions(longer, 8, [group], lookup)!.card![1]!.sound!.id).toBe('v15');
   });
 });

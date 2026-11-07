@@ -57,6 +57,32 @@ export interface ExtraSound {
 /** One element per audible layer, keyed block.layer. */
 const sounds = new Map<string, LayerSound>();
 
+/**
+ * A clip set's sound (milestone 32) is the set stitched to the stretch it plays for, which the
+ * main process makes into its cache as the stage's preview — picture and sound together. The URL
+ * arrives after an ask, so a set's element is made once it has: the ask is remembered by set and
+ * length, and the layers are brought in line again when it answers.
+ */
+const clipSetUrls = new Map<string, string>();
+const clipSetAsks = new Set<string>();
+let lastSync: Parameters<typeof layerSoundsSync> | null = null;
+
+function clipSetUrl(id: string, seconds: number | undefined): string | null {
+  const key = `${id}|${seconds ?? ''}`;
+  const known = clipSetUrls.get(key);
+  if (known) return known;
+  if (!clipSetAsks.has(key)) {
+    clipSetAsks.add(key);
+    void window.pulp.clipSetPreview(id, seconds).then((made) => {
+      clipSetAsks.delete(key);
+      if (!made.ok) return;
+      clipSetUrls.set(key, made.url);
+      if (lastSync) layerSoundsSync(...lastSync);
+    });
+  }
+  return null;
+}
+
 /** How far the element may drift from the playhead before it is seeked. Within it, the element's own clock is smoother. */
 const DRIFT_SECONDS = 0.3;
 
@@ -84,7 +110,8 @@ function soundSourceFor(entry: MediaEntry | undefined): SoundSource | null {
  * is nothing there. A sound the library has not measured yet is left out,
  * since without its length there is no window to play.
  */
-export function layerSoundsSync(layers: LayerValues, sources: Record<string, ClipSource>, entryFor: (id: string) => MediaEntry | undefined, track: CutTrack | null = null, extras: readonly ExtraSound[] = []): void {
+export function layerSoundsSync(layers: LayerValues, sources: Record<string, ClipSource>, entryFor: (id: string) => MediaEntry | undefined, track: CutTrack | null = null, extras: readonly ExtraSound[] = [], length?: number): void {
+  lastSync = [layers, sources, entryFor, track, extras, length];
   const wanted = new Map<string, AudioLayer>();
   /** Where each wanted key plays from; absent means the library, by the layer's id. */
   const urls = new Map<string, string>();
@@ -96,6 +123,20 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
         const source = sources[layer.clip.id!];
         const entry = entryFor(layer.clip.id!);
         if (!source || !entry || entry.sequence) continue;
+        if (source.set && entry.clipSet) {
+          // A clip set (milestone 32): its parts' sounds stitched to the stretch it plays for —
+          // from its delay to the end at its speed — as the render mixes it. A set with no sound
+          // in any part has nothing to play.
+          if (entry.meta && !entry.meta.audioCodec) continue;
+          const speed = clampSpeed(layer.clip.speed);
+          const seconds = length !== undefined ? Math.max(0, (length - Math.max(0, layer.clip.delay)) * speed) : undefined;
+          if (seconds !== undefined && seconds <= 0) continue;
+          const url = clipSetUrl(entry.id, seconds);
+          if (!url) continue;
+          urls.set(key, url);
+          wanted.set(key, { kind: 'clip', path: '', value: layer.clip, source, ...(span ? { span } : {}) });
+          continue;
+        }
         if (entry.meta && !entry.meta.audioCodec) {
           // No sound of its own: the sound made for it, if there is one (milestone 32), on the clip's
           // timing, exactly as the render mixes it (resolveClipAudio in src/main/clip-grant.ts).
@@ -124,6 +165,12 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
     const source = soundSourceFor(entry);
     if (!entry || entry.offline || !source) return;
     if (entry.meta && !entry.meta.audioCodec) return;
+    // A clip set on the track (milestone 32) plays its parts stitched once, as the cut's frames are.
+    if (entry.clipSet) {
+      const url = clipSetUrl(entry.id, undefined);
+      if (!url) return;
+      urls.set(`@track.${index}`, url);
+    }
     wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   });
   // The template's own sound and a wipe's (milestone 16), by the URL the stage resolved.

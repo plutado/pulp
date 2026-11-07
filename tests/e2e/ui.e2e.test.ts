@@ -7286,9 +7286,29 @@ describe.skipIf(!electron)('inspector UI', () => {
         console.info('ffmpeg not available; clip set check skipped.');
         return;
       }
-      // A generated set (red intro 1 s, green loop 0.5 s, blue outro 1 s) in a stock library, added through Add.
-      await writeClipSetFixture(ffmpeg.path, join(stockDir, 'Titles'), 'Swoosh');
+      // A generated set (red intro 1 s, green loop 0.5 s, blue outro 1 s, each part humming its own
+      // tone) in a stock library, added through Add.
+      await writeClipSetFixture(ffmpeg.path, join(stockDir, 'Titles'), 'Swoosh', undefined, undefined, true);
       const optLength = (v: string) => page.eval(`(() => { const l = document.getElementById('opt-length'); l.value = ${JSON.stringify(v)}; l.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      /** A rendered file's sound: whether it has a stream, how long, and how loud over the whole. */
+      const soundOf = (file: string) => {
+        const probe = spawnSync(ffprobePathFor(ffmpeg.path), ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=duration', '-of', 'csv=p=0', file]);
+        const seconds = Number(String(probe.stdout).trim());
+        const loud = spawnSync(ffmpeg.path, ['-v', 'info', '-i', file, '-vn', '-af', 'volumedetect', '-f', 'null', '-']);
+        const mean = Number(/mean_volume:\s*(-?[\d.]+)/.exec(String(loud.stderr))?.[1] ?? '-999');
+        return { hasAudio: Number.isFinite(seconds) && seconds > 0, seconds, mean };
+      };
+      /** A drop on the transport's lanes, as a real drag from a result card sends it (the track test's own helper). */
+      const dropOnLanes = (fx: number, id: string) => page.eval<boolean>(`(() => {
+        const el = document.getElementById('transport-lanes');
+        const r = el.getBoundingClientRect();
+        const dt = new DataTransfer();
+        dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+        const at = { clientX: r.left + r.width * ${fx}, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+        el.dispatchEvent(new DragEvent('dragover', at));
+        el.dispatchEvent(new DragEvent('drop', at));
+        return true;
+      })()`);
       try {
         await page.eval(`document.getElementById('library-add').click()`);
         await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
@@ -7330,14 +7350,48 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(parts.slice(0, 10).every((p) => p === 'intro'), parts.join(' ')).toBe(true);
         expect(parts.slice(10, 50).every((p) => p === 'loop'), parts.join(' ')).toBe(true);
         expect(parts.slice(50).every((p) => p === 'outro'), parts.join(' ')).toBe(true);
+        // Its parts' sounds are stitched with the picture: the render hears the set for its whole 6 s.
+        const sound = soundOf(file);
+        expect(sound.hasAudio, 'an audio stream in the render').toBe(true);
+        expect(sound.seconds).toBeCloseTo(6, 0);
+        expect(sound.mean, 'and not a silent one').toBeGreaterThan(-40);
         // Nothing written beside the stock media.
         expect((await readdir(join(stockDir, 'Titles'))).sort()).toEqual(['Swoosh In.mov', 'Swoosh Loop.mov', 'Swoosh Out.mov']);
+
+        // On the cut track it is a shot like any clip: dropped on the lanes of a project, it is one
+        // cut of the set's own length, and the project renders with it — picture and sound.
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        await optLength('');
+        const setId = await onResult<string>('Swoosh', '(li) => li.dataset.id');
+        await fire('#search', 'title card', 'input');
+        await clickResult('Title Card');
+        await openTab('parameters');
+        await until(() => page.eval<boolean>(`!!document.querySelector('#params .layers-block')`), 'the title card\'s layers');
+        await dropOnLanes(0.5, setId!);
+        await until(() => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`).then((n) => n === 1), 'the set as one cut on the track');
+        expect(await page.eval<string[]>(`[...document.querySelectorAll('#cut-track .cut .cut-label')].map((l) => l.textContent)`)).toEqual(['Swoosh']);
+        expect(await page.eval<string>(`document.querySelector('#cut-track .cut .cut-trim.end').getAttribute('aria-valuenow')`), 'the cut as long as the set, each part once').toBe('2.5');
+        await openTab('output');
+        await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'prores-4444'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Title Card')`), 'the project rendered with the set as its shot', 120_000);
+        const project = await page.eval<string>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => c.querySelector('.job-name').textContent === 'Title Card').dataset.file`);
+        const projectSound = soundOf(project);
+        expect(projectSound.hasAudio, 'the set\'s sound in the project').toBe(true);
+        // The piece runs its own length (the card's structure has a floor the one shot sits within); the
+        // sound runs the picture's whole length, as the mix pads it to.
+        const picture = Number(String(spawnSync(ffprobePathFor(ffmpeg.path), ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=duration', '-of', 'csv=p=0', project]).stdout).trim());
+        expect(projectSound.seconds, 'sound as long as the picture').toBeCloseTo(picture, 0);
+        expect(projectSound.seconds).toBeGreaterThanOrEqual(2.4);
+        expect(projectSound.mean, 'and the set heard in it').toBeGreaterThan(-40);
       } finally {
         await optLength('');
+        await page.eval(`(() => { const e = window.pulpLayerEditor && window.pulpLayerEditor(); if (e && e.track()) e.setTrack(null, true); })()`);
+        await page.eval(`window.pulp.clearFinishedRenders()`);
         await fire('#search', '', 'input');
         await window_removeStock();
       }
-    }, 240_000);
+    }, 300_000);
 
     it('shows a set of several layers as one item that previews and renders composited, each layer from its own part', async () => {
       const ffmpeg = await detectFfmpeg();
@@ -7720,6 +7774,42 @@ describe.skipIf(!electron)('inspector UI', () => {
   });
 
   describe('music and sound effects in a stock library (milestone 32)', () => {
+    it('picks a placed track\'s cut again when the graphic\'s length changes', async () => {
+      await writeMusicFixture(stockDir);
+      const editor = `window.pulpLayerEditor()`;
+      const soundIdOfLast = () => page.eval<string>(`(() => { const s = ${editor}.stack('card') || []; const a = [...s].reverse().find((l) => l.type === 'audio'); return a && a.sound ? a.sound.id : ''; })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+        await fire('#search', 'sunrise', 'input');
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#results li[data-id]')].some((li) => li.querySelector('.name')?.textContent === 'Sunrise' && li.textContent.includes('3 lengths'))`), 'the track in three lengths, measured', 60_000);
+        const trackId = await page.eval<string>(`[...document.querySelectorAll('#results li[data-id]')].find((li) => li.querySelector('.name')?.textContent === 'Sunrise' && li.textContent.includes('3 lengths')).dataset.id`);
+
+        // Placed on the five-second card, the 6 s cut is the shortest that covers it.
+        await fire('#search', 'title card', 'input');
+        await clickResult('Title Card');
+        await openTab('parameters');
+        await until(() => page.eval<boolean>(`!!document.querySelector('#params .layers-block')`), 'the card\'s layers');
+        await page.eval(`${editor}.addLayer('audio', 'Sunrise', ${JSON.stringify(trackId)})`);
+        await until(async () => (await soundIdOfLast()) !== '', 'the track placed as an audio layer');
+        const atFive = await soundIdOfLast();
+        // Twenty seconds: the cut no longer covers the graphic, so the layer takes the one that does.
+        await page.eval(`${editor}.setLength(20, true)`);
+        await until(async () => (await soundIdOfLast()) !== atFive, 'another cut for twenty seconds');
+        const atTwenty = await soundIdOfLast();
+        // Eight seconds: another again — the 15 s cut — and back at five, the one it began with.
+        await page.eval(`${editor}.setLength(8, true)`);
+        await until(async () => { const id = await soundIdOfLast(); return id !== atTwenty && id !== atFive; }, 'the middle cut for eight seconds');
+        await page.eval(`${editor}.setLength(undefined, true)`);
+        await until(async () => (await soundIdOfLast()) === atFive, 'the first cut again at the card\'s own length');
+      } finally {
+        await page.eval(`(() => { const e = ${editor}; e.setLength(undefined, true); const b = document.querySelector('#params .layers-block[data-block=card] .layers-reset'); if (b && !b.hidden) b.click(); const r = document.getElementById('reset-all'); if (r && !r.disabled) r.click(); })()`);
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+      }
+    }, 180_000);
+
     it('shows a track in several lengths and a song\'s stems as one item each, renders the cut that fits, mixes the stems, and plays a transition\'s own sound with it', async () => {
       const ffmpeg = await detectFfmpeg();
       if (!haveVideo || !ffmpeg.ok || !ffmpeg.encoders.includes('qtrle')) {

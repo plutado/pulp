@@ -230,6 +230,13 @@ export function clipAudible(value: ClipValue | null): value is ClipValue {
  */
 export function clipMediaTimeAt(time: number, value: ClipValue, source: ClipSource): number | null {
   if (!Number.isFinite(time) || value.id === null || value.hidden) return null;
+  if (source.set) {
+    // A clip set's sound is the set stitched to the graphic's length (milestone 32), which runs
+    // from the delay at the clip's speed to the end: its file second is the elapsed time, and it
+    // ends with the graphic rather than with a window of its own.
+    const elapsed = (time - Math.max(0, value.delay)) * (Number.isFinite(value.speed) && value.speed > 0 ? Math.min(CLIP_LIMITS.speed.max, Math.max(CLIP_LIMITS.speed.min, value.speed)) : DEFAULT_CLIP_SPEED);
+    return elapsed < -1e-9 ? null : Math.max(0, elapsed);
+  }
   const { first, frames } = clipWindow(value, source);
   if (frames === 0) return null;
   const fps = Math.max(1, source.fps);

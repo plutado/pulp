@@ -33,6 +33,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **Clip sets work everywhere a single clip does** (milestone 32). A set is no longer silent: its parts' sounds are stitched with the picture — a part without sound is silence for its span, so the parts need not match — and heard on the stage, in a render's mix stretched to the graphic's length, and in the set's own render. On the cut track, in an exported edit and in clip clean-up (chroma key, scene split), where a single file is needed, the set's parts are stitched once into a full-quality file in Pulp's own cache that stands for it; nothing is written beside the stock media. A chroma key or a split of a set is named after the set, beside its parts, as a clip's own are beside it.
+
+- **A placed track picks its cut again when the graphic's length changes** (milestone 32). A track in several lengths placed on an audio layer takes the shortest cut that covers the new length, else the longest, as it did when it was placed; the stage and the render follow.
+
 - **Clip sets with several layers** (milestone 32). Stock graphics that come as a main set and a flare or glow over it — "Swoosh In/Loop/Out" with "Swoosh Flare In/Loop/Out", or "Swoosh Main" and "Swoosh Flare" in a folder called Swoosh — are one item whose layers move together, each with its own intro, loop and outro. The stage, a render and a video layer show them composited, every layer stretched to the length by its own parts, transparency kept; the Info tab lists the layers.
 
 - **Transparent clips as they come** (milestone 32). A clip with transparency placed from the library — or a clip set or a frame sequence — fills the frame at its own shape, whatever its size and rate, instead of landing as a small picture. WebM clips with alpha now keep it: FFmpeg's own VP9 decoder leaves the alpha out, so Pulp reads such a clip through libvpx wherever it decodes it, in a video layer, a clip set and the clip's own render.

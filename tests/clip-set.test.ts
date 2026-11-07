@@ -10,13 +10,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { clipSetFrameAt, clipSetFramesArgs, clipSetLayersFramesArgs, clipSetLayersNaturalSeconds, clipSetLayersStitchArgs, clipSetMomentAt, clipSetPartOf, clipSetSpans, clipSetStitchArgs, groupClipSetLayers, groupClipSets, type FoundClipSet } from '../src/core/clip-set';
-import { clipFramePlan, clipWindow, EMPTY_CLIP, type ClipSource } from '../src/core/video-layer';
+import { clipSetFrameAt, clipSetFramesArgs, clipSetLayersFramesArgs, clipSetLayersNaturalSeconds, clipSetLayersStitchArgs, clipSetMomentAt, clipSetPartOf, clipSetSpans, clipSetStitchArgs, groupClipSetLayers, groupClipSets, stitchHasSound, type FoundClipSet } from '../src/core/clip-set';
+import { clipFramePlan, clipMediaTimeAt, clipWindow, EMPTY_CLIP, type ClipSource } from '../src/core/video-layer';
 import { detectFfmpeg, nodeRunner } from '../src/core/ffmpeg';
 import { LibraryStore } from '../src/core/library-store';
 import { ffprobePathFor, probeMedia } from '../src/core/media-probe';
 import { searchLibrary } from '../src/core/search';
-import { CLIP_SET_COLORS, CLIP_SET_FLARE_COLORS, writeClipSetFixture, writeLayeredClipSetFixture } from './stock-fixture';
+import { CLIP_SET_COLORS, CLIP_SET_FLARE_COLORS, CLIP_SET_TONES, writeClipSetFixture, writeLayeredClipSetFixture } from './stock-fixture';
 
 describe('which files make a set', () => {
   it('reads the part from a word at the end or the start of the name, as stock libraries write them', () => {
@@ -290,5 +290,85 @@ describe.skipIf(!canEncode)('a layered set read from generated clips (needs ffmp
     const frames = spawnSync(ff, clipSetLayersFramesArgs(layers, { fps: 10, width: 64, height: 36 }, { first: 0, frames: 25 }, ''), { maxBuffer: 64 * 1024 * 1024 });
     expect(frames.status, String(frames.stderr)).toBe(0);
     expect(frames.stdout.toString('latin1').split('\x89PNG').length - 1).toBe(25);
+  });
+});
+
+describe('a set\'s sound (milestone 32)', () => {
+  const files = { intro: 'a-in.mov', loop: 'a-loop.mov', outro: 'a-out.mov' };
+  const timing = { intro: 1, loop: 0.5, outro: 1 };
+
+  it('joins the parts\' sounds as it joins their pictures, silence standing in for a part without any', () => {
+    const args = clipSetLayersStitchArgs([{ files, timing, sound: { loop: true, outro: true } }], 4, { fps: 10, width: 64, height: 36 }, true);
+    const graph = args[args.indexOf('-filter_complex') + 1]!;
+    // The intro has no sound: a second of silence for its span. The loop's and the outro's are trimmed as their pictures are.
+    expect(graph).toContain('aevalsrc=0:d=1.000000:s=48000');
+    expect(graph).toContain('[1:a]atrim=start=0.000000:duration=2.000000');
+    expect(graph).toContain('[2:a]atrim=start=0.000000:duration=1.000000');
+    expect(graph).toContain('concat=n=3:v=0:a=1[set_a]');
+    expect(args).toContain('[set_a]');
+    expect(args).not.toContain('-an');
+    // Without sound asked, or with none in any part, the output has no audio stream — as before.
+    expect(clipSetLayersStitchArgs([{ files, timing, sound: { loop: true } }], 4, { fps: 10, width: 64, height: 36 })).toContain('-an');
+    expect(clipSetLayersStitchArgs([{ files, timing }], 4, { fps: 10, width: 64, height: 36 }, true)).toContain('-an');
+    expect(stitchHasSound([{ files, timing }, { files: { loop: 'b.mov' }, timing: { intro: 0, loop: 1, outro: 0 }, sound: { loop: true } }])).toBe(true);
+    // Several layers' sounds are mixed, none ducked.
+    const two = clipSetLayersStitchArgs([{ files, timing, sound: { loop: true } }, { files: { loop: 'b.mov' }, timing: { intro: 0, loop: 1, outro: 0 }, sound: { loop: true } }], 4, { fps: 10, width: 64, height: 36 }, true);
+    expect(two[two.indexOf('-filter_complex') + 1]).toMatch(/\[la0\]\[la1\]amix=inputs=2:duration=longest:normalize=0\[set_a\]/);
+  });
+
+  it('plays a set layer\'s sound as the stitched file from the delay, ending with the graphic', () => {
+    const source: ClipSource = { frames: 25, fps: 10, set: timing };
+    const value = { ...EMPTY_CLIP, id: 'set', delay: 2 };
+    expect(clipMediaTimeAt(1, value, source)).toBeNull();
+    expect(clipMediaTimeAt(2, value, source)).toBe(0);
+    expect(clipMediaTimeAt(5.5, value, source)).toBeCloseTo(3.5, 9);
+    // At a speed the file passes faster, as the stitched file was made longer for it.
+    expect(clipMediaTimeAt(3, { ...value, speed: 2 }, source)).toBeCloseTo(2, 9);
+  });
+});
+
+describe.skipIf(!canEncode)('a set\'s sound from generated clips (needs ffmpeg)', () => {
+  let dir = '';
+  afterAll(async () => { if (dir) await rm(dir, { recursive: true, force: true }); });
+  const ff = ffmpeg.ok ? ffmpeg.path : '';
+
+  /** Zero crossings per second of the file's sound, one figure per second: a tone's pitch, or nothing for silence. */
+  function pitchPerSecond(file: string, seconds: number): number[] {
+    const run = spawnSync(ff, ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', '8000', '-f', 's16le', 'pipe:1'], { maxBuffer: 64 * 1024 * 1024 });
+    const pcm = run.stdout;
+    const out: number[] = [];
+    for (let sec = 0; sec < seconds; sec++) {
+      let crossings = 0;
+      for (let i = (sec * 8000 + 1) * 2; i + 1 < Math.min(pcm.length, (sec + 1) * 8000 * 2); i += 2) {
+        if ((pcm.readInt16LE(i - 2) < 0) !== (pcm.readInt16LE(i) < 0)) crossings += 1;
+      }
+      out.push(crossings / 2);
+    }
+    return out;
+  }
+
+  it('stitches the parts\' sounds with their pictures: each second of the result hums the part it shows', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'pulp-setsound-'));
+    const titles = join(dir, 'Titles');
+    await writeClipSetFixture(ff, titles, 'Swoosh', { intro: 1, loop: 0.5, outro: 1 }, undefined, true);
+    const files = { intro: join(titles, 'Swoosh In.mov'), loop: join(titles, 'Swoosh Loop.mov'), outro: join(titles, 'Swoosh Out.mov') };
+    const timing = { intro: 1, loop: 0.5, outro: 1 };
+    const out = join(dir, 'stitched.mov');
+    const run = spawnSync(ff, [...clipSetLayersStitchArgs([{ files, timing, sound: { intro: true, loop: true, outro: true } }], 4, { fps: 10, width: 64, height: 36 }, true), '-c:v', 'qtrle', '-c:a', 'pcm_s16le', '-y', out]);
+    expect(run.status, String(run.stderr)).toBe(0);
+    const streams = spawnSync(ffprobePathFor(ff), ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', out]).stdout.toString();
+    expect(streams).toContain('audio');
+    // Intro for a second, the loop for two, the outro for the last: the pitch follows the picture.
+    const pitch = pitchPerSecond(out, 4);
+    const near = (hz: number, want: number) => Math.abs(hz - want) < want * 0.08;
+    expect(pitch.map((hz) => (near(hz, CLIP_SET_TONES.intro) ? 'intro' : near(hz, CLIP_SET_TONES.loop) ? 'loop' : near(hz, CLIP_SET_TONES.outro) ? 'outro' : `?${hz}`))).toEqual(['intro', 'loop', 'loop', 'outro']);
+
+    // A part said to have no sound is silence for its span, whatever its file holds.
+    const quiet = join(dir, 'quiet-intro.mov');
+    const made = spawnSync(ff, [...clipSetLayersStitchArgs([{ files, timing, sound: { loop: true, outro: true } }], 3, { fps: 10, width: 64, height: 36 }, true), '-c:v', 'qtrle', '-c:a', 'pcm_s16le', '-y', quiet]);
+    expect(made.status, String(made.stderr)).toBe(0);
+    const [first, second] = pitchPerSecond(quiet, 2);
+    expect(first, 'silence, give or take the seam').toBeLessThan(20);
+    expect(near(second!, CLIP_SET_TONES.loop)).toBe(true);
   });
 });

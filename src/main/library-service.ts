@@ -16,7 +16,7 @@ import { tr } from '../core/i18n';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
-import { clipSetNaturalSeconds, type ClipSetTiming } from '../core/clip-set';
+import { clipSetNaturalSeconds, type ClipSetSound, type ClipSetTiming } from '../core/clip-set';
 import { listZipFile, readZipMember } from '../core/zip-archive';
 import { browsable, browsableFile, unpackForUse, whenUnpacked } from './archive-service';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
@@ -326,7 +326,19 @@ export async function probeClipSet(ffprobePath: string, entry: MediaEntry): Prom
   const timings: ClipSetTiming[] = probed.map(([intro, loop, outro]) => ({ intro: intro?.duration ?? 0, loop: loop!.duration!, outro: outro?.duration ?? 0 }));
   const parts = timings.reduce((longest, t) => (clipSetNaturalSeconds(t) > clipSetNaturalSeconds(longest) ? t : longest));
   const alpha = probed.some(([intro, loop, outro]) => Boolean(loop?.alpha || intro?.alpha || outro?.alpha));
-  return { ...baseLoop, duration: clipSetNaturalSeconds(parts), parts, ...(timings.length > 1 ? { layers: timings } : {}), alpha };
+  // Which parts carry sound: stitched with the picture wherever the set plays, silence standing in
+  // for a part without any. The set's own codec is the first sounding part's.
+  const sounds: ClipSetSound[] = probed.map(([intro, loop, outro]) => ({ ...(intro?.audioCodec ? { intro: true } : {}), ...(loop?.audioCodec ? { loop: true } : {}), ...(outro?.audioCodec ? { outro: true } : {}) }));
+  const sounding = probed.flat().find((m) => m?.audioCodec);
+  const picture: MediaMetadata = { ...baseLoop };
+  delete picture.audioCodec;
+  delete picture.channels;
+  delete picture.sampleRate;
+  return {
+    ...picture, duration: clipSetNaturalSeconds(parts), parts, ...(timings.length > 1 ? { layers: timings } : {}), alpha,
+    partsSound: sounds[timings.indexOf(parts)] ?? sounds[0]!, ...(sounds.length > 1 ? { layersSound: sounds } : {}),
+    ...(sounding ? { audioCodec: sounding.audioCodec, ...(sounding.channels ? { channels: sounding.channels } : {}), ...(sounding.sampleRate ? { sampleRate: sounding.sampleRate } : {}) } : {}),
+  };
 }
 
 /**
@@ -687,8 +699,13 @@ async function makeWaveform(id: string): Promise<WaveformResult> {
   try {
     result = await heavyWork(async () => {
       // A sound with a preview sound is drawn from it (milestone 32); the full file stays unread.
+      // A clip set's sound is its parts stitched, each once (milestone 32), from Pulp's own cache.
       const sound = entry as Extract<LibraryEntry, { kind: 'media' }>;
-      const decoded = await runForBuffer(ffmpegPath!, waveformArgs(previewSound(sound) ?? (await browsableFile(sound))));
+      const file = sound.clipSet
+        ? await import('./clip-set-service').then((m) => m.clipSetFile(sound.id)).then((made) => (made.ok ? made.path : null))
+        : (previewSound(sound) ?? (await browsableFile(sound)));
+      if (!file) return { peaks: null, reason: 'the clip set could not be stitched' }; // i18n-exempt(diagnostic)
+      const decoded = await runForBuffer(ffmpegPath!, waveformArgs(file));
       if (decoded.code !== 0) return { peaks: null, reason: `ffmpeg exited with ${decoded.code}: ${decoded.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
       if (decoded.stdout.length === 0) return { peaks: null, reason: 'the file decoded to no audio' }; // i18n-exempt(diagnostic)
       return { peaks: encodePeaks(peaksFromPcm(decoded.stdout)) };

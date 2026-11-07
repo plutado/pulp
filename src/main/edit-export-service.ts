@@ -25,6 +25,7 @@ import { findMediaIdByPath, findTemplate, lookupClipItem } from './library-servi
 import { ffprobePathFor } from '../core/media-probe';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { resolveClipAudio, resolveClipSource } from './clip-grant';
+import { clipSetFile } from './clip-set-service';
 import { renderTemplate } from './render';
 
 export type ExportEditResult = { ok: true; fcpxml: string; edl: string; graphics: string } | { ok: false; cancelled?: boolean; message: string };
@@ -58,6 +59,7 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
   const ffmpeg = await detectFfmpeg();
   if (!ffmpeg.ok) return { ok: false, message: tr('export-edit.no-ffmpeg') };
 
+  const manifest = template.manifest;
   // A saved project's clips may have moved: heal each cut by the path it remembers before anything
   // is referenced, the same healing a render runs.
   track = healedTrack(track, (cut) => {
@@ -70,8 +72,16 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
   for (const cut of track.cuts) {
     if (clips[cut.id]) continue;
     const found = lookupClipItem(cut.id);
-    if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) {
+    if (!found || found.kind !== 'media' || found.entry.sequence) {
       return { ok: false, message: tr('export-edit.clip-unreadable') };
+    }
+    // A clip set on the track goes to the editor as its set file (milestone 32): the parts stitched
+    // once, with their sound, in Pulp's own cache — one clip the editor can reference.
+    if (found.entry.clipSet) {
+      const made = await clipSetFile(cut.id);
+      if (!made.ok) return { ok: false, message: tr('export-edit.clip-unreadable') };
+      clips[cut.id] = { path: made.path, name: found.entry.name, duration: made.seconds, audio: made.hasAudio };
+      continue;
     }
     const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), cut.id);
     const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), cut.id);
@@ -82,11 +92,12 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
       audio: audio?.hasAudio === true,
     };
   }
+  // The piece's own length, which a clip set placed as a layer is stitched to for the editor.
+  const pieceSeconds = resolveLength(manifest.duration, manifest.structure ?? null, lengthIn(params) ?? trackDuration(track));
 
   // The second picture track (milestone 57): every video layer with a clip, as a connected clip
   // of its own in the exported edit — so the graphics are rendered **without** them, and the
   // editor gets the clips in place rather than burned into the titles.
-  const manifest = template.manifest;
   const size = templateDefaultSize(manifest);
   const { layers: rawLayers } = splitLayers(params);
   const overlays: EditOverlay[] = [];
@@ -101,24 +112,41 @@ export async function exportEdit(raw: unknown, answer?: string, found?: Template
       }
       const found = lookupClipItem(layer.clip.id);
       // A drawn asset or a Lottie is a layer of the graphics, not a clip an editor can reference.
-      if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) {
+      if (!found || found.kind !== 'media' || found.entry.sequence) {
         kept.push(layer);
         continue;
       }
-      const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), layer.clip.id);
+      let source = await resolveClipSource(ffprobePathFor(ffmpeg.path), layer.clip.id);
       if (!source) {
         kept.push(layer);
         continue;
       }
-      if (!clips[layer.clip.id]) {
+      // A clip set placed as a layer goes to the editor stitched to the stretch it plays for, from
+      // its delay to the end of the piece at its speed (milestone 32): one clip, as the render shows it.
+      const setKey = `${layer.clip.id}@${block.id}.${layer.id}`;
+      let clipId = layer.clip.id;
+      let clipValue = layer.clip;
+      if (found.entry.clipSet) {
+        const speed = layer.clip.speed > 0 ? layer.clip.speed : 1;
+        const seconds = Math.max(0, (pieceSeconds - Math.max(0, layer.clip.delay)) * speed);
+        const made = seconds > 0 ? await clipSetFile(layer.clip.id, seconds) : null;
+        if (!made?.ok) {
+          kept.push(layer);
+          continue;
+        }
+        clipId = setKey;
+        clips[clipId] = { path: made.path, name: found.entry.name, duration: made.seconds, audio: made.hasAudio };
+        source = { frames: Math.max(1, Math.round(made.seconds * source.fps)), fps: source.fps };
+        clipValue = { ...layer.clip, inPoint: 0, outPoint: -1 };
+      } else if (!clips[layer.clip.id]) {
         const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), layer.clip.id);
         clips[layer.clip.id] = { path: found.entry.path, name: found.entry.name, duration: source.frames / Math.max(1, source.fps), audio: audio?.hasAudio === true };
       }
-      const window = clipWindow(layer.clip, source);
+      const window = clipWindow(clipValue, source);
       const placement = placementFor(layer.placement, aspectOf(size.width, size.height));
       const short = Math.min(size.width, size.height);
       overlays.push({
-        id: layer.clip.id,
+        id: clipId,
         name: layer.label,
         from: window.first / Math.max(1, source.fps),
         to: (window.last + 1) / Math.max(1, source.fps),

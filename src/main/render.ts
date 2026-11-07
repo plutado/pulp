@@ -30,8 +30,10 @@ import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, image
 import { mediaSlotChoices, mediaSlotDrawnHeight, mediaSlots } from '../core/media-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerSoundChoices, layerTexts, type BlockState } from '../core/layer-layout';
 import { readClipFrames, resolveClipAudio, resolveClipSource, type ClipFrameData, type ClipReadProblem } from './clip-grant';
+import { clipSetFile } from './clip-set-service';
 import { ffprobePathFor } from '../core/media-probe';
-import type { ClipSource } from '../core/video-layer';
+import type { ClipSource, ClipValue } from '../core/video-layer';
+import type { LayerSpan } from '../core/layer-time';
 import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './library-service';
@@ -216,14 +218,21 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   const trackWipes: { template: string; at: number; seconds: number }[] = [];
   for (const [index, cut] of (track?.cuts ?? []).entries()) {
     const found = lookupClipItem(cut.id);
-    if (!found || found.kind !== 'media' || found.entry.sequence || found.entry.clipSet) {
+    if (!found || found.kind !== 'media' || found.entry.sequence) {
       return { ok: false, message: tr('render.track.clip-unreadable') };
+    }
+    // A clip set on the track is its set file (milestone 32): the parts stitched once, with their sound.
+    let path = found.entry.path;
+    if (found.entry.clipSet) {
+      const made = await clipSetFile(cut.id);
+      if (!made.ok) return { ok: false, message: tr('render.track.clip-unreadable') };
+      path = made.path;
     }
     // The transition leaving this cut, as it will play: clamped by both sides (src/core/cut-track.ts).
     const transition = track ? transitionAt(track, index) : null;
     if (transition?.type === 'wipe' && transition.template) trackWipes.push({ template: transition.template, at: transition.at, seconds: transition.seconds });
     trackCuts.push({
-      path: found.entry.path, from: cut.from, to: cut.to,
+      path, from: cut.from, to: cut.to,
       // The speed or the hold ride through as the cut has them (milestone 56); the plan does the arithmetic.
       ...(cut.speed ? { speed: cut.speed } : {}),
       ...(cut.hold !== undefined ? { hold: cut.hold } : {}),
@@ -308,16 +317,35 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // point, delay, loop and fades. Nothing changes for a silent project — no audible layer, no
   // audio stream and no file beside it, exactly as before.
   const audioLayers: AudioLayer[] = [];
+  /**
+   * A clip's sound as the mix takes it. A clip set's (milestone 32) is the set stitched to the stretch
+   * it plays for — from its delay to the end of the graphic, at its speed — and heard as one pass of
+   * that file from its start: the picture's own rule (clipFrameAt), as a file.
+   */
+  const clipSound = async (choice: ClipValue & { id: string }, span?: LayerSpan): Promise<AudioLayer | null> => {
+    const source = clipSources[choice.id]!;
+    if (!source.set) {
+      const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
+      return audio?.hasAudio ? { kind: 'clip', path: audio.path, value: choice, source, ...(span ? { span } : {}) } : null;
+    }
+    const speed = Number.isFinite(choice.speed) && choice.speed > 0 ? choice.speed : 1;
+    const seconds = Math.max(0, (plan.length - Math.max(0, choice.delay)) * speed);
+    if (seconds <= 0) return null;
+    const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id, seconds);
+    if (!audio?.hasAudio) return null;
+    const stitched: ClipSource = { frames: Math.max(1, Math.round(seconds * source.fps)), fps: source.fps };
+    return { kind: 'clip', path: audio.path, value: { ...choice, inPoint: 0, outPoint: -1, ending: 'once' }, source: stitched, ...(span ? { span } : {}) };
+  };
   for (const choice of clipChoices) {
     if (!clipAudible(choice) || !clipSources[choice.id]) continue;
-    const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
-    if (audio?.hasAudio) audioLayers.push({ kind: 'clip', path: audio.path, value: choice, source: clipSources[choice.id]!, ...(choice.span ? { span: choice.span } : {}) });
+    const layer = await clipSound(choice, choice.span);
+    if (layer) audioLayers.push(layer);
   }
   // A media slot's clip keeps its sound too (milestone 22), under the clip's own volume and mute.
   for (const choice of mediaChoices) {
     if (!clipAudible(choice) || !clipSources[choice.id]) continue;
-    const audio = await resolveClipAudio(ffprobePathFor(ffmpeg.path), choice.id);
-    if (audio?.hasAudio) audioLayers.push({ kind: 'clip', path: audio.path, value: choice, source: clipSources[choice.id]! });
+    const layer = await clipSound(choice);
+    if (layer) audioLayers.push(layer);
   }
   // Music that came in as stems (milestone 16) may be asked for as files instead of in the mix:
   // those entries are set aside here and written one WAV per stem after the mix is in place.

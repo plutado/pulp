@@ -6,14 +6,14 @@
  * its API. Nothing here touches another region's DOM.
  */
 
-import { soundIdsFor } from '../core/music-groups';
+import { repickVersions, soundIdsFor } from '../core/music-groups';
 import { alphaToPercent, joinColor, parseColorText, percentToAlpha, splitColor, toCssRgba } from '../core/color';
 import { History } from '../core/history';
 import type { TemplateEntry } from '../core/library-types';
 import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, soundIn, trackIn, withCaptions, withLength, withSound, withTrack, type ResolvedParams } from '../core/params';
+import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, soundIn, trackIn, withCaptions, withLayers, withLength, withSound, withTrack, type ResolvedParams } from '../core/params';
 import { resolveTemplateSoundChoice, TEMPLATE_SOUND_NONE } from '../core/template-sound';
 import {
   DEFAULT_TRANSITION, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds, spanWindow,
@@ -1200,6 +1200,11 @@ function setLength(length: number | undefined, commit = true): void {
   // The same path a parameter edit takes: the raw values, the editor's own copy, the preview,
   // then one history step. The form is rebuilt because the note and the reset button follow it.
   p.raw = withLength(p.raw, length);
+  // A placed track in several lengths picks its cut again for the new length (milestone 32), by
+  // the rule it was placed by: the shortest that covers the graphic, else the longest.
+  const media = appState.value.index?.media ?? [];
+  const repicked = repickVersions(currentLayers(), graphicLength(), media, (id) => media.find((m) => m.id === id));
+  if (repicked) p.raw = withLayers(p.raw, repicked);
   editorFor(selected.manifest.id).current = p.raw;
   stageSetParams(p.values, currentLayers(), lengthIn(p.raw), currentTrack(), currentCaptions(), soundIn(p.raw));
   // The Output tab trims within the length, so what it shows follows it.

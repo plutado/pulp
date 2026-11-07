@@ -11,7 +11,7 @@
 
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import {
   chromaKeyArgs, chromaKeyStillArgs, keyedClipPath, parseSceneCuts, PREVIEW_SECONDS, sanitizeChromaKey,
   sceneDetectArgs, sceneFolder, scenePattern, sceneSplitArgs, type ChromaKeySettings,
@@ -19,15 +19,27 @@ import {
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
 import { tr } from '../core/i18n';
 import { lookupMedia, rescan, prepareForUse } from './library-service';
+import { clipSetFile } from './clip-set-service';
 
 /** Keying or splitting a long file decodes the whole of it; generous, but an end. */
 const CLEANUP_TIMEOUT_MS = 20 * 60 * 1000;
 
-/** The item behind a clean-up ask: an online video file, never a sequence (a folder of frames has no streams to key or split). */
-function clipFor(id: string): { path: string; name: string; duration?: number } | null {
+/**
+ * The item behind a clean-up ask: an online video file, never a sequence (a folder of frames has no
+ * streams to key or split). A clip set (milestone 32) is read from its set file — the parts stitched
+ * once, with their sound — and what is made of it is named after the set, beside its parts, as a
+ * clip's own results are beside it.
+ */
+async function clipFor(id: string): Promise<{ path: string; name: string; duration?: number; named: string } | null> {
   const found = lookupMedia(id);
-  if (!found || !found.online || found.entry.sequence || found.entry.clipSet || found.entry.mediaKind !== 'video') return null;
-  return { path: found.entry.path, name: found.entry.name, ...(found.entry.meta?.duration ? { duration: found.entry.meta.duration } : {}) };
+  if (!found || !found.online || found.entry.sequence || found.entry.mediaKind !== 'video') return null;
+  const { entry } = found;
+  if (entry.clipSet) {
+    const made = await clipSetFile(id);
+    if (!made.ok) return null;
+    return { path: made.path, name: entry.name, duration: made.seconds, named: join(dirname(entry.clipSet.loop), `${entry.name}${extname(entry.clipSet.loop)}`) };
+  }
+  return { path: entry.path, name: entry.name, named: entry.path, ...(entry.meta?.duration ? { duration: entry.meta.duration } : {}) };
 }
 
 async function ffmpegPath(): Promise<string | null> {
@@ -51,7 +63,7 @@ async function run(ffmpeg: string, args: string[]): Promise<{ code: number; stdo
 export async function chromaKeyPreview(id: string, rawSettings: unknown, atSeconds: unknown): Promise<{ ok: true; plain: string; keyed: string } | { ok: false; message: string }> {
   // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
   await prepareForUse([id]);
-  const clip = clipFor(id);
+  const clip = await clipFor(id);
   if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
   if (!ffmpeg) return { ok: false, message: tr('cleanup.key.no-ffmpeg') };
@@ -85,12 +97,12 @@ export async function chromaKeyPreview(id: string, rawSettings: unknown, atSecon
 export async function chromaKeyClip(id: string, rawSettings: unknown): Promise<{ ok: true; path: string } | { ok: false; message: string }> {
   // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
   await prepareForUse([id]);
-  const clip = clipFor(id);
+  const clip = await clipFor(id);
   if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
   if (!ffmpeg) return { ok: false, message: tr('cleanup.key.no-ffmpeg') };
   const settings: ChromaKeySettings = sanitizeChromaKey(rawSettings);
-  const output = keyedClipPath(clip.path);
+  const output = keyedClipPath(clip.named);
   if (existsSync(output)) return { ok: false, message: tr('cleanup.key.exists', { file: output.split(/[\\/]/).pop() ?? output }) };
   try {
     const made = await run(ffmpeg, chromaKeyArgs(clip.path, settings, output));
@@ -110,7 +122,7 @@ export async function chromaKeyClip(id: string, rawSettings: unknown): Promise<{
 export async function splitScenes(id: string): Promise<{ ok: true; clips: number; folder: string } | { ok: false; message: string }> {
   // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
   await prepareForUse([id]);
-  const clip = clipFor(id);
+  const clip = await clipFor(id);
   if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
   const ffmpeg = await ffmpegPath();
   if (!ffmpeg) return { ok: false, message: tr('cleanup.split.no-ffmpeg') };
@@ -123,10 +135,10 @@ export async function splitScenes(id: string): Promise<{ ok: true; clips: number
     return { ok: false, message: (err as Error).message };
   }
   if (cuts.length === 0) return { ok: false, message: tr('cleanup.split.no-cuts') };
-  const folder = sceneFolder(clip.path);
+  const folder = sceneFolder(clip.named);
   await mkdir(folder, { recursive: true });
   try {
-    const split = await run(ffmpeg, sceneSplitArgs(clip.path, cuts, join(folder, scenePattern(clip.path))));
+    const split = await run(ffmpeg, sceneSplitArgs(clip.path, cuts, join(folder, scenePattern(clip.named))));
     if (split.code !== 0) return { ok: false, message: `ffmpeg exited with ${split.code} while splitting: ${split.stderr.trim().slice(-300) || 'no error output'}` }; // i18n-exempt(diagnostic)
   } catch (err) {
     return { ok: false, message: (err as Error).message };

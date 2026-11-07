@@ -91,19 +91,23 @@ export async function snapshotTree(root: string): Promise<Record<string, string>
  * for the outro — at 10 frames a second and a small size. Made with ffmpeg's own color source.
  */
 export const CLIP_SET_COLORS = { intro: [255, 0, 0], loop: [0, 255, 0], outro: [0, 0, 255] } as const;
+/** With `sound`, each part carries a tone of its own, so a second of the stitched sound says which part it came from. */
+export const CLIP_SET_TONES = { intro: 440, loop: 660, outro: 880 } as const;
 export async function writeClipSetFixture(
   ffmpegPath: string,
   dir: string,
   name: string,
   seconds: { intro: number; loop: number; outro: number } = { intro: 1, loop: 0.5, outro: 1 },
   names: { intro: string; loop: string; outro: string } = { intro: `${name} In.mov`, loop: `${name} Loop.mov`, outro: `${name} Out.mov` },
+  sound = false,
 ): Promise<void> {
   const { spawnSync } = await import('node:child_process');
   await mkdir(dir, { recursive: true });
   const hex = { intro: '0xff0000', loop: '0x00ff00', outro: '0x0000ff' } as const;
   for (const part of ['intro', 'loop', 'outro'] as const) {
     const out = join(dir, names[part]);
-    const run = spawnSync(ffmpegPath, ['-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${hex[part]}:s=64x36:r=10:d=${seconds[part]}`, '-c:v', 'qtrle', out]);
+    const tone = sound ? ['-f', 'lavfi', '-i', `sine=frequency=${CLIP_SET_TONES[part]}:sample_rate=48000:duration=${seconds[part]}`, '-c:a', 'pcm_s16le'] : [];
+    const run = spawnSync(ffmpegPath, ['-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${hex[part]}:s=64x36:r=10:d=${seconds[part]}`, ...tone, '-c:v', 'qtrle', '-shortest', out]);
     if (run.status !== 0) throw new Error(`could not make ${out}: ${run.stderr}`);
   }
 }
@@ -280,7 +284,8 @@ async function writeTransparentBoxClip(ffmpegPath: string, out: string, frame: {
 }
 
 export async function writeLayeredClipSetFixture(ffmpegPath: string, dir: string, name: string, layer = 'Flare', seconds: { intro: number; loop: number; outro: number } = { intro: 1, loop: 0.5, outro: 1 }): Promise<void> {
-  await writeClipSetFixture(ffmpegPath, dir, name, seconds);
+  // The base carries a tone per part; the flare is silent, as a flare is.
+  await writeClipSetFixture(ffmpegPath, dir, name, seconds, undefined, true);
   const hex = { intro: 'white', loop: 'yellow', outro: 'magenta' } as const;
   const names = { intro: `${name} ${layer} In.mov`, loop: `${name} ${layer} Loop.mov`, outro: `${name} ${layer} Out.mov` };
   for (const part of ['intro', 'loop', 'outro'] as const) {

@@ -108,7 +108,8 @@ export function sourceFromEntry(entry: MediaEntry, options: Pick<RenderOptions, 
       ...(length ? { duration: length * (options.speed ?? 1) } : {}),
       ...(meta?.fps ? { fps: meta.fps } : {}),
       alpha: meta?.alpha === true,
-      hasAudio: false,
+      // Its parts' sounds are stitched with the picture (milestone 32), where any part has one.
+      hasAudio: Boolean(meta?.audioCodec),
     };
   }
   if (entry.sequence) {

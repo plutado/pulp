@@ -20,6 +20,7 @@ import type { SoundSource } from '../core/sound-layer';
 import { isSafeRelativePath } from '../core/manifest-path';
 import { isTemplateSoundFile } from '../core/template-sound';
 import { lookupMedia, prepareForUse } from './library-service';
+import { clipSetFile } from './clip-set-service';
 
 /** The size and modification time of each chosen sound, for the render cache key; unknown ids stamp as zero. */
 export function soundStamps(ids: readonly string[]): { id: string; size: number; mtimeMs: number }[] {
@@ -35,8 +36,13 @@ export async function resolveSoundSource(ffprobePath: string, id: string): Promi
   await prepareForUse([id]);
   const found = lookupMedia(id);
   // A sound is a file with sound in it: an audio item, or a clip whose own track is being used.
-  if (!found || !found.online || found.entry.sequence || found.entry.clipSet) return null;
+  if (!found || !found.online || found.entry.sequence) return null;
   const { entry } = found;
+  // A clip set's sound is its set file's (milestone 32): the parts stitched once, with their sound.
+  if (entry.clipSet) {
+    const made = await clipSetFile(id);
+    return made.ok && made.hasAudio ? { path: made.path, source: { duration: made.seconds } } : null;
+  }
   if (entry.mediaKind !== 'audio' && entry.mediaKind !== 'video') return null;
   const meta = entry.meta ?? (ffprobePath ? await probeMedia(ffprobePath, entry.path, nodeRunner) : null);
   if (!meta?.duration || meta.duration <= 0) return null;

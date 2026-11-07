@@ -594,7 +594,7 @@ function syncImages(): void {
     }
     s.clipSources = clips.sources;
     // The sources are what the layer sounds follow the playhead by (milestone 48).
-    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...templateSoundExtras(), ...mediaSlotSounds()]);
+    layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...templateSoundExtras(), ...mediaSlotSounds()], soundLength());
     const srcByKey = new Map(handed.images.map((i) => [i.key, i.src]));
     win.postMessage({
       type: 'pulp:prepare',
@@ -827,7 +827,7 @@ export function stageShowTemplate(
   els.scrub.value = String(s.frame);
   // An audio layer needs no clip sources and no page: its sound can play the moment it is shown.
   const extras = templateSoundExtras();
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...extras, ...mediaSlotSounds()]);
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...extras, ...mediaSlotSounds()], soundLength());
   loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras), mediaSlotChoices(m.parameters, s.params));
   updateTransport();
   applyLayerBars();
@@ -1168,7 +1168,7 @@ export function stageSetParams(
   }
   // A changed volume, mute or clip takes effect mid-play (milestone 48); new clips join when their sources land.
   const extras = templateSoundExtras();
-  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...extras, ...mediaSlotSounds()]);
+  layerSoundsSync(s.layers, s.clipSources, mediaEntryFor, s.track, [...extras, ...mediaSlotSounds()], soundLength());
   layerSoundsUpdate(soundTime(), s.playing, soundMaster(), soundLength());
   // And the meter measures the mix afresh, after the edits settle (milestone 52).
   loudnessUpdate(s.layers, previewFps(), soundLength(), s.track, templateSoundRequests(extras), s.manifest ? mediaSlotChoices(s.manifest.parameters, s.params) : []);
