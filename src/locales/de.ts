@@ -2433,6 +2433,12 @@ export const de: Catalog = {
   'music.version.full': 'Vollständig',
   'ui.say-strip-dismiss.aria-label': 'Diese Meldung schließen',
   // ---------------------------------------------------------------- known but missing (milestone 32)
+  'results.badge.preview': 'Vorschau',
+  'results.badge.preview.tip': 'Aus der kleinen Vorschau durchsucht, die die Bibliothek dafür mitbringt. Die vollständige Datei wird gelesen, wenn Sie das Element platzieren oder rendern',
+  'info.row.preview': 'Vorschau',
+  'info.value.preview': 'Gezeigt aus {file}, der eigenen Vorschau der Bibliothek. Bildgröße, Bildrate und Transparenz werden aus der vollständigen Datei gelesen, wenn sie platziert oder gerendert wird',
+  'info.value.preview.read': 'Gezeigt aus {file}, der eigenen Vorschau der Bibliothek; die vollständige Datei wurde gelesen',
+  'stage.preview-note': 'Gezeigt aus der eigenen Vorschau der Bibliothek. Die vollständige Datei wird gelesen, wenn sie platziert oder gerendert wird.',
   'results.summary.missing': '{name} — Nicht auf diesem Computer',
   'results.badge.missing': 'Fehlt',
   'results.badge.missing.tip': 'Der Katalog der Bibliothek führt es auf, aber die Datei ist nicht auf diesem Computer',

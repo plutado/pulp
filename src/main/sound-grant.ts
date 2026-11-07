@@ -19,7 +19,7 @@ import { probeMedia } from '../core/media-probe';
 import type { SoundSource } from '../core/sound-layer';
 import { isSafeRelativePath } from '../core/manifest-path';
 import { isTemplateSoundFile } from '../core/template-sound';
-import { lookupMedia, unpackIfArchived } from './library-service';
+import { lookupMedia, prepareForUse } from './library-service';
 
 /** The size and modification time of each chosen sound, for the render cache key; unknown ids stamp as zero. */
 export function soundStamps(ids: readonly string[]): { id: string; size: number; mtimeMs: number }[] {
@@ -31,8 +31,8 @@ export function soundStamps(ids: readonly string[]): { id: string; size: number;
 
 /** The file behind a sound layer and how long it runs, or null when the library cannot answer for it. */
 export async function resolveSoundSource(ffprobePath: string, id: string): Promise<{ path: string; source: SoundSource } | null> {
-  // An archive's file is unpacked into the library the first time it is used (milestone 32).
-  await unpackIfArchived([id]);
+  // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
+  await prepareForUse([id]);
   const found = lookupMedia(id);
   // A sound is a file with sound in it: an audio item, or a clip whose own track is being used.
   if (!found || !found.online || found.entry.sequence || found.entry.clipSet) return null;

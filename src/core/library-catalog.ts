@@ -8,11 +8,13 @@
  *
  * - **CSV**: a header row naming the columns. `path` (or `file`, `filename`)
  *   is required: the item's path inside the library, with / or \ between
- *   folders. `name` (or `title`) and `keywords` (or `tags`, separated by
- *   semicolons or commas) are optional. Quoted fields as spreadsheets write
- *   them.
+ *   folders. `name` (or `title`), `keywords` (or `tags`, separated by
+ *   semicolons or commas) and `preview` (or `thumbnail`, `thumb`: the path of
+ *   the item's small preview, milestone 32) are optional. Quoted fields as
+ *   spreadsheets write them.
  * - **JSON**: an array of rows, or `{ "items": [...] }`, each with `path` and
- *   optionally `name` and `keywords` (an array or a separated string).
+ *   optionally `name`, `keywords` (an array or a separated string) and
+ *   `preview`.
  *
  * A path that would leave the library, or names no media Pulp reads, is left
  * out. Pure: the store reads the file and hands the text here.
@@ -26,6 +28,8 @@ export interface CatalogRow {
   path: string;
   name?: string;
   keywords: string[];
+  /** The item's small preview inside the library, when the catalog names one; the same form as `path`. */
+  preview?: string;
 }
 
 /** A path inside the library, or null when it would leave it. */
@@ -70,11 +74,12 @@ export function parseCsv(text: string): string[][] {
 /** A catalog's rows, from its text and its file name. Throws only on JSON that is not JSON. */
 export function parseCatalog(text: string, fileName: string): CatalogRow[] {
   const out: CatalogRow[] = [];
-  const push = (path: unknown, name: unknown, keywords: unknown) => {
+  const push = (path: unknown, name: unknown, keywords: unknown, preview: unknown) => {
     const p = typeof path === 'string' ? safeRelative(path) : null;
     if (!p) return;
     const n = typeof name === 'string' && name.trim() !== '' ? name.trim() : undefined;
-    out.push({ path: p, ...(n ? { name: n } : {}), keywords: keywordsOf(keywords) });
+    const v = typeof preview === 'string' ? safeRelative(preview) : null;
+    out.push({ path: p, ...(n ? { name: n } : {}), keywords: keywordsOf(keywords), ...(v ? { preview: v } : {}) });
   };
   if (/\.json$/i.test(fileName)) {
     const data = JSON.parse(text) as unknown;
@@ -82,7 +87,7 @@ export function parseCatalog(text: string, fileName: string): CatalogRow[] {
     for (const item of items) {
       if (!item || typeof item !== 'object') continue;
       const r = item as Record<string, unknown>;
-      push(r.path ?? r.file, r.name ?? r.title, r.keywords ?? r.tags);
+      push(r.path ?? r.file, r.name ?? r.title, r.keywords ?? r.tags, r.preview ?? r.thumbnail ?? r.thumb);
     }
     return out;
   }
@@ -93,6 +98,7 @@ export function parseCatalog(text: string, fileName: string): CatalogRow[] {
   if (pathAt < 0) return out;
   const nameAt = col('name', 'title');
   const keysAt = col('keywords', 'tags', 'keyword');
-  for (const r of rows) push(r[pathAt], nameAt >= 0 ? r[nameAt] : undefined, keysAt >= 0 ? r[keysAt] : undefined);
+  const previewAt = col('preview', 'thumbnail', 'thumb');
+  for (const r of rows) push(r[pathAt], nameAt >= 0 ? r[nameAt] : undefined, keysAt >= 0 ? r[keysAt] : undefined, previewAt >= 0 ? r[previewAt] : undefined);
   return out;
 }

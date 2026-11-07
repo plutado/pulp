@@ -201,3 +201,52 @@ export async function writeUnreadableFixture(root: string): Promise<void> {
   await writeFile(join(dir, 'Old Collection.iso'), Buffer.from('not really a disc'));
   await writeFile(join(dir, 'Read Me.txt'), 'A synthetic test folder.\n');
 }
+
+/**
+ * A huge library's previews (milestone 32), as collections carry them: each full-quality file here
+ * is a few bytes of nothing — standing for a clip of gigabytes that Pulp must never need to read to
+ * browse — beside a real small preview. A thumbnail beside the clip, a preview clip (when ffmpeg is
+ * given, to make it), a still's thumbnail beside it and another in a Thumbs folder, a root-level
+ * Previews folder mirroring the layout, a track's cover and its preview sound, a catalog naming a
+ * preview for a file that is here and one that is not, and a preview nothing claims.
+ */
+export const PREVIEW_FIXTURE_ITEMS = [
+  'Clips/Fire 01.mov',
+  'Clips/Fire 02.mov',
+  'Clips/Fire 04.mov',
+  'Stills/Deep Sea.png',
+  'Stills/Warm Glow.png',
+  'Music/Sunrise.wav',
+  'Previews/Orphan.png',
+] as const;
+/** The catalog lists this clip, whose file is not here; its preview is. */
+export const PREVIEW_FIXTURE_MISSING = 'Clips/Fire 03.mov';
+export async function writePreviewFixture(root: string, ffmpegPath?: string): Promise<void> {
+  const nothing = Buffer.from('not really a clip; a stand-in for gigabytes Pulp must not read to browse');
+  const files: Record<string, Buffer> = {
+    'Clips/Fire 01.mov': nothing,
+    'Clips/Fire 01_thumb.png': stillPng(240, 90, 20),
+    'Clips/Fire 02.mov': nothing,
+    'Clips/Fire 04.mov': nothing,
+    'Extras/fire04-small.png': stillPng(250, 140, 30),
+    'Stills/Deep Sea.png': stillPng(20, 60, 200, 64, 36),
+    'Stills/Deep Sea_thumb.png': stillPng(20, 60, 200),
+    'Stills/Warm Glow.png': stillPng(220, 120, 40, 64, 36),
+    'Stills/Thumbs/Warm Glow.png': stillPng(220, 120, 40),
+    'Music/Sunrise.wav': toneWav(165, 4),
+    'Music/Sunrise_preview.wav': toneWav(165, 0.5),
+    'Previews/Music/Sunrise.png': stillPng(240, 200, 60),
+    'Previews/Clips/Fire 03.png': stillPng(200, 40, 40),
+    'Previews/Orphan.png': stillPng(120, 120, 120),
+  };
+  for (const [file, bytes] of Object.entries(files)) {
+    await mkdir(join(root, file, '..'), { recursive: true });
+    await writeFile(join(root, file), bytes);
+  }
+  await writeFile(join(root, 'catalog.csv'), ['Path,Name,Keywords,Preview', 'Clips/Fire 03.mov,Fire 03,fire;embers,Previews/Clips/Fire 03.png', 'Clips/Fire 04.mov,Fire 04,fire,Extras/fire04-small.png'].join('\r\n') + '\r\n');
+  if (ffmpegPath) {
+    const { spawnSync } = await import('node:child_process');
+    const run = spawnSync(ffmpegPath, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0xc04010:s=64x36:r=10:d=2', '-c:v', 'mpeg4', '-pix_fmt', 'yuv420p', join(root, 'Clips', 'Fire 02_preview.mp4')]);
+    if (run.status !== 0) throw new Error(`could not make the preview clip: ${run.stderr}`);
+  }
+}

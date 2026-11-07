@@ -109,6 +109,11 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
     const zip = entry.archive.zip.split(/[\\/]/).pop()!;
     rows.push({ label: tr('info.row.archive'), value: entry.archive.unpacked ? tr('info.value.archive.unpacked', { zip, member: entry.archive.member }) : tr('info.value.archive.packed', { zip, member: entry.archive.member }) });
   }
+  // Browsed from the library's own preview (milestone 32): which file, and whether the full file has been read yet.
+  if (entry.preview && !entry.missing) {
+    const file = (entry.preview.media ?? entry.preview.still)!.split(/[\\/]/).pop()!;
+    rows.push({ label: tr('info.row.preview'), value: meta && !meta.fromPreview ? tr('info.value.preview.read', { file }) : tr('info.value.preview', { file }) });
+  }
   // A clip set's parts, each with its own length, and what it does with a length (milestone 32).
   if (entry.clipSet) {
     const p = meta?.parts;

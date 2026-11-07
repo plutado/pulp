@@ -29,6 +29,12 @@ export interface MediaMetadata {
   moods?: string[];
   /** For a clip set (milestone 32): how long each part runs, in seconds; `duration` is then the three once. */
   parts?: ClipSetTiming;
+  /**
+   * Measured from the library's small preview, not the file (milestone 32): only the length is
+   * known, when a preview clip or sound gave it. The picture's size, rate, codec and alpha are
+   * read from the file itself when the item is placed or rendered, which replaces this.
+   */
+  fromPreview?: true;
 }
 
 const ALPHA_PIX_FMT = /^(yuva|rgba|argb|bgra|abgr|gbrap|ya|ayuv|pal8)/;

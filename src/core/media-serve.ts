@@ -5,7 +5,10 @@
  * location is resolved (following symlinks) and must still lie inside the
  * item's registered root; its real extension must be a recognized media
  * extension of the item's kind. A frame sequence is addressed one frame at a
- * time (`pulp-media://<id>/12`), by index into the run and never by name. Only GET and HEAD, no folder listings, byte
+ * time (`pulp-media://<id>/12`), by index into the run and never by name. An
+ * item browsed from its preview (milestone 32) is addressed as
+ * `pulp-media://<id>/preview`, which serves the small preview clip, sound or
+ * still the library carries for it, never the full file. Only GET and HEAD, no folder listings, byte
  * ranges honored so video can seek. Anything unknown, offline, missing or
  * out of bounds is a bare 404 with no file system detail. Pages served from
  * pulp-template:// are refused, so a template pack cannot read the library;
@@ -21,6 +24,7 @@ import { extname, join, sep } from 'node:path';
 import type { Readable } from 'node:stream';
 import type { MediaEntry } from './library-types';
 import { mediaKindForPath } from './library-scan';
+import { isPreviewFile } from './library-preview';
 import { sequenceFrameName } from './media-sequence';
 import { MEDIA_SCHEME } from './media-url';
 
@@ -135,7 +139,15 @@ export async function serveMedia(
   // from it, so no part of a request ever reaches the file system as text.
   const seq = found.entry.sequence;
   let file = found.entry.path;
-  if (path !== '/') {
+  // The item's small preview (milestone 32): its preview clip or sound, else its still; nothing for
+  // an item with none. Checked as what it is — a picture, a clip or a sound — not as the item's kind.
+  const previewWanted = path === '/preview';
+  if (previewWanted) {
+    const preview = found.entry.preview;
+    const small = preview?.media ?? preview?.still;
+    if (!small) return notFound();
+    file = small;
+  } else if (path !== '/') {
     if (!seq || !/^\/\d{1,9}$/.test(path)) return notFound();
     const frame = Number(path.slice(1));
     if (frame >= seq.count) return notFound();
@@ -143,7 +155,7 @@ export async function serveMedia(
   }
 
   let root = found.root;
-  if (found.entry.archive && archived) {
+  if (found.entry.archive && archived && !previewWanted) {
     const scratch = await archived(found.entry).catch(() => null);
     if (scratch) [file, root] = [scratch.file, scratch.root];
   }
@@ -159,7 +171,8 @@ export async function serveMedia(
   // A sequence entry is a video made of image files, so its frames are checked as what
   // they are rather than against the kind the clip browses as.
   const wantKind = seq ? 'image' : found.entry.mediaKind;
-  if (mediaKindForPath(real) !== wantKind || !(ext in MEDIA_MIME)) return notFound();
+  if (previewWanted ? !isPreviewFile(real) : mediaKindForPath(real) !== wantKind) return notFound();
+  if (!(ext in MEDIA_MIME)) return notFound();
 
   return serveFile(real, req.method, req.range, MEDIA_MIME[ext]!);
 }

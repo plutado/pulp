@@ -24,7 +24,7 @@ import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writeUnreadableFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writePreviewFixture, writeUnreadableFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7532,6 +7532,82 @@ describe.skipIf(!electron)('inspector UI', () => {
         await rm(folder, { recursive: true, force: true });
       }
     }, 180_000);
+  });
+
+  describe('previews before full media (milestone 32)', () => {
+    it('browses a library from its previews — pictured, measured and shown on the stage from them — and reads the full file only when an item is used', async () => {
+      const ffmpeg = await detectFfmpeg();
+      // Each full-quality file is bytes of nothing: any picture or length of it can only have come from its preview.
+      await writePreviewFixture(stockDir, ffmpeg.ok ? ffmpeg.path : undefined);
+      const before = await snapshotTree(stockDir);
+      const card = (name: string) => page.eval<{ pictured: boolean; previewTip: string; time: string } | null>(`(() => {
+        const li = [...document.querySelectorAll('#results li[data-id]')].find((l) => l.querySelector('.name')?.textContent === ${JSON.stringify(name)});
+        if (!li) return null;
+        const img = li.querySelector('img');
+        return { pictured: !!img && img.naturalWidth > 0, previewTip: [...li.querySelectorAll('.badge')].map((b) => b.dataset.tip ?? b.title ?? '').find((t) => t.includes('preview')) ?? '', time: li.querySelector('.thumb-time')?.textContent ?? '' };
+      })()`);
+      const infoText = () => page.eval<string>(`document.getElementById('region-inspector').textContent`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // The clip is listed, its thumbnail beside it is not, and its card says it is browsed from a preview.
+        await fire('#search', 'fire 01', 'input');
+        await until(async () => (await card('Fire 01')) !== null, 'the clip listed', 30_000);
+        expect(await resultNames(), 'its thumbnail is not an item').not.toContain('Fire 01_thumb');
+        expect((await card('Fire 01'))!.previewTip).toContain('The full file is read when you place or render it');
+        // Chosen, it is pictured on the stage from its preview, with the note, and no clip is loaded.
+        await clickResult('Fire 01');
+        await until(() => page.eval<boolean>(`(document.getElementById('media-image')?.naturalWidth ?? 0) > 0 && !document.getElementById('media-image').hidden && document.getElementById('preview-empty').classList.contains('preview-note')`), 'its preview on the stage under the note', 30_000);
+        expect(await page.eval<boolean>(`document.getElementById('media-video').hidden`), 'no video element for a clip browsed from a still').toBe(true);
+        expect(await page.eval<string>(`document.getElementById('preview-empty').textContent`)).toContain('Shown from the library’s own preview'.replace('’', "'"));
+        // Its card is pictured too — from the preview, since the file itself cannot be read. (Choosing
+        // it put its thumbnail first, ahead of the fresh install's queue of bundled posters.)
+        await until(async () => (await card('Fire 01'))?.pictured === true, 'the clip pictured by its thumbnail', 90_000);
+        // Info says which file it is shown from, and that the full file waits.
+        await openTab('info');
+        await until(async () => (await infoText()).includes('Shown from Fire 01_thumb.png'), 'the Info tab naming the preview');
+        expect(await infoText()).toContain('read from the full file when it is placed or rendered');
+
+        if (ffmpeg.ok) {
+          // A preview clip gives the item its length, and plays on the stage in the file's place.
+          await fire('#search', 'fire 02', 'input');
+          await until(async () => (await card('Fire 02'))?.time === '0:02', 'the length from the preview clip', 60_000);
+          await clickResult('Fire 02');
+          await until(() => page.eval<boolean>(`!document.getElementById('media-video').hidden && document.getElementById('media-video').src.endsWith('/preview')`), 'the preview clip on the stage');
+        }
+
+        // A preview nothing claims is listed as itself; one the catalog names pictures a file that is not here.
+        await fire('#search', 'orphan', 'input');
+        await until(async () => (await resultNames()).includes('Orphan'), 'the unclaimed preview as an item');
+        await fire('#search', 'fire 03', 'input');
+        await until(async () => (await card('Fire 03')) !== null, 'the missing clip listed from the catalog');
+        await clickResult('Fire 03');
+        await until(async () => (await card('Fire 03'))?.pictured === true, 'the missing clip pictured by the preview the catalog names', 90_000);
+
+        // Used — rendered — the full file is read, and Info says so. The still's file is real, so it renders.
+        await fire('#search', 'deep sea', 'input');
+        await until(async () => (await card('Deep Sea')) !== null, 'the still');
+        await clickResult('Deep Sea');
+        await openTab('info');
+        await until(async () => (await infoText()).includes('Shown from Deep Sea_thumb.png'), 'the still browsed from its thumbnail');
+        await openTab('output');
+        await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-still'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Deep Sea')`), 'the render of it', 60_000);
+        await openTab('info');
+        await until(async () => (await infoText()).includes('the full file has been read'), 'Info saying the full file has been read', 30_000);
+        // Nothing in the library was written, for all of it.
+        expect(await snapshotTree(stockDir)).toEqual(before);
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        for (const f of ['Clips', 'Stills', 'Music', 'Previews', 'Extras']) await rm(join(stockDir, f), { recursive: true, force: true });
+        await rm(join(stockDir, 'catalog.csv'), { force: true });
+      }
+    }, 300_000);
   });
 
   describe('music and sound effects in a stock library (milestone 32)', () => {

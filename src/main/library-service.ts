@@ -23,6 +23,7 @@ import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrar
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
 import { itemId, mediaKindForPath } from '../core/library-scan';
+import { metadataFromPreview, previewClip, previewSound, thumbnailPreview } from '../core/library-preview';
 import { LibraryStore, type ScanStats } from '../core/library-store';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
 import { mediaThumbArgs, thumbFileName } from '../core/thumbnails';
@@ -276,6 +277,14 @@ async function probePendingMetadata(): Promise<void> {
       for (let i = 0; i < pending.length; i += PROBE_CONCURRENCY) {
         await Promise.all(
           pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
+            // An item with a preview is measured from it (milestone 32): the length a preview clip
+            // or sound shares with the file, and nothing more. The file itself is read when the
+            // item is placed or rendered (prepareForUse).
+            if (entry.preview) {
+              const small = entry.preview.media;
+              st.setMetadata(entry, metadataFromPreview(small ? await probeMedia(ffprobe!, small, nodeRunner) : null));
+              return;
+            }
             // A sequence is probed through its first frame; the run says how long it runs for.
             // A clip set is probed part by part, and measured as the three once (milestone 32).
             if (entry.clipSet) {
@@ -362,6 +371,13 @@ async function generatePendingThumbnails(): Promise<void> {
               if (!member) return false;
               const scaled = await runWithInput(ffmpegPath!, posterFromFrameArgs(out, null), await readZipMember(preview.zip, member));
               return scaled.code === 0 && existsSync(out);
+            }
+            // An item with a preview is pictured from it (milestone 32): its still, else a frame of its
+            // preview clip. The full file is not read.
+            const small = entry.kind === 'media' ? thumbnailPreview(entry) : null;
+            if (small && entry.kind === 'media') {
+              const result = await nodeRunner(ffmpegPath!, mediaThumbArgs(small.file, out, small.isClip ? entry.meta?.duration : undefined, small.isClip));
+              return result.code === 0 && existsSync(out);
             }
             if (entry.kind === 'media' && isLayeredPath(entry.path)) {
               // A layered file's thumbnail is its composite as the file shows it, shrunk like a poster (milestone 33).
@@ -601,9 +617,13 @@ async function mediaStrip(listed: MediaEntry, out: string): Promise<HoverStripRe
   const entry = await browsable(listed);
   const duration = entry.meta?.duration ?? 0;
   const seq = entry.sequence;
-  const args = seq
-    ? sequenceStripArgs(join(seq.dir, sequencePatternName(seq)), seq.start, out, duration, entry.meta?.fps ?? SEQUENCE_FPS)
-    : mediaStripArgs(entry.path, out, duration);
+  // A clip with a preview clip scrubs through it (milestone 32); the full file stays unread.
+  const small = previewClip(entry);
+  const args = small
+    ? mediaStripArgs(small, out, duration)
+    : seq
+      ? sequenceStripArgs(join(seq.dir, sequencePatternName(seq)), seq.start, out, duration, entry.meta?.fps ?? SEQUENCE_FPS)
+      : mediaStripArgs(entry.path, out, duration);
   const result = await nodeRunner(ffmpegPath!, args);
   if (result.code !== 0) return { url: null, reason: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
   if (!existsSync(out)) return { url: null, reason: 'ffmpeg wrote no strip' }; // i18n-exempt(diagnostic)
@@ -661,7 +681,9 @@ async function makeWaveform(id: string): Promise<WaveformResult> {
   let result: WaveformResult;
   try {
     result = await heavyWork(async () => {
-      const decoded = await runForBuffer(ffmpegPath!, waveformArgs(await browsableFile(entry as Extract<LibraryEntry, { kind: 'media' }>)));
+      // A sound with a preview sound is drawn from it (milestone 32); the full file stays unread.
+      const sound = entry as Extract<LibraryEntry, { kind: 'media' }>;
+      const decoded = await runForBuffer(ffmpegPath!, waveformArgs(previewSound(sound) ?? (await browsableFile(sound))));
       if (decoded.code !== 0) return { peaks: null, reason: `ffmpeg exited with ${decoded.code}: ${decoded.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
       if (decoded.stdout.length === 0) return { peaks: null, reason: 'the file decoded to no audio' }; // i18n-exempt(diagnostic)
       return { peaks: encodePeaks(peaksFromPcm(decoded.stdout)) };
@@ -769,18 +791,52 @@ export async function addLibraryFolder(folder: string): Promise<LibraryIndex> {
 }
 
 /**
- * Unpack any archive members among `ids` into the library's folder, because they are being used:
- * placed in a graphic, rendered, exported (milestone 32). Ids that are not archive members, or are
- * not media at all, are left alone. Returns the ids that could not be unpacked.
+ * Make the items among `ids` ready to be used — placed in a graphic, rendered, exported — where
+ * browsing left them short (milestone 32): an archive member is unpacked into the library's folder,
+ * and an item browsed from its preview has its full file read for its metadata now, in place of
+ * what the preview could say. Ids that need neither, or are not media at all, are left alone.
+ * Returns the ids that could not be unpacked.
  */
-export async function unpackIfArchived(ids: readonly (string | null | undefined)[]): Promise<string[]> {
+export async function prepareForUse(ids: readonly (string | null | undefined)[]): Promise<string[]> {
   const failed: string[] = [];
+  let changed = false;
   for (const id of new Set(ids.filter((i): i is string => typeof i === 'string' && i !== ''))) {
     const found = getStore().findMediaById(id);
-    if (!found?.entry.archive || !found.online) continue;
-    if (!(await unpackForUse(found.entry))) failed.push(id);
+    if (!found || !found.online || found.entry.missing || found.entry.unreadable) continue;
+    if (found.entry.archive && !(await unpackForUse(found.entry))) {
+      failed.push(id);
+      continue;
+    }
+    if (found.entry.preview && (await readFullMetadata(found.entry))) changed = true;
   }
+  if (changed) broadcast(getStore().toIndex());
   return failed;
+}
+
+/**
+ * Read the full file of an item browsed from its preview (milestone 32), once: its size, rate, codec
+ * and alpha replace the length its preview gave. True when the index changed. Nothing without ffprobe,
+ * and nothing when the file has been read already.
+ */
+async function readFullMetadata(entry: MediaEntry): Promise<boolean> {
+  const st = getStore();
+  const known = st.findEntryById(entry.id);
+  if (known?.kind === 'media' && known.meta && !known.meta.fromPreview) return false;
+  if (ffprobe === undefined) {
+    const status = await detectFfmpeg();
+    ffprobe = status.ok ? ffprobePathFor(status.path) : null;
+  }
+  if (!ffprobe) return false;
+  let meta: MediaMetadata | null;
+  if (entry.clipSet) meta = await probeClipSet(ffprobe, entry);
+  else {
+    const file = await browsableFile(entry).catch(() => entry.path);
+    const probed = isLayeredPath(file) ? await layeredMetadata(file) : await probeMedia(ffprobe, file, nodeRunner);
+    meta = entry.sequence ? sequenceMetadata(probed, entry.sequence) : probed;
+  }
+  if (!meta) return false;
+  st.setMetadata(entry, meta);
+  return true;
 }
 
 /** For the pulp-media:// handler: the stored media item behind an id, if any. */

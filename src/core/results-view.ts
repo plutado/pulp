@@ -204,7 +204,7 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing' | 'unreadable';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing' | 'unreadable' | 'preview';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
@@ -264,6 +264,8 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (entry.kind === 'media' && entry.pairedSound) badges.push({ id: 'sound', label: tr('results.badge.sound'), tip: tr('results.badge.paired-sound.tip') });
   // In a zip archive, not unpacked yet (milestone 32): browsed as it is, unpacked when it is used.
   if (entry.kind === 'media' && entry.archive && !entry.archive.unpacked) badges.push({ id: 'archive', label: tr('results.badge.archive'), tip: tr('results.badge.archive.tip', { zip: entry.archive.zip.split(/[\\/]/).pop()! }) });
+  // Browsed from the library's own small preview (milestone 32): the full file is read when it is used.
+  if (entry.kind === 'media' && entry.preview && !entry.missing) badges.push({ id: 'preview', label: tr('results.badge.preview'), tip: tr('results.badge.preview.tip') });
   // A clip set (milestone 32): one item made of an intro, a loop and an outro, that stretches.
   if (entry.kind === 'media' && entry.clipSet) badges.push({ id: 'clip-set', label: tr('results.badge.clip-set'), tip: tr('results.badge.clip-set.tip', { parts: clipSetPartsLabel(entry.clipSet) }) });
   const orientation = entryOrientationBadge(entry);

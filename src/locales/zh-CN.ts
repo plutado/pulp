@@ -2432,6 +2432,12 @@ export const zhCN: Catalog = {
   'music.version.full': '完整版',
   'ui.say-strip-dismiss.aria-label': '关闭此消息',
   // ---------------------------------------------------------------- known but missing (milestone 32)
+  'results.badge.preview': '预览',
+  'results.badge.preview.tip': '通过素材库自带的小预览浏览。放置或渲染时才读取完整文件',
+  'info.row.preview': '预览',
+  'info.value.preview': '显示自 {file}，即素材库自带的预览。画面尺寸、帧率和透明度会在放置或渲染时从完整文件读取',
+  'info.value.preview.read': '显示自 {file}，即素材库自带的预览；完整文件已读取',
+  'stage.preview-note': '显示自素材库自带的预览。放置或渲染时才读取完整文件。',
   'results.summary.missing': '{name} — 不在此电脑上',
   'results.badge.missing': '缺失',
   'results.badge.missing.tip': '素材库的目录列出了它，但其文件不在此电脑上',

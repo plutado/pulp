@@ -2,6 +2,7 @@
 
 import type { StockLibraryState } from './stock-library';
 import type { ClipSetFiles } from './clip-set';
+import type { MediaPreview } from './library-preview';
 import type { UnreadablePreview } from './unreadable-media';
 import type { TemplateManifest, ValidationIssue } from './manifest';
 import type { MediaMetadata } from './media-meta';
@@ -128,6 +129,13 @@ export interface MediaEntry {
   versions?: { id: string; label: string; seconds?: number }[];
   stemParts?: { id: string; label: string }[];
   pairedSound?: string;
+  /**
+   * The small preview and thumbnail the library carries for this item (milestone 32): a picture
+   * beside it or in a preview folder, a small clip or sound, or what its catalog names. Browsing —
+   * the thumbnail, the length, the hover-scrub strip, the stage — reads these in place of the full
+   * file, which is read only when the item is placed or rendered (src/core/library-preview.ts).
+   */
+  preview?: MediaPreview;
 }
 
 export type LibraryEntry = TemplateEntry | MediaEntry;

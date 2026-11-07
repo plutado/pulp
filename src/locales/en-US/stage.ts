@@ -13,6 +13,7 @@ export const stage = {
   'stage.empty.template-offline': 'This template\'s folder is offline. It will load again when the folder is back.',
   'stage.empty.file-offline': 'This file\'s folder is offline.',
   'stage.empty.file-missing': 'This file is not on this computer: the library\'s catalog only lists it.',
+  'stage.preview-note': 'Shown from the library\'s own preview. The full file is read when it is placed or rendered.',
   'stage.note.image-slot': 'Image slot: {message}',
   'stage.note.template-error': 'Template error: {message}',
   'stage.note.template-error.unknown': 'Template error: unknown',

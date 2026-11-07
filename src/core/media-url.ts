@@ -30,3 +30,12 @@ export function psdCompositeUrlFor(id: string, hidden: readonly string[] = []): 
 export function psdLayerUrlFor(id: string, layer: string): string {
   return `${MEDIA_SCHEME}://${id}/layer/${layer}`;
 }
+
+/**
+ * pulp-media://<item-id>/preview — the small preview the library carries for the item (milestone
+ * 32): its preview clip or sound where it has one, else its still. What the stage shows for an item
+ * browsed from its preview, so the full file is not read until it is placed or rendered.
+ */
+export function mediaPreviewUrlFor(id: string): string {
+  return `${MEDIA_SCHEME}://${id}/preview`;
+}

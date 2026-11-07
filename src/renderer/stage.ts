@@ -46,7 +46,7 @@ import { DEFAULT_PLAYER, markPercent, playheadAt, SAFE_AREAS, sanitizePlayer, ST
 import { frameState } from '../core/runtime';
 import { formatTimecode } from '../core/timecode';
 import { mediaFrameUrlFor, mediaUrlFor, templateUrlFor } from '../shared/api';
-import { psdCompositeUrlFor } from '../core/media-url';
+import { mediaPreviewUrlFor, psdCompositeUrlFor } from '../core/media-url';
 import { isPsdEntry, psdHidden } from './psd-state';
 import { setIcon } from './icons';
 import { onLayoutApplied } from './shell';
@@ -891,13 +891,23 @@ export function stageShowMedia(entry: MediaEntry): void {
     }
     return;
   }
-  els.previewEmpty.classList.remove('unreadable-note');
+  els.previewEmpty.classList.remove('unreadable-note', 'preview-note');
   if (entry.offline) {
     bindText(els.previewEmpty, entry.missing ? 'stage.empty.file-missing' : 'stage.empty.file-offline');
     return;
   }
   els.previewEmpty.hidden = true;
-  const url = mediaUrlFor(entry.id);
+  // Browsed from its preview (milestone 32): the small clip, sound or still the library carries
+  // stands in on the stage, with a note saying so, until the item is placed or rendered. A sound
+  // with only a cover still plays its own file, as a sound's file is no heavier than its cover.
+  const preview = entry.preview && !entry.sequence && !entry.clipSet && !isPsdEntry(entry) ? entry.preview : undefined;
+  const fromPreview = preview !== undefined && (preview.media !== undefined || entry.mediaKind !== 'audio');
+  const url = fromPreview ? mediaPreviewUrlFor(entry.id) : mediaUrlFor(entry.id);
+  if (fromPreview) {
+    bindText(els.previewEmpty, 'stage.preview-note');
+    els.previewEmpty.hidden = false;
+    els.previewEmpty.classList.add('preview-note');
+  }
   const fit = (w: number, h: number) => {
     if (w > 0 && h > 0) setPreviewShape(w, h);
   };
@@ -911,7 +921,7 @@ export function stageShowMedia(entry: MediaEntry): void {
     els.scrub.max = String(Math.max(0, entry.sequence.count - 1));
     updateTransport();
     requestFrame(0);
-  } else if (entry.mediaKind === 'video') {
+  } else if (entry.mediaKind === 'video' && !(fromPreview && !preview?.media)) {
     // The element draws the clip; the transport row plays, steps and scrubs it (milestone 37), counting
     // frames at the rate the Output tab trims it at.
     els.mediaVideo.hidden = false;
@@ -936,7 +946,8 @@ export function stageShowMedia(entry: MediaEntry): void {
     s.still = true;
     els.mediaImage.src = psdCompositeUrlFor(entry.id, psdHidden.peek()[entry.id] ?? []);
     updateTransport();
-  } else if (entry.mediaKind === 'image') {
+  } else if (entry.mediaKind === 'image' || entry.mediaKind === 'video') {
+    // A still — or a clip whose preview is a still alone (milestone 32), which shows as one.
     els.mediaImage.hidden = false;
     els.mediaImage.onload = () => fit(els.mediaImage.naturalWidth, els.mediaImage.naturalHeight);
     s.still = true;

@@ -39,12 +39,14 @@ export function stripFileName(id: string): string {
 
 /**
  * Could this item ever scrub? A template or a video; a still or a sound has
- * nothing to step through and never will. Separate from `wantsStrip` because
- * "never" and "not yet" are different answers: the first is worth remembering,
- * the second must not be.
+ * nothing to step through and never will. Nor has a clip browsed from a still
+ * preview alone (milestone 32): its frames are in the full file, which browsing
+ * does not read. Separate from `wantsStrip` because "never" and "not yet" are
+ * different answers: the first is worth remembering, the second must not be.
  */
 export function canHaveStrip(entry: LibraryEntry): boolean {
-  return entry.kind === 'template' ? entry.manifest.duration > 0 : entry.mediaKind === 'video';
+  if (entry.kind === 'template') return entry.manifest.duration > 0;
+  return entry.mediaKind === 'video' && !(entry.preview && !entry.preview.media);
 }
 
 /**

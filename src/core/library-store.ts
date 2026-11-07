@@ -14,7 +14,7 @@
  */
 
 import { readdir, stat, readFile } from 'node:fs/promises';
-import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
@@ -22,7 +22,8 @@ import { folderTags, itemId, itemKey, loadLottie, loadTemplate, mediaKindForPath
 import { isLottieCandidate } from './lottie';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { groupClipSets } from './clip-set';
-import { CATALOG_FILES, parseCatalog } from './library-catalog';
+import { CATALOG_FILES, parseCatalog, type CatalogRow } from './library-catalog';
+import { catalogPreview, hasPreview, indexSiblings, isPreviewFolder, PreviewFolder, samePreview, sidecarPreviews, type MediaPreview } from './library-preview';
 import { embeddedPreview, sidecarPreview, unreadableFormat, type UnreadablePreview } from './unreadable-media';
 import { groupMusicVersions, groupStems, pairTransitionSounds } from './music-groups';
 import { listZipFile, unpackedPath } from './zip-archive';
@@ -300,6 +301,87 @@ export class LibraryStore {
       /** Files that are an archive's members unpacked (milestone 32): listed once, as the archive's. */
       const archiveTargets = new Set<string>();
 
+      // The library's own catalog (milestone 32), read first: what it says of a file — its name, its
+      // keywords, its preview — joins the item as the walk reaches it, and what it lists that is not
+      // here is added after the walk as known but missing.
+      const catalog = await readCatalog(rootPath, problems);
+      /** A preview the catalog names, by the full path of the media it is for; only files that exist. */
+      const catalogPreviews = new Map<string, string>();
+      /** Every file a catalog names as a preview: an item's, not an item. */
+      const catalogClaimed = new Set<string>();
+      if (catalog) {
+        for (const row of catalog.rows) {
+          if (!row.preview) continue;
+          const file = join(rootPath, ...row.preview.split('/'));
+          try {
+            if (!(await stat(file)).isFile()) continue;
+          } catch {
+            continue;
+          }
+          catalogPreviews.set(join(rootPath, ...row.path.split('/')), file);
+          catalogClaimed.add(file);
+        }
+      }
+      /**
+       * The preview folders found so far (milestone 32) — `Previews`, `Thumbnails`, `Thumbs` — each
+       * standing for the folder it sits in. A file in one is an item's preview, not an item, unless
+       * nothing claims it by the end of the walk.
+       */
+      const previewFolders: PreviewFolder[] = [];
+      const folderClaimed = new Set<string>();
+      /** Read a preview folder's files into `folder` rather than walking it as media. */
+      const collectPreviews = async (path: string, rel: string, folder: PreviewFolder, depth: number): Promise<void> => {
+        let inside;
+        try {
+          inside = await readdir(path, { withFileTypes: true });
+        } catch (err) {
+          problems.push({ path, message: `could not read folder: ${(err as Error).message}` });
+          return;
+        }
+        for (const e of inside) {
+          if (e.name.startsWith('.') || e.isSymbolicLink()) continue;
+          if (e.isDirectory()) {
+            if (!SKIP_DIRECTORIES.has(e.name) && depth < maxDepth) await collectPreviews(join(path, e.name), `${rel}${e.name}/`, folder, depth + 1);
+            continue;
+          }
+          if (!e.isFile() || fileCount >= maxFiles) continue;
+          fileCount += 1;
+          folder.add(`${rel}${e.name}`, join(path, e.name));
+        }
+      };
+      /**
+       * An item's previews: beside it (`sidecar`, from its own folder's names), else in a preview folder
+       * standing for one of its ancestors — the nearest first — else what the catalog names for it.
+       */
+      /** The preview folders standing for a folder or one of its ancestors, nearest first; worked out once per folder. */
+      const foldersAbove = new Map<string, { folder: PreviewFolder; rel: string }[]>();
+      const previewFoldersFor = (dir: string) => {
+        let above = foldersAbove.get(dir);
+        if (!above) {
+          above = previewFolders
+            .filter((f) => dir === f.base || dir.startsWith(f.base + sep))
+            .map((folder) => ({ folder, rel: relative(folder.base, dir).split(sep).join('/') }))
+            .reverse();
+          foldersAbove.set(dir, above);
+        }
+        return above;
+      };
+      const previewsFor = (dir: string, file: string, stem: string, kind: 'video' | 'image' | 'audio', sidecar: MediaPreview | undefined): MediaPreview | undefined => {
+        const preview: MediaPreview = { ...(sidecar ?? {}) };
+        for (const { folder, rel } of previewFoldersFor(dir)) {
+          if (hasPreview(preview) && preview.still && (kind === 'image' || preview.media)) break;
+          const found = folder.find(rel, stem, kind);
+          for (const c of found.claimed) folderClaimed.add(c);
+          if (preview.still === undefined && found.preview.still) preview.still = found.preview.still;
+          if (preview.media === undefined && found.preview.media) preview.media = found.preview.media;
+        }
+        if (!hasPreview(preview)) {
+          const named = catalogPreviews.get(join(dir, file));
+          if (named) Object.assign(preview, catalogPreview(named, kind));
+        }
+        return hasPreview(preview) ? preview : undefined;
+      };
+
       const walk = async (dir: string, depth: number, pack?: PackContext): Promise<void> => {
         if (fileCount >= maxFiles) return;
         let entries;
@@ -353,6 +435,15 @@ export class LibraryStore {
         }
 
         entries.sort((a, b) => a.name.localeCompare(b.name));
+
+        // A preview folder beside the media (milestone 32) is read for what it previews, not walked for items.
+        for (const e of entries) {
+          if (e.isDirectory() && !e.isSymbolicLink() && isPreviewFolder(e.name) && depth < maxDepth) {
+            const folder = new PreviewFolder(dir);
+            await collectPreviews(join(dir, e.name), '', folder, depth + 1);
+            previewFolders.push(folder);
+          }
+        }
 
         // Numbered frame runs in this folder are one clip each, not a card per frame
         // (milestone 26). Their member files are skipped by the loop below.
@@ -420,6 +511,21 @@ export class LibraryStore {
           };
           upserts.push({ key, kind: 'media', size, mtimeMs, entry: media });
         }
+
+        // The previews beside the media in this folder (milestone 32): a clip's poster, a still's
+        // thumbnail, a small preview clip or sound, named after the item. Theirs, so not items.
+        const fileNames = entries.filter((e) => e.isFile() && !e.name.startsWith('.') && !sequenceFrames.has(e.name)).map((e) => e.name);
+        const siblings = indexSiblings(fileNames);
+        const sidecarOf = new Map<string, MediaPreview>();
+        const sidecarClaimed = new Set<string>();
+        for (const name of fileNames) {
+          const kind = mediaKindForPath(name);
+          if (!kind) continue;
+          const { preview, claimed } = sidecarPreviews(basename(name, extname(name)), kind, [name], siblings);
+          for (const c of claimed) sidecarClaimed.add(c);
+          if (hasPreview(preview)) sidecarOf.set(name, { ...(preview.still ? { still: join(dir, preview.still) } : {}), ...(preview.media ? { media: join(dir, preview.media) } : {}) });
+        }
+        const isPreviewFile = (name: string) => sidecarClaimed.has(name) || catalogClaimed.has(join(dir, name));
 
         // A zip in the library (milestone 32) is browsed without unpacking it: each media file in its
         // central directory is an item of its own, whose path is where it unpacks to — beside the
@@ -494,7 +600,7 @@ export class LibraryStore {
         // An intro, a loop and an outro that belong together are one item that stretches
         // (milestone 32). Their files are skipped by the loop below, as a sequence's frames are.
         const setMembers = new Set<string>();
-        const videoNames = entries.filter((e) => e.isFile() && !e.name.startsWith('.') && !sequenceFrames.has(e.name) && mediaKindForPath(e.name) === 'video').map((e) => e.name);
+        const videoNames = fileNames.filter((n) => !isPreviewFile(n) && mediaKindForPath(n) === 'video');
         for (const found of groupClipSets(videoNames, basename(dir))) {
           if (fileCount >= maxFiles) {
             if (!truncated) problems.push({ path: rootPath, message: `stopped after ${maxFiles} files` });
@@ -524,8 +630,12 @@ export class LibraryStore {
           // Its signature is every part's: replacing any of them reads the set again.
           const size = infos.reduce((n, i) => n + i.size, 0);
           const mtimeMs = Math.max(...infos.map((i) => i.mtimeMs));
+          // A set's preview is named after the set ("Swoosh.jpg", "Swoosh_preview.mp4"), beside its parts.
+          const setSidecar = sidecarPreviews(found.name, 'video', names, siblings);
+          for (const c of setSidecar.claimed) sidecarClaimed.add(c);
+          const setPreview = previewsFor(dir, found.files.loop, found.name, 'video', hasPreview(setSidecar.preview) ? { ...(setSidecar.preview.still ? { still: join(dir, setSidecar.preview.still) } : {}), ...(setSidecar.preview.media ? { media: join(dir, setSidecar.preview.media) } : {}) } : undefined);
           const storedSet = existing.get(key);
-          if (storedSet && storedSet.size === size && storedSet.mtime_ms === mtimeMs) {
+          if (storedSet && storedSet.size === size && storedSet.mtime_ms === mtimeMs && samePreview((JSON.parse(storedSet.entry) as MediaEntry).preview, setPreview)) {
             stats.kept += 1;
             continue;
           }
@@ -547,6 +657,7 @@ export class LibraryStore {
             mtimeMs,
             tags: segments,
             clipSet: files,
+            ...(setPreview ? { preview: setPreview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
             ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
@@ -556,7 +667,7 @@ export class LibraryStore {
 
         // Music and sound effects (milestone 32): a track's cuts and a song's stems are one item
         // each, their files kept as items marked part of it; a sound made for a clip is paired.
-        const plainFiles = entries.filter((e) => e.isFile() && !e.name.startsWith('.') && !sequenceFrames.has(e.name) && !setMembers.has(e.name)).map((e) => e.name);
+        const plainFiles = fileNames.filter((n) => !setMembers.has(n) && !isPreviewFile(n));
         const fileExtras = new Map<string, Pick<MediaEntry, 'partOf' | 'pairedSound'>>();
         const groupOf = (name: string, label: string) => itemKey('media', join(dir, `${name} [${label}]`), this.builtInRoot);
         const memberId = (file: string) => itemId(itemKey('media', join(dir, file), this.builtInRoot));
@@ -583,8 +694,10 @@ export class LibraryStore {
           if (infos.some((i) => i === null)) { seen.delete(g.key); continue; }
           const size = infos.reduce((n, i) => n + i!.size, 0);
           const mtimeMs = Math.max(...infos.map((i) => i!.mtimeMs));
+          // The group shows the first member's preview that has one (milestone 32): a track's cover, say.
+          const groupPreview = g.files.map((f) => previewsFor(dir, f, basename(f, extname(f)), 'audio', sidecarOf.get(f))).find((p) => p !== undefined);
           const stored = existing.get(g.key);
-          if (stored && stored.size === size && stored.mtime_ms === mtimeMs) { stats.kept += 1; continue; }
+          if (stored && stored.size === size && stored.mtime_ms === mtimeMs && samePreview((JSON.parse(stored.entry) as MediaEntry).preview, groupPreview)) { stats.kept += 1; continue; }
           stats.loaded += 1;
           const segments = folderTags(rootPath, dir);
           const inferredThemes = inferThemes(segments);
@@ -594,6 +707,7 @@ export class LibraryStore {
           const media: MediaEntry = {
             kind: 'media', key: g.key, id: itemId(g.key), path: first, root: rootPath, name: g.name, mediaKind: 'audio',
             ext: extname(first).toLowerCase(), size, mtimeMs, tags: segments, ...g.entry,
+            ...(groupPreview ? { preview: groupPreview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
             ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
@@ -605,13 +719,15 @@ export class LibraryStore {
           if (entry.name.startsWith('.')) continue;
           if (sequenceFrames.has(entry.name)) continue;
           if (setMembers.has(entry.name)) continue;
+          // An item's preview is the item's, not an item (milestone 32).
+          if (entry.isFile() && isPreviewFile(entry.name)) continue;
           // An archive's unpacked file is the archive's item, not a second one; a part being written is nothing yet.
           if (archiveTargets.has(join(dir, entry.name)) || entry.name.endsWith('.pulp-part')) continue;
           const full = join(dir, entry.name);
           // Symlinks are skipped to avoid cycles and surprising scans outside the chosen roots.
           if (entry.isSymbolicLink()) continue;
           if (entry.isDirectory()) {
-            if (SKIP_DIRECTORIES.has(entry.name)) continue;
+            if (SKIP_DIRECTORIES.has(entry.name) || isPreviewFolder(entry.name)) continue;
             if (depth < maxDepth) await walk(full, depth + 1, pack);
             continue;
           }
@@ -723,10 +839,11 @@ export class LibraryStore {
           }
           const stored = existing.get(key);
           const extras = fileExtras.get(entry.name) ?? {};
-          // Unchanged, and still in the same group or pairing: kept as it is.
+          const preview = previewsFor(dir, entry.name, basename(entry.name, extname(entry.name)), kind, sidecarOf.get(entry.name));
+          // Unchanged, still in the same group or pairing, and with the same previews: kept as it is.
           const sameExtras = (row: ItemRow) => {
             const was = JSON.parse(row.entry) as MediaEntry;
-            return was.partOf === extras.partOf && was.pairedSound === extras.pairedSound;
+            return was.partOf === extras.partOf && was.pairedSound === extras.pairedSound && samePreview(was.preview, preview);
           };
           if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs && sameExtras(stored)) {
             stats.kept += 1;
@@ -750,6 +867,7 @@ export class LibraryStore {
             mtimeMs: info.mtimeMs,
             tags: segments,
             ...extras,
+            ...(preview ? { preview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
             ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
@@ -760,20 +878,11 @@ export class LibraryStore {
 
       await walk(rootPath, 0);
 
-      // The library's own catalog (milestone 32): everything it lists whose file is not here is a
-      // known but missing item, so the whole collection is seen, and what is missing from it.
-      for (const catalogName of CATALOG_FILES) {
-        const catalogPath = join(rootPath, catalogName);
-        let catalogInfo;
-        let rows;
-        try {
-          catalogInfo = await stat(catalogPath);
-          rows = parseCatalog(await readFile(catalogPath, 'utf8'), catalogName);
-        } catch (err) {
-          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') problems.push({ path: catalogPath, message: `could not read the library's catalog: ${(err as Error).message}` });
-          continue;
-        }
-        for (const row of rows) {
+      // Everything the catalog lists whose file is not here is a known but missing item (milestone 32),
+      // so the whole collection is seen, and what is missing from it — pictured by its preview where
+      // the catalog or a preview folder has one.
+      if (catalog) {
+        for (const row of catalog.rows) {
           const full = join(rootPath, ...row.path.split('/'));
           const kind = mediaKindForPath(full);
           if (!kind) continue;
@@ -781,8 +890,10 @@ export class LibraryStore {
           if (seen.has(key)) continue;
           seen.add(key);
           stats.visited += 1;
+          const preview = previewsFor(dirname(full), basename(full), basename(full, extname(full)), kind, undefined);
           const stored = existing.get(key);
-          if (stored && stored.mtime_ms === catalogInfo.mtimeMs && (JSON.parse(stored.entry) as MediaEntry).missing) {
+          const was = stored ? (JSON.parse(stored.entry) as MediaEntry) : undefined;
+          if (stored && stored.mtime_ms === catalog.mtimeMs && was?.missing && samePreview(was.preview, preview)) {
             stats.kept += 1;
             continue;
           }
@@ -794,14 +905,56 @@ export class LibraryStore {
           const media: MediaEntry = {
             kind: 'media', key, id: itemId(key), path: full, root: rootPath,
             name: row.name ?? basename(full, extname(full)), mediaKind: kind, ext: extname(full).toLowerCase(),
-            size: 0, mtimeMs: catalogInfo.mtimeMs, tags: segments, missing: true,
+            size: 0, mtimeMs: catalog.mtimeMs, tags: segments, missing: true,
+            ...(preview ? { preview } : {}),
             ...(inferredType ? { type: inferredType } : {}),
             ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
             ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
           };
-          upserts.push({ key, kind: 'media', size: 0, mtimeMs: catalogInfo.mtimeMs, entry: media });
+          upserts.push({ key, kind: 'media', size: 0, mtimeMs: catalog.mtimeMs, entry: media });
         }
-        break;
+      }
+
+      // A file in a preview folder that nothing claims — no item of its name, no catalog row — is
+      // listed as itself (milestone 32), so nothing in the library disappears.
+      for (const folder of previewFolders) {
+        for (const full of folder.files) {
+          if (folderClaimed.has(full) || catalogClaimed.has(full)) continue;
+          const kind = mediaKindForPath(full);
+          if (!kind) continue;
+          const key = itemKey('media', full, this.builtInRoot);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          stats.visited += 1;
+          let info;
+          try {
+            info = await stat(full);
+          } catch (err) {
+            problems.push({ path: full, message: `could not stat file: ${(err as Error).message}` });
+            seen.delete(key);
+            continue;
+          }
+          const stored = existing.get(key);
+          if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs) {
+            stats.kept += 1;
+            continue;
+          }
+          stats.loaded += 1;
+          const dir = dirname(full);
+          const segments = folderTags(rootPath, dir);
+          const inferredType = inferMediaType(kind, segments);
+          const inferredThemes = inferThemes(segments);
+          const inferredMoods = inferMoods(segments);
+          const media: MediaEntry = {
+            kind: 'media', key, id: itemId(key), path: full, root: rootPath,
+            name: basename(full, extname(full)), mediaKind: kind, ext: extname(full).toLowerCase(),
+            size: info.size, mtimeMs: info.mtimeMs, tags: segments,
+            ...(inferredType ? { type: inferredType } : {}),
+            ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
+            ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
+          };
+          upserts.push({ key, kind: 'media', size: info.size, mtimeMs: info.mtimeMs, entry: media });
+        }
       }
 
       this.db.exec('BEGIN');
@@ -971,7 +1124,7 @@ export class LibraryStore {
       .prepare(
         'SELECT items.entry AS entry FROM items JOIN roots ON roots.path = items.root ' +
           'LEFT JOIN thumbs ON thumbs.key = items.key AND thumbs.size = items.size AND thumbs.mtime_ms = items.mtime_ms ' +
-          "WHERE roots.online = 1 AND thumbs.key IS NULL AND json_extract(items.entry, '$.missing') IS NULL AND (json_extract(items.entry, '$.unreadable') IS NULL OR json_extract(items.entry, '$.unreadable.preview') IS NOT NULL) ORDER BY items.rowid LIMIT ?",
+          "WHERE roots.online = 1 AND thumbs.key IS NULL AND (json_extract(items.entry, '$.missing') IS NULL OR json_extract(items.entry, '$.preview') IS NOT NULL) AND (json_extract(items.entry, '$.unreadable') IS NULL OR json_extract(items.entry, '$.unreadable.preview') IS NOT NULL) ORDER BY items.rowid LIMIT ?",
       )
       .all(limit * 2) as unknown as { entry: string }[];
     return rows.map((r) => JSON.parse(r.entry) as LibraryEntry).filter(wantsThumbnail).slice(0, limit);
@@ -1141,6 +1294,24 @@ export class LibraryStore {
       .run(key, JSON.stringify(next.tags), JSON.stringify(next.themes), next.favorite ? 1 : 0, next.lastUsed ?? null, next.sequenceFps ?? null);
     return next;
   }
+}
+
+/**
+ * The library's own catalog at its root (milestone 32), if it has one: its rows and the file's time,
+ * which is the signature of every item known only from it. A catalog that cannot be read is a problem
+ * of the root; none at all is nothing.
+ */
+async function readCatalog(rootPath: string, problems: LibraryProblem[]): Promise<{ rows: CatalogRow[]; mtimeMs: number } | null> {
+  for (const catalogName of CATALOG_FILES) {
+    const catalogPath = join(rootPath, catalogName);
+    try {
+      const info = await stat(catalogPath);
+      return { rows: parseCatalog(await readFile(catalogPath, 'utf8'), catalogName), mtimeMs: info.mtimeMs };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') problems.push({ path: catalogPath, message: `could not read the library's catalog: ${(err as Error).message}` });
+    }
+  }
+  return null;
 }
 
 async function entryStillExists(stored: ItemRow): Promise<boolean> {
