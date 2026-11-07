@@ -20,7 +20,7 @@ import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
 import { initSearchBar } from './search-bar';
 import { initStatusBar, setFfmpeg, setScanning } from './status-bar';
 import { initTray, sayInTray } from './tray';
-import { initSampleHint, refreshSampleHint, sayUnderResults } from './sample-hint';
+import { initSampleHint, refreshSampleHint } from './sample-hint';
 import { initLibraryAdd, setLibraryAddBusy } from './library-add';
 import { initProject, openProjectFrom } from './project';
 import { askAboutRecovery, initProjectUi, offerInterruptedRenders } from './project-ui';
@@ -436,7 +436,8 @@ initLibraryAdd({
     if (!outcome) return null;
     if (!outcome.ok) {
       const { why } = outcome;
-      sayUnderResults(() => t(`library.stock.refused.${why}`));
+      // Said where the window's other messages are: the tray's line, or the strip over the window while it is away.
+      sayInTray(t(`library.stock.refused.${why}`));
       return null;
     }
     return outcome.index;
