@@ -86,7 +86,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 69. The library in German and Chinese (post-1.0, **done**) | 12-20 h |
 | 70. Right-to-left and complex scripts (post-1.0) | 12-23 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
-| **Still open through 1.0 (unticked items only)** | **17-31 h** |
+| **Still open through 1.0 (unticked items only)** | **19-33 h** |
 | **Total including post-1.0 items** | **1059-1736 h** |
 
 ## 0. Foundation (done)
