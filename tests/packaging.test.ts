@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
+import { TEST_PICK_FOLDER, testPickedFolder } from '../src/core/test-hooks';
 
 const ROOT = join(__dirname, '..');
 
@@ -270,5 +271,32 @@ describe('the icon', () => {
     for (const size of [16, 24, 32, 48, 64, 128, 256, 512]) {
       expect(existsSync(join(build, 'icons', `${size}x${size}.png`)), `Linux ${size}px`).toBe(true);
     }
+  });
+});
+
+describe('what a packaged build ignores', () => {
+  it('does not answer the folder picker from the environment: the test hook works only in a development build', async () => {
+    // The hook itself: a folder in a development build, nothing in a packaged one, nothing for an empty value.
+    expect(testPickedFolder({ [TEST_PICK_FOLDER]: '/Volumes/Stock' }, false)).toBe('/Volumes/Stock');
+    expect(testPickedFolder({ [TEST_PICK_FOLDER]: '/Volumes/Stock' }, true)).toBeUndefined();
+    expect(testPickedFolder({ [TEST_PICK_FOLDER]: '  ' }, false)).toBeUndefined();
+    expect(testPickedFolder({}, false)).toBeUndefined();
+    // And the main process reads it through the hook alone, with whether the app is packaged: no
+    // other line in what we ship names the variable.
+    const main = await readFile(join(ROOT, 'src', 'main', 'index.ts'), 'utf8');
+    expect(main).toContain('testPickedFolder(process.env, app.isPackaged)');
+    expect(main).not.toContain('process.env.PULP_TEST_PICK_FOLDER');
+    const { readdirSync, readFileSync, statSync } = await import('node:fs');
+    const { relative, sep } = await import('node:path');
+    const naming: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.(ts|tsx)$/.test(name) && readFileSync(full, 'utf8').includes(TEST_PICK_FOLDER)) naming.push(relative(ROOT, full).split(sep).join('/'));
+      }
+    };
+    walk(join(ROOT, 'src'));
+    expect(naming.sort(), 'the variable is named in the hook alone; what calls it does so by the constant').toEqual(['src/core/test-hooks.ts']);
   });
 });

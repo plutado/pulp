@@ -65,6 +65,7 @@ import { loadSettings, updateSettings } from './settings';
 import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
 import { getLanguage, loadLanguage, onLanguageChange, setLanguage } from './language-service';
 import { clipSetPreview, stemsPreview } from './clip-set-service';
+import { testPickedFolder } from '../core/test-hooks';
 import { abandonVideoTake, appendVideoTake, beginVideoTake, cameraAccess, finishVideoTake, microphoneAccess, openPrivacySettings, saveRecording } from './recording-service';
 import { DEFAULT_VIDEO_INPUTS, sanitizeVideoInputs } from '../core/video-take';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
@@ -309,8 +310,9 @@ function registerIpc(): void {
   // A stock library (milestone 32): a folder or a whole drive, read where it lies.
   ipcMain.handle('library:add-stock', async () => {
     // The end-to-end suite answers the folder picker this way, since a native dialog cannot be
-    // driven from the test protocol; everything after the choice is the real path.
-    const picked = process.env.PULP_TEST_PICK_FOLDER;
+    // driven from the test protocol; everything after the choice is the real path. A packaged
+    // app ignores the variable (src/core/test-hooks.ts), so nothing we ship can be steered by it.
+    const picked = testPickedFolder(process.env, app.isPackaged);
     if (picked) return addStockLibrary(picked);
     const result = await dialog.showOpenDialog({
       title: tr('dialog.library.add-stock'),
