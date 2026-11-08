@@ -11,6 +11,20 @@ import { deflateRawSync, inflateRawSync } from 'node:zlib';
 export interface ZipEntry {
   name: string;
   data: Buffer;
+  /**
+   * Mark the entry encrypted (general-purpose bit 0) without encrypting anything: the bytes are
+   * written as they are. For tests of how a password-protected archive is listed and refused.
+   */
+  encrypted?: boolean;
+}
+
+export interface WriteZipOptions {
+  /**
+   * Write the ZIP64 structures — the end record and locator, 0xffffffff in the directory with the
+   * real sizes and offsets in each entry's ZIP64 extra field — however small the archive is. What
+   * a 4 GB download has, made testable in a few bytes.
+   */
+  zip64?: boolean;
 }
 
 export interface ZipLimits {
@@ -112,10 +126,11 @@ export function readZip(buf: Buffer, limits: ZipLimits = {}): ZipEntry[] {
 }
 
 /** Write entries (deflated) with a central directory. Names must already be safe relative paths. */
-export function writeZip(entries: ZipEntry[]): Buffer {
+export function writeZip(entries: ZipEntry[], options: WriteZipOptions = {}): Buffer {
   const parts: Buffer[] = [];
   const central: Buffer[] = [];
   let offset = 0;
+  const zip64 = options.zip64 === true;
   for (const entry of entries) {
     const name = safeZipPath(entry.name);
     if (!name) throw new ZipError(`unsafe entry name "${entry.name}"`); // i18n-exempt(diagnostic)
@@ -124,10 +139,11 @@ export function writeZip(entries: ZipEntry[]): Buffer {
     const deflated = deflateRawSync(entry.data, { level: 6 });
     const method = deflated.length < entry.data.length ? 8 : 0;
     const body = method === 8 ? deflated : entry.data;
+    const flags = 0x0800 | (entry.encrypted ? 0x0001 : 0);
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
-    local.writeUInt16LE(20, 4); // version needed
-    local.writeUInt16LE(0x0800, 6); // UTF-8 names
+    local.writeUInt16LE(zip64 ? 45 : 20, 4); // version needed
+    local.writeUInt16LE(flags, 6); // UTF-8 names, and the encryption bit when asked
     local.writeUInt16LE(method, 8);
     local.writeUInt16LE(0, 10); // time
     local.writeUInt16LE(0x21, 12); // date: 1980-01-01
@@ -136,37 +152,69 @@ export function writeZip(entries: ZipEntry[]): Buffer {
     local.writeUInt32LE(entry.data.length, 22);
     local.writeUInt16LE(nameBuf.length, 26);
     local.writeUInt16LE(0, 28);
+    // ZIP64: the directory says "see the extra field" for the sizes and the offset, and the extra
+    // field (id 0x0001) carries them as eight-byte numbers, in that order.
+    const extra = zip64 ? Buffer.alloc(28) : Buffer.alloc(0);
+    if (zip64) {
+      extra.writeUInt16LE(0x0001, 0);
+      extra.writeUInt16LE(24, 2);
+      extra.writeBigUInt64LE(BigInt(entry.data.length), 4);
+      extra.writeBigUInt64LE(BigInt(body.length), 12);
+      extra.writeBigUInt64LE(BigInt(offset), 20);
+    }
     const cd = Buffer.alloc(46);
     cd.writeUInt32LE(0x02014b50, 0);
-    cd.writeUInt16LE(20, 4);
-    cd.writeUInt16LE(20, 6);
-    cd.writeUInt16LE(0x0800, 8);
+    cd.writeUInt16LE(zip64 ? 45 : 20, 4);
+    cd.writeUInt16LE(zip64 ? 45 : 20, 6);
+    cd.writeUInt16LE(flags, 8);
     cd.writeUInt16LE(method, 10);
     cd.writeUInt16LE(0, 12);
     cd.writeUInt16LE(0x21, 14);
     cd.writeUInt32LE(crc, 16);
-    cd.writeUInt32LE(body.length, 20);
-    cd.writeUInt32LE(entry.data.length, 24);
+    cd.writeUInt32LE(zip64 ? 0xffffffff : body.length, 20);
+    cd.writeUInt32LE(zip64 ? 0xffffffff : entry.data.length, 24);
     cd.writeUInt16LE(nameBuf.length, 28);
-    cd.writeUInt16LE(0, 30);
+    cd.writeUInt16LE(extra.length, 30);
     cd.writeUInt16LE(0, 32);
     cd.writeUInt16LE(0, 34);
     cd.writeUInt16LE(0, 36);
     cd.writeUInt32LE(0, 38);
-    cd.writeUInt32LE(offset, 42);
+    cd.writeUInt32LE(zip64 ? 0xffffffff : offset, 42);
     parts.push(local, nameBuf, body);
-    central.push(cd, nameBuf);
+    central.push(cd, nameBuf, extra);
     offset += local.length + nameBuf.length + body.length;
   }
   const cdBuf = Buffer.concat(central);
+  const tail: Buffer[] = [];
+  if (zip64) {
+    // The ZIP64 end record, then the locator that says where it is, then an end record whose
+    // counts and offsets all say "see the ZIP64 record".
+    const record = Buffer.alloc(56);
+    record.writeUInt32LE(0x06064b50, 0);
+    record.writeBigUInt64LE(44n, 4);
+    record.writeUInt16LE(45, 12);
+    record.writeUInt16LE(45, 14);
+    record.writeUInt32LE(0, 16);
+    record.writeUInt32LE(0, 20);
+    record.writeBigUInt64LE(BigInt(entries.length), 24);
+    record.writeBigUInt64LE(BigInt(entries.length), 32);
+    record.writeBigUInt64LE(BigInt(cdBuf.length), 40);
+    record.writeBigUInt64LE(BigInt(offset), 48);
+    const locator = Buffer.alloc(20);
+    locator.writeUInt32LE(0x07064b50, 0);
+    locator.writeUInt32LE(0, 4);
+    locator.writeBigUInt64LE(BigInt(offset + cdBuf.length), 8);
+    locator.writeUInt32LE(1, 16);
+    tail.push(record, locator);
+  }
   const eocd = Buffer.alloc(22);
   eocd.writeUInt32LE(0x06054b50, 0);
   eocd.writeUInt16LE(0, 4);
   eocd.writeUInt16LE(0, 6);
-  eocd.writeUInt16LE(entries.length, 8);
-  eocd.writeUInt16LE(entries.length, 10);
-  eocd.writeUInt32LE(cdBuf.length, 12);
-  eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(zip64 ? 0xffff : entries.length, 8);
+  eocd.writeUInt16LE(zip64 ? 0xffff : entries.length, 10);
+  eocd.writeUInt32LE(zip64 ? 0xffffffff : cdBuf.length, 12);
+  eocd.writeUInt32LE(zip64 ? 0xffffffff : offset, 16);
   eocd.writeUInt16LE(0, 20);
-  return Buffer.concat([...parts, cdBuf, eocd]);
+  return Buffer.concat([...parts, cdBuf, ...tail, eocd]);
 }

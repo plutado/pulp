@@ -879,7 +879,7 @@ export function stageShowMedia(entry: MediaEntry): void {
   if (entry.unreadable) {
     // What Pulp cannot open: its note in words, and its preview where it has one (milestone 32).
     delete els.previewEmpty.dataset.i18n;
-    els.previewEmpty.textContent = unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext);
+    els.previewEmpty.textContent = unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext, entry.unreadable.encrypted);
     els.previewEmpty.hidden = false;
     els.previewEmpty.classList.add('unreadable-note');
     if (entry.thumbnail) {

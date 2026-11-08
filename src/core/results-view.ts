@@ -255,7 +255,7 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
   // A file Pulp cannot read, listed with what it needs (milestone 32).
-  if (entry.kind === 'media' && entry.unreadable) badges.push({ id: 'unreadable', label: tr('results.badge.unreadable'), tip: unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext) });
+  if (entry.kind === 'media' && entry.unreadable) badges.push({ id: 'unreadable', label: tr('results.badge.unreadable'), tip: unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext, entry.unreadable.encrypted) });
   // Listed by the library's catalog, not on this computer (milestone 32).
   if (entry.kind === 'media' && entry.missing) badges.push({ id: 'missing', label: tr('results.badge.missing'), tip: tr('results.badge.missing.tip') });
   // Music and sound effects in a stock library (milestone 32).

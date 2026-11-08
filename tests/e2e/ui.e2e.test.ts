@@ -11,7 +11,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, existsSync, openSync } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,7 +24,7 @@ import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { ffprobePathFor, probeMedia } from '../../src/core/media-probe';
 import { writeZip } from '../../src/core/zip';
 import { rawManifest } from '../fixtures';
-import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeLayeredClipSetFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writePreviewFixture, writeUnreadableFixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
+import { snapshotTree, STOCK_FIXTURE_FILES, writeClipSetFixture, writeLayeredClipSetFixture, writeLockedZipFixture, writeStockFixture, writeCatalogFixture, writeMusicFixture, writePreviewFixture, writeUnreadableFixture, writeZip64Fixture, writeZipFixture, ZIP_FIXTURE_MEDIA } from '../stock-fixture';
 import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
@@ -7771,6 +7771,70 @@ describe.skipIf(!electron)('inspector UI', () => {
         await rm(join(stockDir, 'catalog.csv'), { force: true });
       }
     }, 300_000);
+  });
+
+  describe('zipped downloads: over 4 GB, password-protected, on a read-only drive (milestone 32)', () => {
+    it('lists a ZIP64 archive, says a protected file cannot be opened, and unpacks into Pulp\'s own data when the library refuses the write', async () => {
+      const canLock = process.platform !== 'win32' && typeof process.getuid === 'function' && process.getuid() !== 0;
+      const downloads = join(stockDir, 'Downloads');
+      await writeZip64Fixture(join(downloads, 'Huge Pack.zip'));
+      await writeLockedZipFixture(join(downloads, 'Locked Pack.zip'));
+      const card = (name: string) => page.eval<{ unreadable: boolean; tip: string } | null>(`(() => {
+        const li = [...document.querySelectorAll('#results li[data-id]')].find((l) => l.querySelector('.name')?.textContent === ${JSON.stringify(name)});
+        return li ? { unreadable: li.classList.contains('unreadable'), tip: li.querySelector('.name')?.dataset.tip ?? '' } : null;
+      })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library…'))`), 'Add');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library…')).click()`);
+
+        // The ZIP64 archive lists like any other: its three files, each an item.
+        await fire('#search', 'huge pack', 'input');
+        await until(async () => (await resultNames()).filter((n) => ['Ocean Wash', 'Ember Glow', 'Riser Short'].includes(n)).length === 3, 'the ZIP64 archive\'s three files listed', 30_000);
+
+        // A protected file is listed, says why it cannot be opened, and is refused on the stage.
+        await fire('#search', 'dawn mist', 'input');
+        await until(async () => (await card('Dawn Mist'))?.unreadable === true, 'the protected file as one Pulp cannot open');
+        await clickResult('Dawn Mist');
+        await until(() => page.eval<boolean>(`document.getElementById('preview-empty').textContent.includes('password-protected archive')`), 'the note on the stage');
+        await fire('#search', 'open sky', 'input');
+        await until(async () => (await card('Open Sky'))?.unreadable === false, 'the one open file in the same archive is an ordinary item');
+
+        if (canLock) {
+          // The library's folder is made read-only, as a disc or a locked drive is. Using a file from the
+          // archive then unpacks it into Pulp's own data, never beside the archive, and the item moves there.
+          await chmod(downloads, 0o555);
+          try {
+            const before = await snapshotTree(downloads);
+            await fire('#search', 'ember glow', 'input');
+            await until(async () => (await resultNames()).includes('Ember Glow'), 'the file to use');
+            await clickResult('Ember Glow');
+            await until(() => page.eval<boolean>(`(document.getElementById('media-image')?.naturalWidth ?? 0) > 0`), 'previewed from the scratch copy', 30_000);
+            await openTab('output');
+            await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'png-still'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+            await page.eval(`document.getElementById('drag-prepare').click()`);
+            await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Ember Glow')`), 'the render of it', 60_000);
+            expect(await snapshotTree(downloads), 'nothing written into the read-only library').toEqual(before);
+            const unpacked = join(userData, 'archive-unpacked');
+            expect(existsSync(unpacked), 'unpacked into Pulp\'s own data').toBe(true);
+            // Listed once, no longer in the archive, and the Info tab says where it is.
+            await until(async () => (await resultNames()).filter((n) => n === 'Ember Glow').length === 1 && !(await page.eval<boolean>(`[...document.querySelectorAll('#results li[data-id]')].some((li) => li.querySelector('.name')?.textContent === 'Ember Glow' && li.textContent.includes('In archive'))`)), 'the item unpacked, listed once', 30_000);
+            await clickResult('Ember Glow');
+            await openTab('info');
+            await until(() => page.eval<boolean>(`document.getElementById('region-inspector').textContent.includes("unpacked into Pulp's own data")`), 'the Info tab saying where it went');
+          } finally {
+            await chmod(downloads, 0o755);
+          }
+        } else {
+          console.info('folders cannot be locked here; the read-only drive check skipped.');
+        }
+      } finally {
+        await fire('#search', '', 'input');
+        await page.eval(`window.pulp.clearFinishedRenders()`);
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(stockDir)})`, undefined, 60_000);
+        await rm(downloads, { recursive: true, force: true });
+      }
+    }, 240_000);
   });
 
   describe('music and sound effects in a stock library (milestone 32)', () => {

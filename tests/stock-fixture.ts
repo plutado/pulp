@@ -135,6 +135,34 @@ export async function writeZipFixture(path: string): Promise<void> {
   ]));
 }
 
+/**
+ * A password-protected download (milestone 32): the same kind of media, each entry carrying the
+ * encryption bit — the bytes are never read, so they are left as they are — beside one entry that
+ * is not protected, as a site's zip sometimes mixes them.
+ */
+export const LOCKED_ZIP_MEDIA = ['Stills/Dawn Mist.png', 'Stills/Dusk Haze.png'] as const;
+export async function writeLockedZipFixture(path: string): Promise<void> {
+  const { writeZip } = await import('../src/core/zip');
+  await mkdir(join(path, '..'), { recursive: true });
+  await writeFile(path, writeZip([
+    { name: 'Stills/Dawn Mist.png', data: stillPng(200, 180, 150), encrypted: true },
+    { name: 'Stills/Dusk Haze.png', data: stillPng(90, 70, 120), encrypted: true },
+    { name: 'Stills/Open Sky.png', data: stillPng(40, 120, 220) },
+    { name: 'Read Me.txt', data: Buffer.from('Password: not given here.\n') },
+  ]));
+}
+
+/** The media of `writeZipFixture` written with ZIP64 structures, as a download over 4 GB carries them. */
+export async function writeZip64Fixture(path: string): Promise<void> {
+  const { writeZip } = await import('../src/core/zip');
+  await mkdir(join(path, '..'), { recursive: true });
+  await writeFile(path, writeZip([
+    { name: 'Backgrounds/Ocean Wash.png', data: stillPng(10, 90, 170) },
+    { name: 'Backgrounds/Ember Glow.png', data: stillPng(200, 80, 30) },
+    { name: 'Sound Effects/Riser Short.wav', data: toneWav(660) },
+  ], { zip64: true }));
+}
+
 /** A WAV tone of `seconds` at `hz`: a track's cut, a stem, a whoosh. */
 export function toneOf(hz: number, seconds: number): Buffer {
   return toneWav(hz, seconds);

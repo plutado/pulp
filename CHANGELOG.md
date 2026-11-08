@@ -8,6 +8,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **Zipped downloads over 4 GB open in a stock library.** A ZIP64 archive — over 4 GB, or over 65,535 files — was refused as not yet read; its end record and each entry's ZIP64 extra field are read now, and a file is unpacked by streaming rather than held whole, so a multi-gigabyte clip passes through a small buffer.
+
+- **A password-protected zip in a stock library says so instead of failing.** Each protected file is listed by name as an item Pulp cannot open, with a plain note to unpack the archive with the password it came with; it is never read, probed or offered to place, and files in the same archive that are not protected work as ever.
+
+- **Using a file from a zip on a read-only drive works.** When the library's folder cannot be written to — a disc, a locked drive — the file is unpacked into Pulp's own data instead of failing, the library lists it from there, and the Info tab says where it went. The archive's folder is never touched.
+
 - **A message said while the collection tray is hidden is now seen.** The tray's one line of status carried every such message — a recording that failed to save, a project note, a refusal — but an empty tray takes no room and a collapsed one shows only its head, so the words went unread. Said then, the message now shows in a strip over the window (where the recording strip sits), with the same manners: a confirmation fades, an error stays until dismissed or until the tray's own line is back to carry it.
 - **Adding the same stock library twice in quick succession could add it twice.** Both adds read the settings before either wrote them; the write now checks again.
 

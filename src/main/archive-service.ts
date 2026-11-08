@@ -8,22 +8,41 @@
  * - **Using** — placing it in a graphic, rendering it, exporting it — unpacks
  *   it into the library's folder, beside the archive in a folder named after
  *   it, once. From then on it is an ordinary file there, which a render, a
- *   project and an editor can all refer to by its path.
+ *   project and an editor can all refer to by its path. When the library
+ *   cannot be written to — a disc, a read-only drive, a locked folder — it is
+ *   unpacked into Pulp's own data instead (`archive-unpacked`), and the
+ *   library lists it from there; nothing is pruned from that folder, since a
+ *   project may refer to it.
  */
 
 import { app } from 'electron';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, rm, stat, utimes } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { extname, join, sep } from 'node:path';
 import type { MediaEntry } from '../core/library-types';
-import { extractZipMember } from '../core/zip-archive';
+import { extractZipMember, extractZipMemberOrElsewhere, fallbackUnpackPath } from '../core/zip-archive';
 
 /** Scratch copies kept for browsing; the oldest go first. */
 const SCRATCH_KEEP_BYTES = 512 * 1024 * 1024;
 
 export function archiveScratchDir(): string {
   return join(app.getPath('userData'), 'archive-cache');
+}
+
+/** Where members are unpacked when their library cannot be written to; kept, never pruned. */
+export function archiveUnpackedDir(): string {
+  return join(app.getPath('userData'), 'archive-unpacked');
+}
+
+/** The path a member takes in Pulp's own data when its library is read-only; what the library's scan looks for too. */
+export function unpackTargetElsewhere(zipPath: string, member: string): string {
+  return fallbackUnpackPath(archiveUnpackedDir(), zipPath, member);
+}
+
+/** Whether a file is one unpacked into Pulp's own data, which the media handler serves from there. */
+export function isUnpackedElsewhere(file: string): boolean {
+  return file.startsWith(archiveUnpackedDir() + sep);
 }
 
 /** The same member asked for twice at once is inflated once. */
@@ -70,20 +89,26 @@ export function whenUnpacked(fn: () => void): void {
 
 /**
  * Unpack an archive member into the library's folder because it is being used. Idempotent: a
- * member already there (of the right size) is left as it is. Returns false only when it could
- * not be unpacked, which the caller then reports as for any unreadable file.
+ * member already there (of the right size) is left as it is. Answers where the file is and whether
+ * that is in Pulp's own data rather than beside the archive; null only when it could not be
+ * unpacked, which the caller then reports as for any unreadable file.
  */
-export async function unpackForUse(entry: MediaEntry | undefined): Promise<boolean> {
-  if (!entry?.archive) return true;
-  if (entry.archive.unpacked && existsSync(entry.path)) return true;
+export async function unpackForUse(entry: MediaEntry): Promise<{ path: string; elsewhere: boolean } | null> {
+  if (!entry.archive) return { path: entry.path, elsewhere: false };
+  if (entry.archive.unpacked && existsSync(entry.path)) return { path: entry.path, elsewhere: entry.archive.elsewhere === true };
+  const { zip, member } = entry.archive;
+  let made: { path: string; elsewhere: boolean };
   try {
-    await extractZipMember(entry.archive.zip, entry.archive.member, entry.path);
+    // Beside the archive, or — the library being read-only — into Pulp's own data, which the
+    // library's next scan lists the item from.
+    made = await extractZipMemberOrElsewhere(zip, member, entry.path, unpackTargetElsewhere(zip, member));
+    if (made.elsewhere) console.info(`archive: ${zip} cannot be written beside; ${member} unpacked into Pulp's data`);
   } catch (err) {
-    console.warn(`archive: could not unpack ${entry.archive.member} from ${entry.archive.zip}: ${(err as Error).message}`);
-    return false;
+    console.warn(`archive: could not unpack ${member} from ${zip}: ${(err as Error).message}`);
+    return null;
   }
   onUnpacked();
-  return true;
+  return made;
 }
 
 /** Keep the scratch cache under its size, newest first. */

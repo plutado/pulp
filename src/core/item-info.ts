@@ -100,7 +100,7 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
   // The library's own category for the item (milestone 32), as its catalog spells it.
   if (entry.category?.length) rows.push({ label: tr('info.row.category'), value: entry.category.join(' › ') });
   // A file Pulp cannot read: what it is, what it needs, and that the picture is only its preview (milestone 32).
-  if (entry.unreadable) rows.push({ label: tr('info.row.unreadable'), value: [unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext), entry.unreadable.preview ? tr('info.value.unreadable.preview') : ''].filter(Boolean).join(' '), tone: 'warn' });
+  if (entry.unreadable) rows.push({ label: tr('info.row.unreadable'), value: [unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext, entry.unreadable.encrypted), entry.unreadable.preview ? tr('info.value.unreadable.preview') : ''].filter(Boolean).join(' '), tone: 'warn' });
   if (entry.missing) rows.push({ label: tr('info.row.missing'), value: tr('info.value.missing', { path: entry.path }), tone: 'warn' });
   // A track's cuts, a song's stems, a transition's sound (milestone 32).
   if (entry.versions?.length) rows.push({ label: tr('info.row.versions'), value: tr('info.value.versions', { lengths: entry.versions.map((v) => versionLabel(v.label, tr('music.version.full'))).join(' · ') }) });
@@ -109,7 +109,13 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
   // Where a file inside an archive lives, and whether it has been unpacked yet (milestone 32).
   if (entry.archive) {
     const zip = entry.archive.zip.split(/[\\/]/).pop()!;
-    rows.push({ label: tr('info.row.archive'), value: entry.archive.unpacked ? tr('info.value.archive.unpacked', { zip, member: entry.archive.member }) : tr('info.value.archive.packed', { zip, member: entry.archive.member }) });
+    const values = { zip, member: entry.archive.member };
+    // Password-protected: never unpacked. Unpacked into Pulp's own data when the library was read-only.
+    const value = entry.unreadable?.encrypted ? tr('info.value.archive.encrypted', values)
+      : !entry.archive.unpacked ? tr('info.value.archive.packed', values)
+        : entry.archive.elsewhere ? tr('info.value.archive.unpacked-elsewhere', values)
+          : tr('info.value.archive.unpacked', values);
+    rows.push({ label: tr('info.row.archive'), value });
   }
   // Browsed from the library's own preview (milestone 32): which file, and whether the full file has been read yet.
   if (entry.preview && !entry.missing) {

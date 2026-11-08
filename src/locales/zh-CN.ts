@@ -2418,6 +2418,9 @@ export const zhCN: Catalog = {
   'info.row.archive': '压缩包',
   'info.value.archive.packed': '{member}（位于 {zip}），尚未解压：使用时会解压到压缩包旁边',
   'info.value.archive.unpacked': '{member}（来自 {zip}），已解压到其旁边',
+  'info.value.archive.unpacked-elsewhere': '{member}（来自 {zip}），已解压到 Pulp 自己的数据中：压缩包所在的驱动器不可写入',
+  'info.value.archive.encrypted': '{member}（位于 {zip}），该压缩包受密码保护：Pulp 无法解压',
+  'unreadable.encrypted.note': '{file} 位于受密码保护的压缩包中，Pulp 无法打开；请用随附的密码解压该压缩包并添加该文件夹。',
   // ---------------------------------------------------------------- music and sound effects (milestone 32)
   'results.badge.versions': { other: '{count} 种时长' },
   'results.badge.versions.tip': '同一曲目的多个剪辑版本（{lengths}）：会使用适合您作品的版本',

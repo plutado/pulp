@@ -18,7 +18,7 @@ import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import { clipSetNaturalSeconds, type ClipSetSound, type ClipSetTiming } from '../core/clip-set';
 import { listZipFile, readZipMember } from '../core/zip-archive';
-import { browsable, browsableFile, unpackForUse, whenUnpacked } from './archive-service';
+import { browsable, browsableFile, unpackForUse, unpackTargetElsewhere, whenUnpacked } from './archive-service';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
@@ -144,6 +144,8 @@ function getStore(): LibraryStore {
   if (!store) {
     store = new LibraryStore(persistent ? join(app.getPath('userData'), 'library.sqlite') : ':memory:');
     store.setBuiltInRoot(bundledTemplatesDir());
+    // A member unpacked into Pulp's own data because its library is read-only (milestone 32) is listed from there.
+    store.setArchiveFallback(unpackTargetElsewhere);
   }
   return store;
 }
@@ -825,9 +827,18 @@ export async function prepareForUse(ids: readonly (string | null | undefined)[])
   for (const id of new Set(ids.filter((i): i is string => typeof i === 'string' && i !== ''))) {
     const found = getStore().findMediaById(id);
     if (!found || !found.online || found.entry.missing || found.entry.unreadable) continue;
-    if (found.entry.archive && !(await unpackForUse(found.entry))) {
-      failed.push(id);
-      continue;
+    if (found.entry.archive) {
+      const made = await unpackForUse(found.entry);
+      if (!made) {
+        failed.push(id);
+        continue;
+      }
+      // The row reads the file at once — from Pulp's own data when the library was read-only —
+      // ahead of the scan the unpack asked for.
+      if (!found.entry.archive.unpacked || found.entry.path !== made.path) {
+        getStore().markArchiveUnpacked(found.entry.key, made.path, made.elsewhere);
+        changed = true;
+      }
     }
     if (found.entry.preview && (await readFullMetadata(found.entry))) changed = true;
   }

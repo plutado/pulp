@@ -2419,6 +2419,9 @@ export const de: Catalog = {
   'info.row.archive': 'Archiv',
   'info.value.archive.packed': '{member} in {zip}, noch nicht entpackt: Es wird beim Verwenden neben das Archiv entpackt',
   'info.value.archive.unpacked': '{member} aus {zip}, daneben entpackt',
+  'info.value.archive.unpacked-elsewhere': '{member} aus {zip}, in Pulps eigene Daten entpackt: Das Laufwerk des Archivs ist schreibgeschützt',
+  'info.value.archive.encrypted': '{member} in {zip}, das passwortgeschützt ist: Pulp kann es nicht entpacken',
+  'unreadable.encrypted.note': '{file} liegt in einem passwortgeschützten Archiv, das Pulp nicht öffnen kann; entpacken Sie das Archiv mit dem mitgelieferten Passwort und fügen Sie den Ordner hinzu.',
   // ---------------------------------------------------------------- music and sound effects (milestone 32)
   'results.badge.versions': { one: '{count} Länge', other: '{count} Längen' },
   'results.badge.versions.tip': 'Ein Titel in mehreren Schnitten ({lengths}): Der zu Ihrer Arbeit passende wird verwendet',

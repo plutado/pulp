@@ -170,6 +170,16 @@ export const SCHEMA_VERSION = 7;
 export class LibraryStore {
   private readonly db: DatabaseSync;
   private builtInRoot: string | undefined;
+  private archiveFallback: ((zipPath: string, member: string) => string) | undefined;
+
+  /**
+   * Where an archive's member is unpacked when its library cannot be written to (milestone 32): a
+   * path in Pulp's own data, by archive and member. Set by the app; a one-off scan has none. A file
+   * found there is the member unpacked, listed at that path and marked so.
+   */
+  setArchiveFallback(fallback: ((zipPath: string, member: string) => string) | undefined): void {
+    this.archiveFallback = fallback;
+  }
 
   /** Which root is the bundled samples, so the index can label it and its items are keyed by their place in it. */
   setBuiltInRoot(root: string | undefined): void {
@@ -561,14 +571,31 @@ export class LibraryStore {
             const key = itemKey('media', `${zipPath}!/${member.name}`, this.builtInRoot);
             seen.add(key);
             // Its signature is the member's own size and the archive's time: a new download reads again.
+            // Unpacked beside the archive, or — when the library could not be written to — into Pulp's
+            // own data, where the item then lives.
             let unpacked = false;
+            let path = target;
+            let elsewhere = false;
             try {
               unpacked = (await stat(target)).size === member.size;
             } catch {
-              // Not unpacked yet.
+              // Not unpacked beside the archive.
+            }
+            if (!unpacked && this.archiveFallback) {
+              const alt = this.archiveFallback(zipPath, member.name);
+              try {
+                if ((await stat(alt)).size === member.size) {
+                  unpacked = true;
+                  elsewhere = true;
+                  path = alt;
+                }
+              } catch {
+                // Not unpacked there either.
+              }
             }
             const storedMember = existing.get(key);
-            if (storedMember && storedMember.size === member.size && storedMember.mtime_ms === zipInfo.mtimeMs && (JSON.parse(storedMember.entry) as MediaEntry).archive?.unpacked === unpacked) {
+            const wasMember = storedMember ? (JSON.parse(storedMember.entry) as MediaEntry) : undefined;
+            if (storedMember && storedMember.size === member.size && storedMember.mtime_ms === zipInfo.mtimeMs && wasMember?.archive?.unpacked === unpacked && wasMember.path === path) {
               stats.kept += 1;
               continue;
             }
@@ -583,7 +610,7 @@ export class LibraryStore {
               kind: 'media',
               key,
               id: itemId(key),
-              path: target,
+              path,
               root: rootPath,
               name: basename(fileName, extname(fileName)),
               mediaKind: kind,
@@ -591,7 +618,9 @@ export class LibraryStore {
               size: member.size,
               mtimeMs: zipInfo.mtimeMs,
               tags: segments,
-              archive: { zip: zipPath, member: member.name, unpacked },
+              archive: { zip: zipPath, member: member.name, unpacked, ...(elsewhere ? { elsewhere: true as const } : {}) },
+              // A password-protected member is listed, never read: an item Pulp cannot open, with the note.
+              ...(member.encrypted ? { unreadable: { ext: extname(fileName).toLowerCase(), encrypted: true as const } } : {}),
               ...(inferredType ? { type: inferredType } : {}),
               ...(inferredThemes.length > 0 ? { themes: inferredThemes } : {}),
               ...(inferredMoods.length > 0 ? { moods: inferredMoods } : {}),
@@ -1279,6 +1308,20 @@ export class LibraryStore {
 
   itemCount(): number {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM items').get() as { n: number }).n;
+  }
+
+  /**
+   * An archive's member unpacked just now (milestone 32): its row takes the file's path and says it
+   * is unpacked — and where, when the library could not be written to — so whatever uses it next
+   * reads the file at once, ahead of the scan that will agree.
+   */
+  markArchiveUnpacked(key: string, path: string, elsewhere: boolean): void {
+    const row = this.db.prepare('SELECT entry FROM items WHERE key = ?').get(key) as { entry: string } | undefined;
+    if (!row) return;
+    const entry = JSON.parse(row.entry) as MediaEntry;
+    if (entry.kind !== 'media' || !entry.archive) return;
+    const archive = { zip: entry.archive.zip, member: entry.archive.member, unpacked: true, ...(elsewhere ? { elsewhere: true as const } : {}) };
+    this.db.prepare('UPDATE items SET entry = ? WHERE key = ?').run(JSON.stringify({ ...entry, path, archive }), key);
   }
 
   /** The item key behind a library id, for any kind; undefined for unknown ids. */

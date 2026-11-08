@@ -532,6 +532,9 @@ export const library = {
   'info.row.archive': 'Archive',
   'info.value.archive.packed': '{member} in {zip}, not unpacked yet: it is unpacked beside the archive when you use it',
   'info.value.archive.unpacked': '{member} from {zip}, unpacked beside it',
+  'info.value.archive.unpacked-elsewhere': '{member} from {zip}, unpacked into Pulp\'s own data: the archive\'s drive cannot be written to',
+  'info.value.archive.encrypted': '{member} in {zip}, which is password-protected: Pulp cannot unpack it',
+  'unreadable.encrypted.note': '{file} is inside a password-protected archive, which Pulp cannot open; unpack the archive with the password it came with and add the folder.',
   // ---------------------------------------------------------------- previews before full media (milestone 32)
   'results.badge.preview': 'Preview',
   'results.badge.preview.tip': 'Browsed from the small preview the library carries for it. The full file is read when you place or render it',

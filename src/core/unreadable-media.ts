@@ -67,8 +67,13 @@ export function unreadableFormat(fileName: string): (UnreadableFormat & { ext: s
   return f ? { ...f, ext } : null;
 }
 
-/** The note a person reads, in the interface's language now: what it is, and what it needs. */
-export function unreadableNote(fileName: string, ext: string): string {
+/**
+ * The note a person reads, in the interface's language now: what it is, and what it needs. A
+ * file inside a password-protected archive (milestone 32) needs the archive unpacked with its
+ * password, whatever its format.
+ */
+export function unreadableNote(fileName: string, ext: string, encrypted?: boolean): string {
+  if (encrypted) return tr('unreadable.encrypted.note', { file: fileName });
   const f = UNREADABLE_FORMATS[ext.toLowerCase()];
   if (!f) return '';
   return tr('unreadable.note', { file: fileName, what: tr(f.what), needs: tr(f.needs) });

@@ -110,7 +110,13 @@ export interface MediaEntry {
    * `path` is where it is unpacked to — beside the archive, in a folder named after it — which
    * happens the first time it is used (src/main/archive-service.ts); `unpacked` says it is there now.
    */
-  archive?: { zip: string; member: string; unpacked: boolean };
+  archive?: {
+    zip: string;
+    member: string;
+    unpacked: boolean;
+    /** Unpacked into Pulp's own data rather than beside the archive, because the library could not be written to; `path` is then there. */
+    elsewhere?: true;
+  };
   /**
    * Music and sound effects (milestone 32). `partOf` marks a file that is one cut or one stem of a
    * group item: it stays in the library, with its own id, for whatever plays it, but the results
@@ -131,7 +137,12 @@ export interface MediaEntry {
    * (src/core/unreadable-media.ts), and `preview` what shows it, where something does. Refused for
    * use as an offline item is (the index flags it offline).
    */
-  unreadable?: { ext: string; preview?: UnreadablePreview };
+  unreadable?: {
+    ext: string;
+    preview?: UnreadablePreview;
+    /** Inside a password-protected archive: listed by name, never read, since Pulp has no password to give it. */
+    encrypted?: true;
+  };
   partOf?: string;
   versions?: { id: string; label: string; seconds?: number }[];
   stemParts?: { id: string; label: string }[];
