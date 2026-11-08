@@ -1,7 +1,7 @@
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ProcessRunner } from '../src/core/ffmpeg';
-import { ffprobeArgs, ffprobePathFor, probeMedia } from '../src/core/media-probe';
+import { ffprobeArgs, ffprobePathFor, probeMedia, ffprobeHeaderArgs, HEADER_PROBE_BYTES } from '../src/core/media-probe';
 import { parseFfprobe, resolutionLabel, resolutionTag } from '../src/core/media-meta';
 
 // Real ffprobe 8 output for a 2 s VP9+Opus WebM made from testsrc and sine.
@@ -122,5 +122,20 @@ describe('resolutionTag (milestone 66)', () => {
     expect(resolutionTag(2560, 1440)).toBe('1440p');
     expect(resolutionTag(64, 36)).toBe('36p');
     expect(resolutionTag(undefined, 1080)).toBeUndefined();
+  });
+});
+
+describe('the bounded header probe (milestone 32)', () => {
+  it('caps how much ffprobe may read, as input options before the file, and asks the same entries', () => {
+    const args = ffprobeHeaderArgs('/Volumes/Stock/huge.mov');
+    const at = (flag: string) => args.indexOf(flag);
+    expect(at('-probesize')).toBeGreaterThan(-1);
+    expect(args[at('-probesize') + 1]).toBe(String(HEADER_PROBE_BYTES));
+    expect(at('-analyzeduration')).toBeGreaterThan(-1);
+    // Input options: before the file they open, or ffprobe ignores them.
+    expect(at('-probesize')).toBeLessThan(args.indexOf('/Volumes/Stock/huge.mov'));
+    expect(at('-analyzeduration')).toBeLessThan(args.indexOf('/Volumes/Stock/huge.mov'));
+    // The same facts as the full probe asks for, alpha's tell-tales included.
+    expect(args.join(' ')).toContain('view_ids_available');
   });
 });

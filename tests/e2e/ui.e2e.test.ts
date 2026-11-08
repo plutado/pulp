@@ -7761,7 +7761,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.getElementById('drag-prepare').click()`);
         await until(() => page.eval<boolean>(`[...document.querySelectorAll('#queue .job-card[draggable="true"]')].some((c) => c.querySelector('.job-name').textContent === 'Deep Sea')`), 'the render of it', 60_000);
         await openTab('info');
-        await until(async () => (await infoText()).includes('the full file has been read'), 'Info saying the full file has been read', 30_000);
+        await until(async () => (await infoText()).includes("the full file's own measurements have been read"), 'Info saying the full file has been read', 30_000);
         // Nothing in the library was written, for all of it.
         expect(await snapshotTree(stockDir)).toEqual(before);
       } finally {

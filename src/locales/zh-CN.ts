@@ -2442,7 +2442,7 @@ export const zhCN: Catalog = {
   'results.badge.preview.tip': '通过素材库自带的小预览浏览。放置或渲染时才读取完整文件',
   'info.row.preview': '预览',
   'info.value.preview': '显示自 {file}，即素材库自带的预览。画面尺寸、帧率和透明度会在放置或渲染时从完整文件读取',
-  'info.value.preview.read': '显示自 {file}，即素材库自带的预览；完整文件已读取',
+  'info.value.preview.read': '显示自 {file}，即素材库自带的预览；已读取完整文件自身的测量值',
   'stage.preview-note': '显示自素材库自带的预览。放置或渲染时才读取完整文件。',
   'menu.library.addStockImage': '从光盘映像添加库存素材库…',
   'menu.library.addStockImage.detail': '一个包含库存素材的光盘映像，以只读方式挂载并按原样读取',

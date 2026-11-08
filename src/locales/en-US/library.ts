@@ -544,7 +544,7 @@ export const library = {
   'results.badge.preview.tip': 'Browsed from the small preview the library carries for it. The full file is read when you place or render it',
   'info.row.preview': 'Preview',
   'info.value.preview': 'Shown from {file}, the library\'s own preview. Its picture size, rate and transparency are read from the full file when it is placed or rendered',
-  'info.value.preview.read': 'Shown from {file}, the library\'s own preview; the full file has been read',
+  'info.value.preview.read': 'Shown from {file}, the library\'s own preview; the full file\'s own measurements have been read',
   // ---------------------------------------------------------------- music and sound effects (milestone 32)
   'results.badge.versions': { one: '{count} length', other: '{count} lengths' },
   'results.badge.versions.tip': 'One track in several cuts ({lengths}): the one that fits your work is used',

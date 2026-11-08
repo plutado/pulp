@@ -18,11 +18,11 @@ import { catalogPreview, isPreviewFolder, metadataFromPreview, PreviewFolder, pr
 import { itemId } from '../src/core/library-scan';
 import { LibraryStore } from '../src/core/library-store';
 import type { MediaEntry } from '../src/core/library-types';
-import { ffprobePathFor, probeMedia } from '../src/core/media-probe';
+import { ffprobePathFor, probeMedia, probeMediaHeader } from '../src/core/media-probe';
 import { serveMedia, type MediaLookup } from '../src/core/media-serve';
 import { mediaPreviewUrlFor, mediaUrlFor } from '../src/core/media-url';
 import { entryBadges } from '../src/core/results-view';
-import { PREVIEW_FIXTURE_ITEMS, PREVIEW_FIXTURE_MISSING, snapshotTree, writePreviewFixture } from './stock-fixture';
+import { ALPHA_CLIP_SIZE, PREVIEW_FIXTURE_ITEMS, PREVIEW_FIXTURE_MISSING, snapshotTree, writeAlphaClipsFixture, writePreviewFixture } from './stock-fixture';
 
 const media = (path: string, mediaKind: MediaEntry['mediaKind'], extra: Partial<MediaEntry> = {}): MediaEntry => {
   const key = `media:${path}`;
@@ -91,9 +91,18 @@ describe('which files are an item\'s previews', () => {
 });
 
 describe('what browsing reads, and what waits for use', () => {
-  it('takes from a preview only the length, and records that nothing was read when there is none to take it from', () => {
+  it('takes the full file\'s header where it was read, the preview\'s length where it was not, and records when nothing was', () => {
+    // The header is the file's own answer: size, rate, alpha and length, nothing marked as the preview's.
+    const header = { duration: 30, width: 3840, height: 2160, fps: 25, alpha: true, codec: 'prores' };
+    expect(metadataFromPreview({ duration: 4.2, width: 320, height: 180, fps: 15, alpha: false, codec: 'h264' }, header)).toEqual(header);
+    expect(metadataFromPreview(null, header)).toEqual(header);
+    // A header that states no length keeps the preview's, still marked as the preview's answer.
+    const unlengthed = { width: 3840, height: 2160, fps: 25, alpha: true, codec: 'prores' };
+    expect(metadataFromPreview({ duration: 4.2 }, unlengthed)).toEqual({ ...unlengthed, duration: 4.2, fromPreview: true });
+    expect(metadataFromPreview(null, unlengthed)).toEqual(unlengthed);
+    // No header read: only the preview's length, as before; nothing at all is still recorded.
     expect(metadataFromPreview({ duration: 4.2, width: 320, height: 180, fps: 15, alpha: false, codec: 'h264' })).toEqual({ duration: 4.2, fromPreview: true });
-    expect(metadataFromPreview(null)).toEqual({ fromPreview: true });
+    expect(metadataFromPreview(null, null)).toEqual({ fromPreview: true });
   });
 
   it('pictures an item from its still, else from a frame of its preview clip, and never from the file', () => {
@@ -119,7 +128,7 @@ describe('what browsing reads, and what waits for use', () => {
     const row = () => formatRows(entry).find((r) => r.label === 'Preview')!.value;
     expect(row()).toMatch(/^Shown from Fire\.jpg, the library's own preview\. Its picture size, rate and transparency are read from the full file/);
     entry.meta = { duration: 3, width: 3840, height: 2160, alpha: true };
-    expect(row()).toMatch(/the full file has been read$/);
+    expect(row()).toMatch(/the full file's own measurements have been read$/);
     // What the catalog lists and is not here is Missing, not Preview, even with a picture.
     expect(entryBadges(media('/lib/Clips/Gone.mov', 'video', { missing: true, preview: { still: '/lib/Previews/Gone.jpg' } })).map((b) => b.id)).not.toContain('preview');
   });
@@ -232,6 +241,40 @@ describe('a library browsed from its previews', () => {
     store.close();
   });
 
+
+  it('with ffmpeg: a real full file answers from its header — size, rate, alpha, length — the probe bounded, never the whole file', async () => {
+    const ffmpeg = await detectFfmpeg();
+    if (!ffmpeg.ok || !ffmpeg.encoders.includes('qtrle')) return;
+    base = await mkdtemp(join(tmpdir(), 'pulp-preview-'));
+    const lib = join(base, 'Big Stock');
+    // A real transparent clip at a size no preview has, with the thumbnail a collection keeps beside it.
+    const clips = join(lib, 'Clips');
+    const [full] = await writeAlphaClipsFixture(ffmpeg.path, ['qtrle'], clips);
+    const { rename, writeFile } = await import('node:fs/promises');
+    await rename(full!, join(clips, 'Ember Rise.mov'));
+    await writeFile(join(clips, 'Ember Rise_thumb.png'), Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'));
+    const store = new LibraryStore(':memory:');
+    store.setRoots([lib]);
+    await store.scanRoots([lib]);
+    const ember = byPath(store, lib, 'Clips/Ember Rise.mov')!;
+    expect(ember.preview).toEqual({ still: join(clips, 'Ember Rise_thumb.png') });
+    // The probe pass's own steps: the header read with the probe bounded, and taken whole.
+    const header = await probeMediaHeader(ffprobePathFor(ffmpeg.path), ember.path, nodeRunner);
+    const meta = metadataFromPreview(null, header);
+    expect(meta).toMatchObject({ width: ALPHA_CLIP_SIZE.width, height: ALPHA_CLIP_SIZE.height, fps: ALPHA_CLIP_SIZE.fps, alpha: true });
+    expect(meta.duration).toBeCloseTo(ALPHA_CLIP_SIZE.seconds, 1);
+    expect(meta.fromPreview).toBeUndefined();
+    // Stored, the item wears the file's own badges while it is still browsed from its preview.
+    store.setMetadata(ember, meta);
+    const listed = byPath(store, lib, 'Clips/Ember Rise.mov')!;
+    const badges = entryBadges(listed).map((b) => b.id);
+    expect(badges).toContain('alpha');
+    expect(badges).toContain('preview');
+    // Nothing more waits for use: the metadata is not the preview's, so a use reads nothing again.
+    expect(listed.meta?.fromPreview).toBeUndefined();
+    store.close();
+  });
+
   it('with ffmpeg: a preview clip gives the item its length, and the thumbnail is a frame of it, the full file never read', async () => {
     const ffmpeg = await detectFfmpeg();
     if (!ffmpeg.ok) return;
@@ -243,9 +286,11 @@ describe('a library browsed from its previews', () => {
     await store.scanRoots([lib]);
     const fire = byPath(store, lib, 'Clips/Fire 02.mov')!;
     expect(fire.preview).toEqual({ media: join(lib, 'Clips', 'Fire 02_preview.mp4') });
-    // What the main process's probe pass does for it: the preview clip measured, the length kept.
+    // What the main process's probe pass does for it. The full file is bytes of nothing, so its
+    // header gives nothing, and the preview clip's length stands in.
+    expect(await probeMediaHeader(ffprobePathFor(ffmpeg.path), fire.path, nodeRunner)).toBeNull();
     const probed = await probeMedia(ffprobePathFor(ffmpeg.path), fire.preview!.media!, nodeRunner);
-    const meta = metadataFromPreview(probed);
+    const meta = metadataFromPreview(probed, null);
     expect(meta.duration).toBeCloseTo(2, 1);
     expect(meta).not.toHaveProperty('width');
     // And its thumbnail pass: a frame of the preview clip, made with the item's own arguments.

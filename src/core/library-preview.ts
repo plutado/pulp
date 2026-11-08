@@ -195,12 +195,20 @@ export function samePreview(a: MediaPreview | undefined, b: MediaPreview | undef
 }
 
 /**
- * What a preview can say for the item: its length, which a preview clip or sound shares with the
- * file. Not its picture size, rate, codec or alpha — a preview is smaller, often slower and never
- * carries the alpha the original does — which wait until the file itself is read on use. With no
- * preview clip (a still only), the length too waits, and this records that nothing was read.
+ * What browsing knows of a previewed item. The file's own **header**, where it could be read
+ * cheaply (`probeMediaHeader`: the probe bounded, never the whole file), says everything — size,
+ * rate, codec, alpha, length — so the badges are the file's own from the start. Where it could
+ * not, the preview clip's length stands in — a preview is smaller, often slower and never carries
+ * the alpha the original does, so nothing else of it does — marked `fromPreview`, and the rest
+ * waits until the file is read on use. With neither, this records that nothing was read.
  */
-export function metadataFromPreview(probed: MediaMetadata | null): MediaMetadata {
+export function metadataFromPreview(probed: MediaMetadata | null, header?: MediaMetadata | null): MediaMetadata {
+  if (header) {
+    // The header without a length (it happens: a stream that states no duration) keeps the
+    // preview's, still marked as the preview's answer.
+    if (header.duration || !probed?.duration) return header;
+    return { ...header, duration: probed.duration, fromPreview: true };
+  }
   return { ...(probed?.duration ? { duration: probed.duration } : {}), fromPreview: true };
 }
 

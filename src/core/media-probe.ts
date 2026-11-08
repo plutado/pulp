@@ -21,15 +21,44 @@ export function ffprobePathFor(ffmpegPath: string): string {
   return join(dirname(ffmpegPath), name.endsWith('.exe') ? exe : 'ffprobe');
 }
 
-function ffprobeArgs(file: string): string[] {
+function ffprobeArgs(file: string, caps: string[] = []): string[] {
   return [
     '-v', 'error',
     // view_ids_available and view_pos_available are what give away HEVC's auxiliary alpha
     // layer, which no pixel format reports (see hevcAlpha in media-meta.ts).
     '-show_entries', 'format=duration:format_tags=genre,mood,comment:stream=codec_type,codec_name,width,height,pix_fmt,r_frame_rate,avg_frame_rate,duration,channels,sample_rate,view_ids_available,view_pos_available:stream_tags=alpha_mode',
     '-of', 'json',
+    ...caps,
     file,
   ];
+}
+
+/**
+ * How much of a file a header probe may read sequentially, and how long a stream it may analyze
+ * (microseconds): enough for any container's headers, nothing like a whole file. Seeks — an MP4's
+ * index at its end — are cheap and not what the cap is for.
+ */
+export const HEADER_PROBE_BYTES = 5_000_000;
+export const HEADER_PROBE_MICROSECONDS = 5_000_000;
+
+/** The same entries with the probe bounded, for a file whose header is wanted but whose body must not be read. */
+export function ffprobeHeaderArgs(file: string): string[] {
+  return ffprobeArgs(file, ['-probesize', String(HEADER_PROBE_BYTES), '-analyzeduration', String(HEADER_PROBE_MICROSECONDS)]);
+}
+
+/**
+ * Probe only a file's header (milestone 32): what the container says of itself — size, rate,
+ * codec, alpha, length — read with the probe bounded, so a clip of gigabytes answers from a few
+ * megabytes. Null when ffprobe fails, as for a file that is not really media.
+ */
+export async function probeMediaHeader(ffprobe: string, file: string, run: ProcessRunner): Promise<MediaMetadata | null> {
+  try {
+    const result = await run(ffprobe, ffprobeHeaderArgs(file));
+    if (result.code !== 0) return null;
+    return parseFfprobe(result.stdout);
+  } catch {
+    return null;
+  }
 }
 
 /** Probe one file. Resolves to null when ffprobe fails or its output is not usable. */

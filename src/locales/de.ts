@@ -2443,7 +2443,7 @@ export const de: Catalog = {
   'results.badge.preview.tip': 'Aus der kleinen Vorschau durchsucht, die die Bibliothek dafür mitbringt. Die vollständige Datei wird gelesen, wenn Sie das Element platzieren oder rendern',
   'info.row.preview': 'Vorschau',
   'info.value.preview': 'Gezeigt aus {file}, der eigenen Vorschau der Bibliothek. Bildgröße, Bildrate und Transparenz werden aus der vollständigen Datei gelesen, wenn sie platziert oder gerendert wird',
-  'info.value.preview.read': 'Gezeigt aus {file}, der eigenen Vorschau der Bibliothek; die vollständige Datei wurde gelesen',
+  'info.value.preview.read': 'Gezeigt aus {file}, der eigenen Vorschau der Bibliothek; die Maße der vollständigen Datei wurden gelesen',
   'stage.preview-note': 'Gezeigt aus der eigenen Vorschau der Bibliothek. Die vollständige Datei wird gelesen, wenn sie platziert oder gerendert wird.',
   'menu.library.addStockImage': 'Stock-Bibliothek aus Disc-Image…',
   'menu.library.addStockImage.detail': 'Ein Disc-Image mit Stock-Medien, schreibgeschützt eingebunden und gelesen, wie es ist',

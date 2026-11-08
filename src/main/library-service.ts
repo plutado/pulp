@@ -27,7 +27,7 @@ import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
 import { itemId, mediaKindForPath } from '../core/library-scan';
 import { metadataFromPreview, previewClip, previewSound, thumbnailPreview } from '../core/library-preview';
 import { LibraryStore, type ScanStats } from '../core/library-store';
-import { ffprobePathFor, probeMedia } from '../core/media-probe';
+import { ffprobePathFor, probeMedia, probeMediaHeader } from '../core/media-probe';
 import { mediaThumbArgs, thumbFileName } from '../core/thumbnails';
 import { choosePosterFrame, contentCrop, isNearlyUniform, measureFrame, posterCandidateFrames, posterFromFrameArgs, PROBE_HEIGHT, PROBE_WIDTH, probeFrameArgs, type FrameMeasure } from '../core/poster';
 import { canHaveStrip, framesStripArgs, mediaStripArgs, sequenceStripArgs, stripFileName, stripFrameIndices, stripUrlFor, wantsStrip } from '../core/hover-scrub';
@@ -318,12 +318,16 @@ async function probePendingMetadata(): Promise<void> {
       for (let i = 0; i < pending.length; i += PROBE_CONCURRENCY) {
         await Promise.all(
           pending.slice(i, i + PROBE_CONCURRENCY).map(async (entry) => {
-            // An item with a preview is measured from it (milestone 32): the length a preview clip
-            // or sound shares with the file, and nothing more. The file itself is read when the
-            // item is placed or rendered (prepareForUse).
+            // An item with a preview (milestone 32) is measured from the full file's **header**,
+            // read with the probe bounded so a clip of gigabytes answers from a few megabytes:
+            // the resolution and alpha badges are the file's own from the start. Where the header
+            // cannot be read, the preview clip's length stands in (`fromPreview`), and the rest
+            // waits until the item is placed or rendered (prepareForUse).
             if (entry.preview) {
+              const header = await probeMediaHeader(ffprobe!, entry.path, nodeRunner);
               const small = entry.preview.media;
-              st.setMetadata(entry, metadataFromPreview(small ? await probeMedia(ffprobe!, small, nodeRunner) : null));
+              const previewProbe = header?.duration ? null : small ? await probeMedia(ffprobe!, small, nodeRunner) : null;
+              st.setMetadata(entry, metadataFromPreview(previewProbe, header));
               return;
             }
             // A sequence is probed through its first frame; the run says how long it runs for.
