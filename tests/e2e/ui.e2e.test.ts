@@ -5399,13 +5399,14 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`document.getElementById('library-add').click()`);
       await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu button')`), 'the Add menu');
       const items = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button .item-label')].map((b) => b.textContent.trim())`);
-      expect(items).toEqual(['Your Media Folder…', 'Stock Library…', 'Templates from a Pack…', 'Sample Media']);
+      expect(items).toEqual(['Your Media Folder…', 'Stock Library…', 'Stock Library from Disc Image…', 'Templates from a Pack…', 'Sample Media']);
       // Each says what it brings, under its name.
       const details = await page.eval<string[]>(`[...document.querySelectorAll('.context-menu > button .item-detail')].map((b) => b.textContent.trim())`);
       expect(details[0]).toContain('indexed where they are');
       expect(details[1]).toContain('read where it is');
-      expect(details[2]).toContain('installed');
-      expect(details[3]).toContain('made and added');
+      expect(details[2]).toContain('mounted read-only');
+      expect(details[3]).toContain('installed');
+      expect(details[4]).toContain('made and added');
       // And it is the same list File → Add offers.
       type Item = { label?: string; submenu?: Item[] };
       const fileAdd = (await page.eval<{ label: string; items: Item[] }[]>(`window.pulp.menuSections()`))
