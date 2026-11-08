@@ -129,7 +129,7 @@ The preload exposes a small `window.pulp` API (`src/shared/api.ts`). The UI is T
 
 ### Library index
 
-1. Roots = bundled templates + user folders from settings (+ `--library` folders in headless mode, for that run only).
+1. Roots = bundled templates + user folders from settings + stock libraries from settings (milestone 32: kept apart, listed under Stock libraries, never written into) (+ `--library` folders in headless mode, for that run only).
 2. The index lives in `library.sqlite` in the user data folder (`LibraryStore`, `node:sqlite`; ADR 0007). Headless mode uses an in-memory store.
 3. A scan walks each root (depth limit 12, file limit 100,000, skips hidden entries, symlinks, `node_modules`) and is incremental: a media file whose size and mtime match its row is kept without being read; a template folder whose `template.json` is unchanged and whose entry file still exists keeps its parsed entry; only new or changed items are loaded. Rows for files that are gone from an online root are deleted.
 4. A folder containing `template.json` is a template: validated, entry file checked, not descended into further. Problems are collected per root, not thrown.

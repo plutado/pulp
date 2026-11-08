@@ -13,7 +13,7 @@ Each move is a commit, so the history shows when an idea was decided and where i
 
 ## Order
 
-The order work is built in is `ROADMAP.md`'s planned order, which scheduling follows unless a request says otherwise. Milestones 23 to 30 are done; next come 31 (a start screen, #33), 34 (a browse panel that says what things are, #36), 32 (stock library import, #34) and 33 (layered Photoshop graphics, #35), then 20, 8, 17 and 7.
+The order work is built in is `ROADMAP.md`'s planned order, which scheduling follows unless a request says otherwise. Everything through 1.0 is built but for three items: milestone 34's card sort, milestone 32's look at real stock archives on the maintainer's machine, and milestone 7's signing, which waits on accounts. What remains open, with hours, is the roadmap's table.
 
 ## Known issues
 
