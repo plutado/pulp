@@ -442,6 +442,15 @@ initLibraryAdd({
     }
     return outcome.index;
   })),
+  // From a disc image (milestone 32): mounted read-only and read; what cannot be mounted is said in the tool's words.
+  addStockImage: () => void loadLibrary(window.pulp.addStockLibraryImage().then((outcome) => {
+    if (!outcome) return null;
+    if (!outcome.ok) {
+      sayInTray(outcome.why === 'mount' && outcome.message ? outcome.message : t(`library.stock.refused.${outcome.why}`));
+      return null;
+    }
+    return outcome.index;
+  })),
   importPack: () => {
     void window.pulp.choosePackFile().then((path) => {
       if (path) void showPackPreview(path);

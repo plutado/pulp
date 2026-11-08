@@ -20,6 +20,8 @@ import { clipSetNaturalSeconds, type ClipSetSound, type ClipSetTiming } from '..
 import { listZipFile, readZipMember } from '../core/zip-archive';
 import { browsable, browsableFile, unpackForUse, unpackTargetElsewhere, whenUnpacked } from './archive-service';
 import { canAddLibrary, defaultLibraryName, driveOf, samePlace, type StockLibrary, type StockLibraryState } from '../core/stock-library';
+import { discImageName, isDiscImagePath } from '../core/disc-image';
+import { mountDiscImage, mountProblemMessage, mountedAt, unmountAllDiscImages, unmountDiscImage } from './disc-image-service';
 import { detectFfmpeg, nodeRunner, runForBuffer, runWithInput, runWithInputForBuffer } from '../core/ffmpeg';
 import { MAX_IMAGE_FILE_BYTES, type ImportedImage } from '../core/image-slot';
 import { itemId, mediaKindForPath } from '../core/library-scan';
@@ -193,7 +195,42 @@ export async function importImageFile(source: string): Promise<{ id: string } | 
   return { id: itemId(`media:${target}`) };
 }
 
+/** Why each disc-image library could not be mounted just now, by image; cleared when it mounts. */
+const mountProblems = new Map<string, string>();
+/** When each image was last tried, so a failing one is not tried every poll. */
+const mountTried = new Map<string, number>();
+const MOUNT_RETRY_MS = 60_000;
+
+/**
+ * A stock library read from a disc image (milestone 32) is mounted when its mount point is not
+ * there: at start, on a rescan, and when the poll finds it gone. The image is mounted read-only; a
+ * mount that lands somewhere new moves the library's path there. What cannot be mounted is said on
+ * the library's row and left offline, tried again a minute later.
+ */
+async function mountImageLibraries(force = false): Promise<void> {
+  const settings = await loadSettings();
+  for (const library of settings.stockLibraries) {
+    if (!library.image || existsSync(library.path)) {
+      if (library.image) mountProblems.delete(library.image);
+      continue;
+    }
+    const last = mountTried.get(library.image) ?? 0;
+    if (!force && Date.now() - last < MOUNT_RETRY_MS) continue;
+    mountTried.set(library.image, Date.now());
+    const made = await mountDiscImage(library.image);
+    if (!made.ok) {
+      mountProblems.set(library.image, mountProblemMessage(made.problem, library.image));
+      continue;
+    }
+    mountProblems.delete(library.image);
+    if (!samePlace(made.path, library.path)) {
+      await updateSettings((s) => ({ ...s, stockLibraries: s.stockLibraries.map((l) => (l.image === library.image ? { ...l, path: made.path } : l)) }));
+    }
+  }
+}
+
 async function configuredRoots(): Promise<string[]> {
+  await mountImageLibraries();
   const settings = await loadSettings();
   const roots = [bundledTemplatesDir(), ...settings.libraryFolders, ...settings.stockLibraries.map((l) => l.path), ...extraRoots];
   if (persistent && existsSync(packsRoot())) roots.splice(1, 0, packsRoot());
@@ -216,7 +253,9 @@ async function withLibraries(index: LibraryIndex): Promise<LibraryIndex> {
   for (const m of index.media) if (m.missing) missing.set(m.root, (missing.get(m.root) ?? 0) + 1);
   const stockLibraries: StockLibraryState[] = settings.stockLibraries.map((l) => {
     const drive = driveOf(l.path);
-    return { ...l, online: roots.get(resolve(l.path)) ?? existsSync(l.path), items: counted.get(resolve(l.path)) ?? 0, ...(missing.get(resolve(l.path)) ? { missing: missing.get(resolve(l.path)) } : {}), ...(drive ? { drive: drive.name } : {}) };
+    const online = roots.get(resolve(l.path)) ?? existsSync(l.path);
+    const problem = l.image && !online ? mountProblems.get(l.image) : undefined;
+    return { ...l, online, items: counted.get(resolve(l.path)) ?? 0, ...(missing.get(resolve(l.path)) ? { missing: missing.get(resolve(l.path)) } : {}), ...(drive ? { drive: drive.name } : {}), ...(problem ? { mountProblem: problem } : {}) };
   });
   return { ...index, stockLibraries };
 }
@@ -764,6 +803,13 @@ export async function rescanIfStale(maxAgeMs = FOCUS_RESCAN_AGE_MS): Promise<voi
  * stock library says it is not connected while it is not, and comes back when it is.
  */
 export async function rescanIfRootReturned(): Promise<void> {
+  // A disc image whose mount is gone is mounted again (milestone 32), with a minute between tries.
+  const settings = await loadSettings();
+  const unmounted = settings.stockLibraries.filter((l) => l.image && !existsSync(l.path));
+  if (unmounted.length > 0) {
+    await mountImageLibraries();
+    if (unmounted.some((l) => existsSync(l.path) || (l.image && mountedAt(l.image)))) await rescan();
+  }
   const changed = getStore()
     .roots()
     .filter((r) => r.online !== existsSync(r.path));
@@ -803,10 +849,46 @@ export async function addStockLibrary(path: string): Promise<{ ok: true; index: 
   return { ok: true, index: await rescan() };
 }
 
-/** Forget a stock library: its items leave the window. Its files are not touched. */
+/**
+ * Add a stock library from a disc image that is not mounted yet (milestone 32): the image is
+ * mounted read-only with the platform's own tool, and what is on it is read as a library whose
+ * path is the mount point. What cannot be mounted is said, in the tool's words where it has any.
+ */
+export async function addStockLibraryImage(image: string): Promise<{ ok: true; index: LibraryIndex } | { ok: false; why: 'already' | 'inside' | 'contains' | 'own' | 'missing' | 'not-an-image' | 'mount'; message?: string }> {
+  if (!existsSync(image)) return { ok: false, why: 'missing' };
+  if (!isDiscImagePath(image)) return { ok: false, why: 'not-an-image' };
+  const settings = await loadSettings();
+  if (settings.stockLibraries.some((l) => l.image && samePlace(l.image, image))) return { ok: false, why: 'already' };
+  const made = await mountDiscImage(image);
+  if (!made.ok) return { ok: false, why: 'mount', message: mountProblemMessage(made.problem, image) };
+  const allowed = canAddLibrary(made.path, settings.stockLibraries, ownFolders());
+  if (!allowed.ok) {
+    await unmountDiscImage(image);
+    return allowed;
+  }
+  const library: StockLibrary = { path: made.path, name: discImageName(image), addedAt: new Date().toISOString(), image };
+  await updateSettings((s) => (s.stockLibraries.some((l) => samePlace(l.path, made.path)) ? s : { ...s, stockLibraries: [...s.stockLibraries, library] }));
+  mountProblems.delete(image);
+  return { ok: true, index: await rescan() };
+}
+
+/** Forget a stock library: its items leave the window. Its files are not touched; a disc image Pulp mounted is unmounted. */
 export async function removeStockLibrary(path: string): Promise<LibraryIndex> {
+  const settings = await loadSettings();
+  const gone = settings.stockLibraries.find((l) => samePlace(l.path, path));
   await updateSettings((s) => ({ ...s, stockLibraries: s.stockLibraries.filter((l) => !samePlace(l.path, path)) }));
+  if (gone?.image) {
+    mountProblems.delete(gone.image);
+    // The store forgets the root before the mount goes, so nothing reads a volume mid-detach.
+    getStore().setRoots(await configuredRoots());
+    await unmountDiscImage(gone.image);
+  }
   return rescan();
+}
+
+/** Unmount every disc image Pulp mounted: for quitting. */
+export async function unmountStockImages(): Promise<void> {
+  await unmountAllDiscImages();
 }
 
 export async function addLibraryFolder(folder: string): Promise<LibraryIndex> {

@@ -27,7 +27,7 @@ describe('which files, and what they need', () => {
 
   it('says plainly what it is and what it needs, in the interface\'s language', () => {
     expect(unreadableNote('Title Reveal.aep', '.aep')).toBe('Title Reveal.aep is an After Effects project, which Pulp cannot open; render it from After Effects (as ProRes 4444 or a PNG sequence, to keep its transparency) and add the render.');
-    expect(unreadableNote('Old.iso', '.iso')).toMatch(/^Old\.iso is a disc image, which Pulp cannot open; open it/);
+    expect(unreadableNote('Old.iso', '.iso')).toMatch(/^Old\.iso is a disc image, which Pulp cannot open; add it on its own through Add → Stock Library from Disc Image…/);
     setCurrentLocale('de');
     expect(unreadableNote('Title Reveal.aep', '.aep')).toContain('ein After-Effects-Projekt, das Pulp nicht öffnen kann');
     setCurrentLocale(SOURCE_LOCALE);

@@ -30,6 +30,8 @@ const $ = <T extends HTMLElement>(id: string): T => {
 export interface LibraryAddActions {
   addFolder: () => void;
   addStock: () => void;
+  /** A stock library from a disc image Pulp mounts (milestone 32). */
+  addStockImage: () => void;
   importPack: () => void;
   addSampleMedia: () => void;
 }
@@ -45,6 +47,7 @@ export function libraryAddState(): { canAddSampleMedia: boolean } {
 export function runLibraryAdd(command: MenuCommand): void {
   if (command === 'library.addFolder') actions?.addFolder();
   else if (command === 'library.addStock') actions?.addStock();
+  else if (command === 'library.addStockImage') actions?.addStockImage();
   else if (command === 'pack.import') actions?.importPack();
   else if (command === 'library.addSampleMedia') actions?.addSampleMedia();
 }

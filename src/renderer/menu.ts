@@ -132,7 +132,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'project.saveAs': void saveProject({ saveAs: true }); return;
     // The three Add choices have no button of their own since milestone 47: one Add menu offers
     // them, in the browse panel and here, and both run them through this one place.
-    case 'library.addFolder': case 'library.addStock': case 'library.addSampleMedia': case 'pack.import':
+    case 'library.addFolder': case 'library.addStock': case 'library.addStockImage': case 'library.addSampleMedia': case 'pack.import':
       runLibraryAdd(command);
       return;
     case 'pack.export': press('export-pack'); return;

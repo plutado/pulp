@@ -466,6 +466,8 @@ export interface PulpApi {
    * Null when the picker is dismissed; a refusal says why (already added, inside one, Pulp's own).
    */
   addStockLibrary(): Promise<{ ok: true; index: LibraryIndex } | { ok: false; why: 'already' | 'inside' | 'contains' | 'own' | 'missing' } | null>;
+  /** A stock library from a disc image Pulp mounts read-only (milestone 32); `message` says why a mount failed, in the tool's words. */
+  addStockLibraryImage(): Promise<{ ok: true; index: LibraryIndex } | { ok: false; why: 'already' | 'inside' | 'contains' | 'own' | 'missing' | 'not-an-image' | 'mount'; message?: string } | null>;
   /** A clip set stitched to `length` seconds (its own when undefined) for the stage to play (milestone 32). */
   clipSetPreview(id: string, length?: number): Promise<{ ok: true; url: string; seconds: number } | { ok: false; message: string }>;
   /** A song's stems mixed for the stage to play (milestone 32). */

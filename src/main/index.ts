@@ -16,7 +16,7 @@ import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { EXIT_CODES, helpText, parseCommandLine, usageErrorText, type ParsedCli } from '../core/cli';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
-import { addLibraryFolder, addStockLibrary, removeStockLibrary, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform } from './library-service';
+import { addLibraryFolder, addStockLibrary, removeStockLibrary, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform, addStockLibraryImage, unmountStockImages } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
@@ -65,7 +65,8 @@ import { loadSettings, updateSettings } from './settings';
 import { getAppearance, loadAppearance, setAppearance, watchAppearance, windowBackground } from './appearance-service';
 import { getLanguage, loadLanguage, onLanguageChange, setLanguage } from './language-service';
 import { clipSetPreview, stemsPreview } from './clip-set-service';
-import { testPickedFolder } from '../core/test-hooks';
+import { testPickedFile, testPickedFolder } from '../core/test-hooks';
+import { ANY_DISC_IMAGE_EXTENSIONS } from '../core/disc-image';
 import { abandonVideoTake, appendVideoTake, beginVideoTake, cameraAccess, finishVideoTake, microphoneAccess, openPrivacySettings, saveRecording } from './recording-service';
 import { DEFAULT_VIDEO_INPUTS, sanitizeVideoInputs } from '../core/video-take';
 import { sanitizeTypeOutputDefault } from '../core/output-defaults';
@@ -323,6 +324,22 @@ function registerIpc(): void {
     const folder = result.filePaths[0];
     if (result.canceled || !folder) return null;
     return addStockLibrary(folder);
+  });
+  // A stock library from a disc image that is not mounted yet (milestone 32): the image is mounted
+  // read-only and read as a library. The end-to-end suite answers the file picker as it does the folder's.
+  ipcMain.handle('library:add-stock-image', async () => {
+    const picked = testPickedFile(process.env, app.isPackaged);
+    if (picked) return addStockLibraryImage(picked);
+    const result = await dialog.showOpenDialog({
+      title: tr('dialog.library.add-stock-image'),
+      message: tr('dialog.library.add-stock-image.message'),
+      buttonLabel: tr('dialog.library.add-stock.button'),
+      properties: ['openFile'],
+      filters: [{ name: tr('dialog.library.add-stock-image.filter'), extensions: ANY_DISC_IMAGE_EXTENSIONS.map((e) => e.slice(1)) }],
+    });
+    const file = result.filePaths[0];
+    if (result.canceled || !file) return null;
+    return addStockLibraryImage(file);
   });
   ipcMain.handle('clip-set:preview', (_event, id: unknown, length: unknown) => clipSetPreview(String(id), typeof length === 'number' ? length : undefined));
   ipcMain.handle('stems:preview', (_event, id: unknown) => stemsPreview(String(id)));
@@ -1256,6 +1273,8 @@ app.on('will-quit', () => {
   // The bridge's discovery file must not outlive the bridge: a panel reading a dead port learns so politely.
   void stopPanelBridge();
   closeLibrary();
+  // A disc image Pulp mounted for a stock library goes with it (milestone 32).
+  void unmountStockImages();
 });
 
 app.on('window-all-closed', () => {

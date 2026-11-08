@@ -39,6 +39,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **A stock library from a disc image** (milestone 32). **Add → Stock Library from Disc Image…** takes an `.iso`, a `.dmg` or another image this system opens, mounts it read-only with the system's own tool and lists what is on it under the image's name, as a stock library. It is mounted again when Pulp starts and unmounted when the library is removed and when Pulp quits; the image itself is never changed. When it cannot be mounted — a kind this system does not open, a tool that is not installed, an image that is not there, or one the tool refuses — Pulp says so plainly, in the tool's own words where it has any.
+
 - **Clip sets work everywhere a single clip does** (milestone 32). A set is no longer silent: its parts' sounds are stitched with the picture — a part without sound is silence for its span, so the parts need not match — and heard on the stage, in a render's mix stretched to the graphic's length, and in the set's own render. On the cut track, in an exported edit and in clip clean-up (chroma key, scene split), where a single file is needed, the set's parts are stitched once into a full-quality file in Pulp's own cache that stands for it; nothing is written beside the stock media. A chroma key or a split of a set is named after the set, beside its parts, as a clip's own are beside it.
 
 - **A placed track picks its cut again when the graphic's length changes** (milestone 32). A track in several lengths placed on an audio layer takes the shortest cut that covers the new length, else the longest, as it did when it was placed; the stage and the render follow.

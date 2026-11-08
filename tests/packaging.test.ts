@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
-import { TEST_PICK_FOLDER, testPickedFolder } from '../src/core/test-hooks';
+import { TEST_PICK_FILE, TEST_PICK_FOLDER, testPickedFile, testPickedFolder } from '../src/core/test-hooks';
 
 const ROOT = join(__dirname, '..');
 
@@ -281,11 +281,15 @@ describe('what a packaged build ignores', () => {
     expect(testPickedFolder({ [TEST_PICK_FOLDER]: '/Volumes/Stock' }, true)).toBeUndefined();
     expect(testPickedFolder({ [TEST_PICK_FOLDER]: '  ' }, false)).toBeUndefined();
     expect(testPickedFolder({}, false)).toBeUndefined();
+    // The disc image picker's hook (milestone 32) follows the same rule.
+    expect(testPickedFile({ [TEST_PICK_FILE]: '/x/Stock.dmg' }, false)).toBe('/x/Stock.dmg');
+    expect(testPickedFile({ [TEST_PICK_FILE]: '/x/Stock.dmg' }, true)).toBeUndefined();
     // And the main process reads it through the hook alone, with whether the app is packaged: no
     // other line in what we ship names the variable.
     const main = await readFile(join(ROOT, 'src', 'main', 'index.ts'), 'utf8');
     expect(main).toContain('testPickedFolder(process.env, app.isPackaged)');
-    expect(main).not.toContain('process.env.PULP_TEST_PICK_FOLDER');
+    expect(main).toContain('testPickedFile(process.env, app.isPackaged)');
+    expect(main).not.toMatch(/process\.env\.PULP_TEST_PICK_/);
     const { readdirSync, readFileSync, statSync } = await import('node:fs');
     const { relative, sep } = await import('node:path');
     const naming: string[] = [];
@@ -293,7 +297,7 @@ describe('what a packaged build ignores', () => {
       for (const name of readdirSync(dir)) {
         const full = join(dir, name);
         if (statSync(full).isDirectory()) walk(full);
-        else if (/\.(ts|tsx)$/.test(name) && readFileSync(full, 'utf8').includes(TEST_PICK_FOLDER)) naming.push(relative(ROOT, full).split(sep).join('/'));
+        else if (/\.(ts|tsx)$/.test(name) && /PULP_TEST_PICK_/.test(readFileSync(full, 'utf8'))) naming.push(relative(ROOT, full).split(sep).join('/'));
       }
     };
     walk(join(ROOT, 'src'));

@@ -563,7 +563,7 @@ describe.skipIf(!electron)('inspector UI', () => {
         stdio: ['ignore', logFd, logFd],
         // The fake devices: a microphone's steady tone (milestone 63) and a camera's moving test card
         // (milestone 64), from Chromium itself, so recording needs no device and no prompt on any runner.
-        env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1', PULP_TEST_PICK_FOLDER: stockDir },
+        env: { ...process.env, PULP_USER_DATA: userData, PULP_FAKE_MEDIA: '1', PULP_TEST_PICK_FOLDER: stockDir, PULP_TEST_PICK_FILE: join(stockDir, '..', 'Stock Disc.dmg') },
       });
       closeSync(logFd);
       let target: Target | undefined;
@@ -7771,6 +7771,56 @@ describe.skipIf(!electron)('inspector UI', () => {
         await rm(join(stockDir, 'catalog.csv'), { force: true });
       }
     }, 300_000);
+  });
+
+  describe('a stock library from a disc image (milestone 32)', () => {
+    it('mounts the image read-only, lists what is on it, unmounts it when the library is removed, and says plainly when an image cannot be mounted', async () => {
+      if (process.platform !== 'darwin') {
+        console.info('disc images are made with hdiutil; the check runs on macOS only.');
+        return;
+      }
+      const { spawnSync } = await import('node:child_process');
+      const image = join(stockDir, '..', 'Stock Disc.dmg');
+      // A disc of stock media: the synthetic library pressed into an image, the way a bought collection came.
+      const made = spawnSync('hdiutil', ['create', '-quiet', '-srcfolder', stockDir, '-volname', 'Pulp Stock Disc', '-format', 'UDZO', '-ov', image]);
+      expect(made.status, String(made.stderr)).toBe(0);
+      const volume = '/Volumes/Pulp Stock Disc';
+      const row = () => page.eval<{ tip: string; offline: boolean } | null>(`(() => {
+        const b = [...document.querySelectorAll('#browse-tree .browse-node')].find((n) => n.dataset.node === 'stock:' + ${JSON.stringify(volume)});
+        return b ? { tip: b.dataset.tip ?? '', offline: b.classList.contains('offline') } : null; })()`);
+      try {
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library from Disc Image…'))`), 'Add offering a disc image');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library from Disc Image…')).click()`);
+        // Mounted read-only at its volume, listed under Stock libraries by the image's name, and read: its files are items.
+        await until(async () => existsSync(volume), 'the image mounted', 60_000);
+        expect(spawnSync('touch', [join(volume, 'x')]).status, 'read-only').not.toBe(0);
+        await page.eval(`(() => { const h = document.querySelector('#browse-tree .section-heading[data-node="stock"]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()`);
+        await until(async () => (await row()) !== null, 'the library on the tree', 60_000);
+        expect((await row())!.tip).toContain('A disc image');
+        expect((await row())!.tip).toContain('mounted read-only at /Volumes/Pulp Stock Disc');
+        await fire('#search', 'blue wash', 'input');
+        await until(async () => (await resultNames()).includes('Blue Wash'), 'a file from the disc listed', 30_000);
+        // Removed, the image is unmounted again.
+        await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(volume)})`, undefined, 60_000);
+        await until(async () => !existsSync(volume), 'the image unmounted', 60_000);
+        await until(async () => (await row()) === null, 'the library gone from the tree');
+        // An image that is not one is said, in the tool's own words, where the window's other messages are.
+        await writeFile(image, 'not really a disc image');
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].some((m) => m.textContent.includes('Stock Library from Disc Image…'))`), 'Add again');
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.includes('Stock Library from Disc Image…')).click()`);
+        await until(() => page.eval<boolean>(`document.body.textContent.includes('Pulp could not mount Stock Disc.dmg')`), 'the refusal said', 30_000);
+        expect(await page.eval<boolean>(`document.body.textContent.includes('image not recognized')`), 'in the tool\'s own words').toBe(true);
+      } finally {
+        await fire('#search', '', 'input');
+        if (existsSync(volume)) {
+          await page.eval(`window.pulp.removeStockLibrary(${JSON.stringify(volume)})`, undefined, 60_000).catch(() => undefined);
+          spawnSync('hdiutil', ['detach', volume, '-quiet']);
+        }
+        await rm(image, { force: true });
+      }
+    }, 240_000);
   });
 
   describe('zipped downloads: over 4 GB, password-protected, on a read-only drive (milestone 32)', () => {

@@ -8,6 +8,8 @@ export const menu = {
   'menu.library.addFolder': 'Your Media Folder…',
   'menu.library.addStock': 'Stock Library…',
   'menu.library.addStock.detail': 'A folder or a drive of stock media you own, read where it is',
+  'menu.library.addStockImage': 'Stock Library from Disc Image…',
+  'menu.library.addStockImage.detail': 'A disc image of stock media, mounted read-only and read as it is',
   'menu.pack.import.detail': 'A .zip or a folder of templates, installed',
   'menu.pack.import': 'Templates from a Pack…',
   'menu.library.addSampleMedia.detail': 'Original CC0 sounds, music, stills and clips, made and added',

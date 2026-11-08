@@ -16,6 +16,7 @@ const api: PulpApi = {
   },
   addLibraryFolder: () => ipcRenderer.invoke('library:add-folder'),
   addStockLibrary: () => ipcRenderer.invoke('library:add-stock'),
+  addStockLibraryImage: () => ipcRenderer.invoke('library:add-stock-image'),
   clipSetPreview: (id: string, length?: number) => ipcRenderer.invoke('clip-set:preview', id, length),
   stemsPreview: (id: string) => ipcRenderer.invoke('stems:preview', id),
   removeStockLibrary: (path: string) => ipcRenderer.invoke('library:remove-stock', path),

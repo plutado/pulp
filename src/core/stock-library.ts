@@ -14,12 +14,14 @@
 
 /** A stock library as settings keep it. */
 export interface StockLibrary {
-  /** The folder or the drive's root, as chosen. */
+  /** The folder or the drive's root, as chosen — or, for a disc image, where it is mounted. */
   path: string;
   /** What it is called in the window: the folder's name unless the person says otherwise. */
   name: string;
   /** When it was added, ISO 8601. */
   addedAt: string;
+  /** The disc image file the library is read from (milestone 32), which Pulp mounts read-only; absent for a folder or a drive. */
+  image?: string;
 }
 
 /** A stock library as the window sees it: settings, and whether it is there now. */
@@ -31,6 +33,8 @@ export interface StockLibraryState extends StockLibrary {
   items: number;
   /** How many of them its catalog lists but are not on this computer (milestone 32). */
   missing?: number;
+  /** Why its disc image could not be mounted just now, in the person's words; only while it is offline. */
+  mountProblem?: string;
 }
 
 /** Read back from settings.json: only well-formed entries, each path once. */
@@ -40,10 +44,15 @@ export function sanitizeStockLibraries(raw: unknown): StockLibrary[] {
   const out: StockLibrary[] = [];
   for (const r of raw) {
     if (!r || typeof r !== 'object') continue;
-    const { path, name, addedAt } = r as Record<string, unknown>;
+    const { path, name, addedAt, image } = r as Record<string, unknown>;
     if (typeof path !== 'string' || path.trim() === '' || seen.has(path)) continue;
     seen.add(path);
-    out.push({ path, name: typeof name === 'string' && name.trim() !== '' ? name.trim() : defaultLibraryName(path), addedAt: typeof addedAt === 'string' ? addedAt : '' });
+    out.push({
+      path,
+      name: typeof name === 'string' && name.trim() !== '' ? name.trim() : defaultLibraryName(path),
+      addedAt: typeof addedAt === 'string' ? addedAt : '',
+      ...(typeof image === 'string' && image.trim() !== '' ? { image: image.trim() } : {}),
+    });
   }
   return out;
 }
