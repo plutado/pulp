@@ -8,7 +8,7 @@ Estimates are working hours for one developer, including tests and docs. They ar
 
 **Milestone 42, nothing empty takes room from the stage, is done:** an empty collection tray is not in the window at all and appears with the first item; empty results fold to their heading, which says why and offers the way out; the status bar's items sit at the end of the transport row, so the window has one fixed row fewer; in a short window the row's controls share one line; and on a window where the browse panel would squeeze the stage it opens folded to its rail. **Milestone 35, Lottie animations, is done before it:** a `.json` or `.lottie` is read, played, recolored, rendered with alpha, timed from its markers and dropped onto a template as a layer, with twenty CC0 animations bundled. **Milestone 41, search and browse in the left panel, is done before it:** the row above the stage is gone — Search and Browse are two sections of the left panel, how the results are shown sits in the results' heading, the stage starts at the window's top edge, and Cmd/Ctrl+F or the rail's search icon puts the caret in the field from anywhere (ADR 0018). **Milestone 40, one search wherever you search, is done before it:** every chooser asks the library through the one `searchMedia`, so the search bar's query language and ranking hold in a picture or clip chooser and in the stage's asset list, and the two choosers are one. **Milestone 39, a right-click menu on the stage, is done before it:** the common layer edits — cut, copy, paste, duplicate, delete, layer order, copy and paste look, reset, start or end at the playhead, edit a line's words, replace a picture or a clip — adding text or an asset where you click, and the stage's own background (now with mid-gray), theater and add-to-collection over bare picture, opened by the pointer or by Shift+F10 and the Menu key, all built from the application menu's own command list and held to it by a test (ADR 0017). **Milestone 38, a bigger stage, is done before it:** the inspector's Parameters, Output and Info are three buttons in the transport row that open a drawer over the results — never over the stage — the right column is gone, so the stage and the results span from the browse panel's edge to the window's right edge, the view controls are a quiet overlay on the stage's corner, and the window fits at every size: the page never scrolls, nothing overlaps, and the picture gets its share, held by a UI test at the default 1280 × 788. Milestone 37, the transport row, is done before it: the player's controls sit in one row across the bottom of the window, above the status bar, the scrub bar and the bars per layer at the window's width, and the stage is only the picture. Milestone 27, projects and the application menu, is done before it: a session saves as a `.pulp` project — guarded, recovered and relinked — and Pulp has its own menu on every platform. Milestone 28 is done before it — a layer has its own start, end, entrance, exit and look, with a bar per layer under the scrub bar — and milestone 30 before that — 85 of the 124 bundled templates declare how they stretch, and the other 39 move all the way through and keep their fixed length — and milestones 26 and 29 before that. Everything before it on the planned order is finished: the renderer and alpha export, the parameter editor, the library with search and categorization, drag-out, packs, the window shell and visual polish, browse and preview, collections, vertical and square formats, the sample library, image slots, layers, the browse panel's find field, and layers moved and resized on the stage. 358 bundled CC0 templates, a 626-file sample-media catalog, 66 types / 51 themes / 11 styles in the taxonomy, every type at least ten deep, every theme at least six with three assets of its own.
 
-What is left for 1.0: signing and auto-update (7), which wait on account decisions. Stock library import (32) is done but for a look at real archives on the maintainer's machine; Lottie animations (35) are done but for one post-1.0 item; popping out the stage (43), still backgrounds to 32 and a still image output (44), effects (45) and objects (46) on transparency, unsigned builds (17), a deeper library (36), the transport row (37), the stage's right-click menu (39), one search in every chooser (40), search and browse in the left panel (41), nothing empty taking room from the stage (42), the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33), converting library media (15), social-ready export (20), sound in a project (48), a cut track (49), captions from speech (50), keyframes on layers (51), clip clean-up for compositing (52), voice treatments (53) and 1.0 hardening and docs (8) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
+What is left for 1.0: signing and auto-update (7), which wait on account decisions. Stock library import (32) is done but for a look at real archives on the maintainer's machine; Lottie animations (35) are done; popping out the stage (43), still backgrounds to 32 and a still image output (44), effects (45) and objects (46) on transparency, unsigned builds (17), a deeper library (36), the transport row (37), the stage's right-click menu (39), one search in every chooser (40), search and browse in the left panel (41), nothing empty taking room from the stage (42), the start screen (31), the browse panel that says what things are (34, all but its card sort), layered graphics (33), converting library media (15), social-ready export (20), sound in a project (48), a cut track (49), captions from speech (50), keyframes on layers (51), clip clean-up for compositing (52), voice treatments (53) and 1.0 hardening and docs (8) are done. Four verification items wait on hardware: two need the test Mac, and two on Windows are checked in a Windows 11 virtual machine. Known issues and ideas not yet decided are in `docs/ideas.md`.
 
 Milestones keep the number they were given when they were added. Milestones 1 to 23 have GitHub issues of the same number; from 24 on, a new milestone's issue number is given beside its heading, since pull requests share GitHub's numbering. A decision is written here as soon as it is made — a new milestone, or items in an existing one — even when it is low priority and may never be built, so everything decided is visible in one place; `docs/ideas.md` keeps only ideas not yet decided and known issues. The table and the sections below are in **planned order**, which is not numeric order. Packaging and signing (17 and 7) come last, after hardening: packaging is the final step, and what it wraps should be the finished thing. The window layout that the UI milestones build, and why they come in this order, is in `docs/ui-layout.md`.
 
@@ -85,9 +85,18 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 68. Chinese and German (post-1.0, **done**) | 18-32 h |
 | 69. The library in German and Chinese (post-1.0, **done**) | 12-20 h |
 | 70. Right-to-left and complex scripts (post-1.0, **done**) | 12-23 h |
+| 71. A security review of templates and packs (post-1.0) | 8-14 h |
+| 72. Template versions in saved work (post-1.0) | 4-7 h |
+| 73. Keyboard shortcuts you can change (post-1.0) | 6-10 h |
+| 74. A high-contrast appearance (post-1.0) | 4-6 h |
+| 75. Display names for library folders (post-1.0) | 2-4 h |
+| 76. Motion tracking (post-1.0) | 20-35 h |
+| 77. Auto-reframe for vertical video (post-1.0) | 15-25 h |
+| 78. Stabilize shaky clips (post-1.0) | 6-10 h |
+| 79. Spanish and French (post-1.0) | 30-52 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1059-1736 h** |
+| **Total including post-1.0 items** | **1154-1899 h** |
 
 ## 0. Foundation (done)
 
@@ -901,3 +910,76 @@ Decided 2026-11-06, moved out of milestone 59 for later. No right-to-left langua
 - [x] **Text layers in Arabic, Hebrew and Indic scripts:** shaped correctly, with the right word order, the same in the preview and the render, since Noto Sans is bundled. *The bundled Noto Sans turned out to carry Devanagari but no Arabic or Hebrew, so Noto Sans Arabic and Noto Sans Hebrew joined the set, then the Notos for Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada and Malayalam, and every text layer's canvas stack ends with the ten; a line carrying one of these scripts is always one shaped `fillText` run — letter spacing drew a character at a time, which undid the joining — with its base direction read from its first strong character, and the layer text inputs take `dir="auto"`* (3-6 h)
 - [x] **The interface mirrored for a right-to-left language:** panels and menus mirrored, with timelines, scrub bars and playback controls decided one by one, since these usually stay left to right. *The window follows `<html dir>`: the stylesheet says start and end wherever it means the interface, carets and disclosure triangles turn, and the browse splitter, the tree, submenus, hung menus, the tour's card and the roving groups follow the eye. Pinned left to right, one by one: the whole transport row (scrub bar, lanes, playback buttons, marks, volume, tabs, status), the picture with its overlays, and a card's hover scrub. English (mirrored), `en-XB`, is a hidden pseudo-locale for looking at it before a right-to-left language exists; docs/translating.md* (6-12 h)
 - [x] **Tests:** a render test of each script's text against its reference, and an end-to-end check of the mirrored window at 1280 × 788 and 960 × 600. *The script render tests landed with the first item — Arabic joining against its ZWNJ-isolated sibling, a conjunct against its plain pair in Devanagari and in each of the seven other Indic scripts, Hebrew points taking no room — each measured against a sibling render, never a stored image. The mirrored window is checked in English (mirrored) at both sizes: the panel on the right, nothing overlapping, the row, the scrub bar, the lanes and the picture reading left to right, the playback cluster in its order at the left, a slider in the panel mirrored, Left widening the panel, and the Add menu hanging from its button's right edge* (3-5 h)
+
+## 71. A security review of templates and packs (8-14 h, after 1.0)
+
+Decided 2026-11-09. Moved from `docs/ideas.md`. A template is a web page and a pack is someone else's folder of them, so Pulp runs code it did not write. Nobody has yet written down what that code may do or checked the window against it.
+
+- [ ] **A threat model:** what a template or pack is trusted with and what it is not, as a decision record (2-3 h)
+- [ ] **The window audited:** context isolation, the sandbox, the content security policy, protocol handlers, navigation and new windows, and whatever falls short fixed (4-8 h)
+- [ ] **Dependency alerts:** automatic update alerts for what Pulp depends on (1 h)
+- [ ] **Held by tests:** a hostile template that tries to reach the disk, the network or a new window, and is refused (1-2 h)
+
+## 72. Template versions in saved work (4-7 h, after 1.0)
+
+Decided 2026-11-09. Moved from `docs/ideas.md`. Updating a bundled template should never quietly change a project someone saved.
+
+- [ ] **Recorded:** presets, collections and `.pulp` projects note which version of each template they used (2-3 h)
+- [ ] **Opened again:** work whose template has since changed says so, and the person chooses to keep the look they saved or take the update; a test holds both (2-4 h)
+
+## 73. Keyboard shortcuts you can change (6-10 h, after 1.0)
+
+Decided 2026-11-09. Moved from `docs/ideas.md`, now that the application menu exists.
+
+- [ ] **A list in Settings:** every shortcut, each one changed, cleared or reset, and all of them reset at once (3-5 h)
+- [ ] **One map:** the menus and the window read the same shortcuts, and a key already taken names what has it (2-3 h)
+- [ ] **Tests:** a changed key works and shows in its menu, and survives a restart (1-2 h)
+
+## 74. A high-contrast appearance (4-6 h, after 1.0)
+
+Decided 2026-11-09. Moved from `docs/ideas.md`. Milestone 62 built light and dark; this adds the third.
+
+- [ ] **High contrast** beside System, Light and Dark, followed when the system asks for it (2-3 h)
+- [ ] **Nothing told by a faint tint alone:** selection, focus and disabled states carry a border or a shape, and a test holds the palette to its contrast (2-3 h)
+
+## 75. Display names for library folders (2-4 h, after 1.0)
+
+Decided 2026-11-09. Moved from `docs/ideas.md`.
+
+- [ ] **Renamed in the browse tree only:** a folder can show a name of a person's own, with the folder on disk untouched, kept across rescans (1-3 h)
+- [ ] **Tests:** the name shows in the tree and in search, and clearing it brings the folder's own back (1 h)
+
+## 76. Motion tracking (20-35 h, after 1.0)
+
+Decided 2026-11-09. Pin a title or a layer to something moving in a clip, without keyframing it by hand. All on the machine.
+
+- [ ] **A tracker:** pick a point or a box on a clip and follow it forward and back, the result kept with the clip (8-14 h)
+- [ ] **Pin a layer to it:** a layer follows the track in position, and with two points in scale and rotation too, as keyframes (milestone 51) a person can still edit (5-8 h)
+- [ ] **Fix a bad track:** the path drawn on the stage, a wrong frame moved by hand and the track picked up again from there (4-8 h)
+- [ ] **Tests:** a generated clip with a moving target, tracked to within a pixel, and the preview and the render agreeing (3-5 h)
+
+## 77. Auto-reframe for vertical video (15-25 h, after 1.0)
+
+Decided 2026-11-09. Cutting wide footage to vertical today means placing the crop by hand. This follows the subject instead, on the machine, with nothing sent anywhere. Builds on the vertical layouts of milestone 65.
+
+- [ ] **Find the subject:** faces first, then what moves or stands out, shot by shot (5-9 h)
+- [ ] **A steady crop:** a path that eases rather than jitters and starts again at each cut (4-6 h)
+- [ ] **Still yours to change:** the crop shown on the stage as keyframes a person can move, for each aspect (3-5 h)
+- [ ] **Tests:** generated clips with a moving subject and a hard cut, the subject kept in frame (3-5 h)
+
+## 78. Stabilize shaky clips (6-10 h, after 1.0)
+
+Decided 2026-11-09. A clean-up action beside those of milestone 52.
+
+- [ ] **Stabilize:** a two-pass ffmpeg stabilization of a clip, the result joining the library as its own clip (3-5 h)
+- [ ] **Strength and edges:** how much to smooth, and whether to zoom or leave the edges; progress and cancel; said plainly when the ffmpeg in use lacks the filter (2-3 h)
+- [ ] **Tests:** a generated shaky clip measured steadier after (1-2 h)
+
+## 79. Spanish and French (30-52 h, after 1.0)
+
+Decided 2026-11-09. Two more languages, built the way milestones 68 and 69 built German and Chinese, and offered as previews in the same way until someone fluent has read them.
+
+- [ ] **The window:** every message in Spanish and French, from a glossary of Pulp's own terms (12-22 h)
+- [ ] **The user guide** in each (4-7 h)
+- [ ] **The library:** category names, descriptions and search words in each (12-20 h)
+- [ ] **Tests:** complete catalogs, and the layout check at 1280 × 788 and 960 × 600 in each (2-3 h)
