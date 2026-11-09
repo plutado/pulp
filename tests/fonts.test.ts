@@ -40,12 +40,12 @@ function fontFamilyName(buffer: Buffer): string {
 }
 
 describe('the bundled fonts', () => {
-  it('names the ten families of the roadmap, Playfair standing where Playfair Display now lives, and the Arabic and Hebrew Notos of milestone 70', () => {
-    expect(BUNDLED_FAMILIES).toEqual(['Inter', 'Montserrat', 'Oswald', 'Bebas Neue', 'Source Serif 4', 'Playfair', 'JetBrains Mono', 'Caveat', 'Dancing Script', 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Hebrew']);
+  it('names the ten families of the roadmap, Playfair standing where Playfair Display now lives, and the nine script Notos of milestone 70', () => {
+    expect(BUNDLED_FAMILIES).toEqual(['Inter', 'Montserrat', 'Oswald', 'Bebas Neue', 'Source Serif 4', 'Playfair', 'JetBrains Mono', 'Caveat', 'Dancing Script', 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam']);
   });
 
-  it('the script fallbacks every layer ends its stack with are bundled families, Arabic and Hebrew before the Noto Sans that carries Devanagari', () => {
-    expect(SCRIPT_FALLBACK_FAMILIES).toEqual(['Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans']);
+  it('the script fallbacks every layer ends its stack with are bundled families: Arabic, Hebrew, the seven Indic scripts, then the Noto Sans that carries Devanagari', () => {
+    expect(SCRIPT_FALLBACK_FAMILIES).toEqual(['Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Noto Sans']);
     for (const family of SCRIPT_FALLBACK_FAMILIES) expect(BUNDLED_FAMILIES).toContain(family);
   });
 

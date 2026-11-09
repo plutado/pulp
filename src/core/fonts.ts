@@ -1,6 +1,6 @@
 /**
- * The bundled fonts (milestone 23, ADR 0014): ten open-license families a layer
- * can be set in on any machine, shipped in `fonts/` with each one's own license
+ * The bundled fonts (milestone 23, ADR 0014): nineteen open-license families a layer
+ * can be set in on any machine (ten chosen for their looks, nine Notos for their scripts), shipped in `fonts/` with each one's own license
  * file, exactly as its upstream published it. This module is the one list: the
  * credits file is checked against it, the test checks the files against it, and
  * both pages that draw type — the app window and every template page — declare
@@ -211,17 +211,97 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
     version: '3.001 (release NotoSansHebrew-v3.001)',
     upstreamPath: 'NotoSansHebrew-v3.001.zip: NotoSansHebrew/full/variable-ttf/NotoSansHebrew[wdth,wght].ttf, OFL.txt',
   },
+  {
+    slug: 'noto-sans-bengali',
+    family: 'Noto Sans Bengali',
+    kind: 'sans',
+    files: [{ file: 'NotoSansBengali[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: '834aea5b9b20dfc15df7bcbaaa55fe939bfbe5268a79dd0624a14833873ee546' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/bengali',
+    version: '3.011 (release NotoSansBengali-v3.011)',
+    upstreamPath: 'NotoSansBengali-v3.011.zip: NotoSansBengali/full/variable-ttf/NotoSansBengali[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-gurmukhi',
+    family: 'Noto Sans Gurmukhi',
+    kind: 'sans',
+    files: [{ file: 'NotoSansGurmukhi[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: '78f6b8839b76a58995f0cfb1b117d1eb5dc9ee0035659585bcac549bc05cf6a0' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/gurmukhi',
+    version: '2.004 (release NotoSansGurmukhi-v2.004)',
+    upstreamPath: 'NotoSansGurmukhi-v2.004.zip: NotoSansGurmukhi/full/variable-ttf/NotoSansGurmukhi[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-gujarati',
+    family: 'Noto Sans Gujarati',
+    kind: 'sans',
+    files: [{ file: 'NotoSansGujarati[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: 'fca4835f6a2ddf7fee9966682ad649175ba683c6617b40ebf146387a2254afad' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/gujarati',
+    version: '2.106 (release NotoSansGujarati-v2.106)',
+    upstreamPath: 'NotoSansGujarati-v2.106.zip: NotoSansGujarati/full/variable/NotoSansGujarati[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-tamil',
+    family: 'Noto Sans Tamil',
+    kind: 'sans',
+    files: [{ file: 'NotoSansTamil[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: '8456d2e60b989a12e8513e041594e22b6c9069fb5050bd81b4c26913a9a35f6f' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/tamil',
+    version: '2.004 (release NotoSansTamil-v2.004)',
+    upstreamPath: 'NotoSansTamil-v2.004.zip: NotoSansTamil/full/variable-ttf/NotoSansTamil[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-telugu',
+    family: 'Noto Sans Telugu',
+    kind: 'sans',
+    files: [{ file: 'NotoSansTelugu[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: 'b34b0fe0c85d5769023c7885cf37a40880cd3e65cef8cd11c56bc988ef88f8d1' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/telugu',
+    version: '2.005 (release NotoSansTelugu-v2.005)',
+    upstreamPath: 'NotoSansTelugu-v2.005.zip: NotoSansTelugu/full/variable/NotoSansTelugu[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-kannada',
+    family: 'Noto Sans Kannada',
+    kind: 'sans',
+    files: [{ file: 'NotoSansKannada[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: '612e9c46c6c8dbd57aa3ecb785068065e30593bffdaaeae323a7b1a22014cf5d' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/kannada',
+    version: '2.006 (release NotoSansKannada-v2.006)',
+    upstreamPath: 'NotoSansKannada-v2.006.zip: NotoSansKannada/full/variable-ttf/NotoSansKannada[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-malayalam',
+    family: 'Noto Sans Malayalam',
+    kind: 'sans',
+    files: [{ file: 'NotoSansMalayalam[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: '799f1905cdc47a68d4dfa8581b267b494178c519dc459b753785d38168a7fa27' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/malayalam',
+    version: '2.104 (release NotoSansMalayalam-v2.104)',
+    upstreamPath: 'NotoSansMalayalam-v2.104.zip: NotoSansMalayalam/full/variable-ttf/NotoSansMalayalam[wdth,wght].ttf, OFL.txt',
+  },
 ];
 
 /**
  * The families every text layer falls back to, after its own, when a character
  * is not in the face it asked for (milestone 70): Arabic and Hebrew from their
- * own Noto files, and Noto Sans itself, whose bundled file also carries
- * Devanagari. So a layer set in any family — bundled, imported or a system
- * stack — draws Arabic, Hebrew and Devanagari the same on every machine.
+ * own Noto files, the seven Indic scripts beside Devanagari from theirs, in
+ * Unicode block order, and Noto Sans itself last, whose bundled file carries
+ * Devanagari. None of the script files has a glyph another one covers, so the
+ * order only matters for a character in none of them. So a layer set in any
+ * family — bundled, imported or a system stack — draws these scripts the same
+ * on every machine.
  * Mirrored in the bridge (SCRIPT_FALLBACKS in BRIDGE_SCRIPT): change both or neither.
  */
-export const SCRIPT_FALLBACK_FAMILIES: readonly string[] = ['Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans'];
+export const SCRIPT_FALLBACK_FAMILIES: readonly string[] = ['Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Noto Sans'];
 
 /** The family names, in the order the control offers them. */
 export const BUNDLED_FAMILIES: readonly string[] = BUNDLED_FONTS.map((f) => f.family);

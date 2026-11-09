@@ -248,7 +248,7 @@ export const BRIDGE_SCRIPT = `(function () {
       .map(function (p) { return GENERIC[p.toLowerCase()] ? p : '"' + p.replace(/"/g, '\\"') + '"'; }).join(', ');
   }
   /* Mirrors SCRIPT_FALLBACK_FAMILIES in src/core/fonts.ts: change both or neither. */
-  var SCRIPT_FALLBACKS = ', "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans"';
+  var SCRIPT_FALLBACKS = ', "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans Bengali", "Noto Sans Gurmukhi", "Noto Sans Gujarati", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans"';
   function layerFont(layer, size) { return (layer.italic ? 'italic ' : '') + layer.weight + ' ' + size + 'px ' + cssFamily(layer.family) + SCRIPT_FALLBACKS; }
   /* Mirrors complexText in src/core/layer-layout.ts: change both or neither. Scripts whose letters
      join, reorder or stack (Arabic, Hebrew with its points, the Indic scripts): their text must be

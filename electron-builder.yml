@@ -61,7 +61,7 @@ files:
   - '!node_modules/**'
 
 extraResources:
-  # The bundled library: templates the app shows as "Built-in templates", the twelve OFL fonts
+  # The bundled library: templates the app shows as "Built-in templates", the nineteen OFL fonts
   # every template page is given, and the example projects the start screen opens as copies.
   - from: templates
     to: templates
