@@ -920,6 +920,56 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(Buffer.compare(await frame('look-none'), plain), 'a look that says nothing draws what no look draws').toBe(0);
   }, 240_000);
 
+  it('shapes Arabic, Hebrew and Devanagari text layers, in the right order, through the bundled fonts (milestone 70)', async () => {
+    // The title card's title, which carries letter spacing — the path that used to draw a character
+    // at a time and so undo the shaping. Everything is measured against a sibling render on this
+    // same machine, never against an absolute width, so the font rasterizer cannot tune the test.
+    const [width, height] = [384, 216];
+    const one = ['--fps', '25', '--size', `${width}x${height}`, '--in-point', '75', '--out-point', '75'];
+    const titled = (text: string) => ['--param', `@layers=${JSON.stringify({ card: [{ id: 'title', text }, { id: 'subtitle', hidden: true }] })}`];
+    /** The title's ink: the lit extent of the frame's first unbroken run of lit rows. */
+    const ink = async (name: string, text: string) => {
+      const r = await render('pulp.samples.title-card', 'png-sequence', name, { extra: [...one, ...titled(text)] });
+      expect(r.code, r.stderr).toBe(0);
+      const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', join(out, `${name}_00075.png`), '-vf', 'format=rgba', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+      const lit = (x: number, y: number) => {
+        const i = (y * width + x) * 4;
+        return stdout[i]! > 60 || stdout[i + 1]! > 60 || stdout[i + 2]! > 60;
+      };
+      let top = -1, bottom = -1;
+      for (let y = 0; y < height; y++) {
+        const any = [...Array(width).keys()].some((x) => lit(x, y));
+        if (any) { if (top < 0) top = y; bottom = y; } else if (top >= 0) break;
+      }
+      expect(bottom, `${name}: the line is drawn at all`).toBeGreaterThan(top);
+      let first = width, last = -1;
+      for (let y = top; y <= bottom; y++) {
+        for (let x = 0; x < width; x++) if (lit(x, y)) { first = Math.min(first, x); last = Math.max(last, x); }
+      }
+      return { width: last - first + 1, rows: bottom - top + 1 };
+    };
+
+    // Arabic joins: five kaf in a row take their initial, medial and final forms, which are much
+    // narrower than the five isolated forms the same letters wear when a ZWNJ keeps them apart.
+    // A renderer that drew characters one at a time (or had no Arabic font) would draw the two
+    // the same width.
+    const joined = await ink('script-arabic-joined', 'ككككك');
+    const isolated = await ink('script-arabic-isolated', ['ك','ك','ك','ك','ك'].join('\u200c'));
+    expect(joined.width, 'joined Arabic is narrower than the same letters kept isolated').toBeLessThan(isolated.width * 0.9);
+
+    // Devanagari stacks: ka + virama + ka form one conjunct, narrower than the two plain ka.
+    const conjunct = await ink('script-deva-conjunct', 'क्क');
+    const plain = await ink('script-deva-plain', 'कक');
+    expect(conjunct.width, 'the conjunct is one stacked form, not two letters').toBeLessThan(plain.width * 0.9);
+
+    // Hebrew points are marks on the letters, not characters in the row: the pointed word takes
+    // no more room across than the bare one. Drawn a character at a time, each mark would have
+    // taken a column of its own (plus the title's letter spacing) and pushed the word wide.
+    const bare = await ink('script-hebrew-bare', 'שלום');
+    const pointed = await ink('script-hebrew-pointed', 'שָׁלוֹם');
+    expect(Math.abs(pointed.width - bare.width), 'the points ride the letters').toBeLessThanOrEqual(8);
+  }, 360_000);
+
   it('draws a layer turned, about the words rather than the block (milestone 29)', async () => {
     // The hairline lower third is alpha, and its "who" line is aligned at the left of a block
     // that spans most of the frame — the case where turning about the slot would swing the line

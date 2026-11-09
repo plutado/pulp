@@ -397,6 +397,8 @@ function numberField(param: Extract<TemplateParameter, { type: 'number' }>, valu
 function textField(param: Extract<TemplateParameter, { type: 'text' }>, value: string, onChange: (v: unknown) => void): HTMLElement {
   const el = param.multiline ? document.createElement('textarea') : document.createElement('input');
   if (el instanceof HTMLInputElement) el.type = 'text';
+  // Words typed in a right-to-left script read their own way, whatever the window's language (milestone 70).
+  el.dir = 'auto';
   el.value = value;
   el.addEventListener('change', commitParams);
   if (!param.maxLength) {
@@ -1551,6 +1553,8 @@ function layerBody(blockId: string, layer: Layer): HTMLElement[] {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'layer-text';
+    // Words typed in a right-to-left script read their own way, whatever the window's language (milestone 70).
+    input.dir = 'auto';
     input.value = layer.text;
     input.setAttribute('aria-label', t('params.layer.text.aria-label', { layer: layer.label }));
     input.addEventListener('input', () => editLayer(blockId, layer.id, (l) => ({ ...l, text: input.value }), false));

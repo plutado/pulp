@@ -6,6 +6,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- **Text layers in Arabic, Hebrew and the Indic scripts** (milestone 70). A line carrying one of these scripts is drawn as one shaped run with its base direction read from its first strong character, so the letters join, the marks ride their letters and a right-to-left word keeps its order — the same in the preview and the render, since both run the same code. Letter spacing used to draw such a line a character at a time, which undid all of that; it no longer applies to a joined script, which is also typographically right. Noto Sans Arabic and Noto Sans Hebrew join the bundled fonts (the bundled Noto Sans already carries Devanagari), and every text layer's font stack falls back to the three, so these scripts draw the same on every machine whatever family the layer is set in. The layer and parameter text inputs follow the direction of what is typed in them.
+
 ### Fixed
 
 - **Zipped downloads over 4 GB open in a stock library.** A ZIP64 archive — over 4 GB, or over 65,535 files — was refused as not yet read; its end record and each entry's ZIP64 extra field are read now, and a file is unpacked by streaming rather than held whole, so a multi-gigabyte clip passes through a small buffer.

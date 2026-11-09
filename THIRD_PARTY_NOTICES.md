@@ -26,7 +26,7 @@ Development dependencies (TypeScript, Vite, electron-vite, ESLint, Vitest, happy
 
 ## Bundled fonts
 
-Ten families under the **SIL Open Font License 1.1**, each shipped as its upstream files with its own license file beside it: Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair, JetBrains Mono, Caveat, Dancing Script and Noto Sans. Versions, sources, reserved font names and the hashes a test holds them to are in [`docs/font-credits.md`](docs/font-credits.md). The OFL lets the fonts be bundled and passed on with their license and forbids selling them on their own.
+Twelve families under the **SIL Open Font License 1.1**, each shipped as its upstream files with its own license file beside it: Inter, Montserrat, Oswald, Bebas Neue, Source Serif 4, Playfair, JetBrains Mono, Caveat, Dancing Script, Noto Sans, Noto Sans Arabic and Noto Sans Hebrew. Versions, sources, reserved font names and the hashes a test holds them to are in [`docs/font-credits.md`](docs/font-credits.md). The OFL lets the fonts be bundled and passed on with their license and forbids selling them on their own.
 
 ## Not bundled, but used where installed
 

@@ -221,11 +221,38 @@ export function applyCase(text: string, how: TextCase): string {
   return text;
 }
 
-/** A layer's width at a size, with its letter spacing: measured per character when there is any, so drawing and measuring agree. */
+/**
+ * Whether the text carries a complex script — Arabic, Hebrew with its points,
+ * the Indic scripts — whose letters join, reorder or stack. Such text is always
+ * measured and drawn as one shaped run, never a character at a time, which
+ * would undo the joining and the right-to-left order (milestone 70).
+ * Mirrored in the bridge (complexText in BRIDGE_SCRIPT, src/core/runtime.ts):
+ * change both or neither.
+ */
+export function complexText(text: string): boolean {
+  return /[\u0590-\u08FF\u0900-\u0DFF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(text);
+}
+
+/**
+ * A line's base direction, from its first strong character, so neutrals
+ * (punctuation, digits) land where that script's reader expects them.
+ * Mirrored in the bridge (lineDirection in BRIDGE_SCRIPT, src/core/runtime.ts):
+ * change both or neither.
+ */
+export function lineDirection(text: string): 'ltr' | 'rtl' {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if ((c >= 0x0590 && c <= 0x08ff) || (c >= 0xfb1d && c <= 0xfdff) || (c >= 0xfe70 && c <= 0xfeff)) return 'rtl';
+    if ((c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || (c >= 0xc0 && c <= 0x058f) || (c >= 0x0900 && c <= 0x1fff) || (c >= 0x2c00 && c <= 0xd7ff)) return 'ltr';
+  }
+  return 'ltr';
+}
+
+/** A layer's width at a size, with its letter spacing: measured per character when there is any — except complex-script text, which only the shaper can measure — so drawing and measuring agree. */
 export function textWidth(text: string, layer: TextLayerState, fontSize: number, spacingEm: number, measure: Measure): number {
   const font = { family: layer.family, fontSize, weight: layer.weight, italic: layer.italic };
   const spacing = spacingEm * fontSize;
-  if (spacing === 0 && layer.kerning) return measure(text, font);
+  if ((spacing === 0 && layer.kerning) || complexText(text)) return measure(text, font);
   let total = 0;
   for (let i = 0; i < text.length; i++) total += measure(text[i]!, font) + (i < text.length - 1 ? spacing : 0);
   return total;
@@ -267,7 +294,11 @@ export function layoutTextLayer(layer: TextLayerState, maxWidth: number, spacing
   if (layer.overflow === 'truncate') {
     if (textWidth(text, layer, layer.fontSize, spacingEm, measure) <= maxWidth) return { size: layer.fontSize, lines: [text] };
     let cut = text;
-    while (cut.length > 0 && textWidth(`${cut}…`, layer, layer.fontSize, spacingEm, measure) > maxWidth) cut = cut.slice(0, -1);
+    while (cut.length > 0 && textWidth(`${cut}…`, layer, layer.fontSize, spacingEm, measure) > maxWidth) {
+      // A whole code point at a time, so a character outside the BMP is never cut in half.
+      const tail = cut.charCodeAt(cut.length - 1);
+      cut = cut.slice(0, cut.length >= 2 && tail >= 0xdc00 && tail <= 0xdfff ? -2 : -1);
+    }
     return { size: layer.fontSize, lines: [`${cut.trimEnd()}…`] };
   }
   let size = layer.fontSize;

@@ -4,6 +4,8 @@ import {
   applyCase,
   ASCENT,
   blockStates,
+  complexText,
+  lineDirection,
   layerImageIds,
   layoutBlock,
   layoutTextLayer,
@@ -61,6 +63,34 @@ describe('text measuring', () => {
     expect(textWidth('Hello', text({ kerning: false }), 100, 0, measure)).toBe(250);
   });
 
+  it('measures complex-script text as one shaped run, whatever its spacing or kerning (milestone 70)', () => {
+    // Arabic with letter spacing, Hebrew with kerning off: character-by-character measuring would
+    // undo the joining the shaper does, so the whole string goes to the measurer in one piece.
+    expect(textWidth('سلام', text(), 100, 0.1, measure)).toBe(200);
+    expect(textWidth('שלום', text({ kerning: false }), 100, 0, measure)).toBe(200);
+    expect(textWidth('क्का', text(), 100, 0.2, measure)).toBe(200);
+  });
+
+  it('knows which text carries a complex script and which does not', () => {
+    expect(complexText('Hello')).toBe(false);
+    expect(complexText('Grüße 123')).toBe(false);
+    expect(complexText('سلام')).toBe(true);
+    expect(complexText('שלום')).toBe(true);
+    expect(complexText('नमस्ते')).toBe(true); // Devanagari
+    expect(complexText('வணக்கம்')).toBe(true); // Tamil
+    expect(complexText('a سلام b')).toBe(true);
+  });
+
+  it('reads a line\'s base direction from its first strong character, so neutrals land right', () => {
+    expect(lineDirection('Hello')).toBe('ltr');
+    expect(lineDirection('שלום.')).toBe('rtl');
+    expect(lineDirection('سلام 123')).toBe('rtl');
+    expect(lineDirection('"שלום" he said')).toBe('rtl'); // the quote is neutral; the Hebrew is the first strong character
+    expect(lineDirection('Pulp — سلام')).toBe('ltr');
+    expect(lineDirection('नमस्ते')).toBe('ltr'); // Devanagari reads left to right
+    expect(lineDirection('123 …')).toBe('ltr'); // nothing strong at all
+  });
+
   it('applyCase does the four cases', () => {
     expect(applyCase('a nice DAY', 'none')).toBe('a nice DAY');
     expect(applyCase('a nice DAY', 'upper')).toBe('A NICE DAY');
@@ -108,6 +138,18 @@ describe('layoutTextLayer', () => {
     expect(size).toBe(100);
     expect(lines[0]!.endsWith('…')).toBe(true);
     expect(textWidth(lines[0]!, text(), 100, 0, measure)).toBeLessThanOrEqual(325);
+  });
+
+  it('truncate cuts a whole code point at a time, never half a surrogate pair', () => {
+    // Each UTF-16 unit measures 50, so '🙂🙂🙂🙂🙂' (ten units) is 500 wide and must lose whole
+    // characters to fit 325 with the ellipsis; a split pair would leave a lone surrogate behind.
+    const { lines } = layoutTextLayer(text({ text: '🙂🙂🙂🙂🙂', overflow: 'truncate' }), 325, 0, measure);
+    expect(lines[0]).toBe('🙂🙂…');
+  });
+
+  it('wraps right-to-left words in their logical order, first word on the first line (milestone 70)', () => {
+    const { lines } = layoutTextLayer(text({ text: 'שלום עולם' }), 250, 0, measure);
+    expect(lines).toEqual(['שלום', 'עולם']);
   });
 
   it('a layer with nothing to say has no lines', () => {

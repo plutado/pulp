@@ -189,7 +189,39 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
     version: '2.015 (release NotoSans-v2.015)',
     upstreamPath: 'NotoSans-v2.015.zip: NotoSans/full/slim-variable-ttf/NotoSans[wght].ttf, NotoSans-Italic[wght].ttf, OFL.txt',
   },
+  {
+    slug: 'noto-sans-arabic',
+    family: 'Noto Sans Arabic',
+    kind: 'sans',
+    files: [{ file: 'NotoSansArabic[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: 'ea9ebaa577d76fcef03e75058b5416763162f4afb8c8d0717ebba05d93477f0b' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/arabic',
+    version: '2.013 (release NotoSansArabic-v2.013)',
+    upstreamPath: 'NotoSansArabic-v2.013.zip: NotoSansArabic/full/variable-ttf/NotoSansArabic[wdth,wght].ttf, OFL.txt',
+  },
+  {
+    slug: 'noto-sans-hebrew',
+    family: 'Noto Sans Hebrew',
+    kind: 'sans',
+    files: [{ file: 'NotoSansHebrew[wdth,wght].ttf', style: 'normal', weight: [100, 900], sha256: '890d71f693003e0a6cbd5984461fd68e698e285e99206b2491cf100f478f4092' }],
+    licenseFile: 'OFL.txt',
+    license: 'OFL-1.1',
+    source: 'https://github.com/notofonts/hebrew',
+    version: '3.001 (release NotoSansHebrew-v3.001)',
+    upstreamPath: 'NotoSansHebrew-v3.001.zip: NotoSansHebrew/full/variable-ttf/NotoSansHebrew[wdth,wght].ttf, OFL.txt',
+  },
 ];
+
+/**
+ * The families every text layer falls back to, after its own, when a character
+ * is not in the face it asked for (milestone 70): Arabic and Hebrew from their
+ * own Noto files, and Noto Sans itself, whose bundled file also carries
+ * Devanagari. So a layer set in any family — bundled, imported or a system
+ * stack — draws Arabic, Hebrew and Devanagari the same on every machine.
+ * Mirrored in the bridge (SCRIPT_FALLBACKS in BRIDGE_SCRIPT): change both or neither.
+ */
+export const SCRIPT_FALLBACK_FAMILIES: readonly string[] = ['Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans'];
 
 /** The family names, in the order the control offers them. */
 export const BUNDLED_FAMILIES: readonly string[] = BUNDLED_FONTS.map((f) => f.family);

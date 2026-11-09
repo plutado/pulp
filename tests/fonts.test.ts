@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BUNDLED_FAMILIES, BUNDLED_FONTS, bundledFontFile, cssFontFamily, familiesUsedBy, familyFromFileName, familyLabel, fontFaceCss, fontFileNames, fontMimeType, importedFamilies, importedFontFaceCss, sanitizeImportedFonts, TEMPLATE_FONTS_PATH, type ImportedFont } from '../src/core/fonts';
+import { BUNDLED_FAMILIES, BUNDLED_FONTS, bundledFontFile, cssFontFamily, familiesUsedBy, familyFromFileName, familyLabel, fontFaceCss, fontFileNames, fontMimeType, importedFamilies, importedFontFaceCss, sanitizeImportedFonts, SCRIPT_FALLBACK_FAMILIES, TEMPLATE_FONTS_PATH, type ImportedFont } from '../src/core/fonts';
 
 const FONTS_DIR = join(__dirname, '..', 'fonts');
 const CREDITS = join(__dirname, '..', 'docs', 'font-credits.md');
@@ -40,8 +40,13 @@ function fontFamilyName(buffer: Buffer): string {
 }
 
 describe('the bundled fonts', () => {
-  it('names the ten families of the roadmap, Playfair standing where Playfair Display now lives', () => {
-    expect(BUNDLED_FAMILIES).toEqual(['Inter', 'Montserrat', 'Oswald', 'Bebas Neue', 'Source Serif 4', 'Playfair', 'JetBrains Mono', 'Caveat', 'Dancing Script', 'Noto Sans']);
+  it('names the ten families of the roadmap, Playfair standing where Playfair Display now lives, and the Arabic and Hebrew Notos of milestone 70', () => {
+    expect(BUNDLED_FAMILIES).toEqual(['Inter', 'Montserrat', 'Oswald', 'Bebas Neue', 'Source Serif 4', 'Playfair', 'JetBrains Mono', 'Caveat', 'Dancing Script', 'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Hebrew']);
+  });
+
+  it('the script fallbacks every layer ends its stack with are bundled families, Arabic and Hebrew before the Noto Sans that carries Devanagari', () => {
+    expect(SCRIPT_FALLBACK_FAMILIES).toEqual(['Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Sans']);
+    for (const family of SCRIPT_FALLBACK_FAMILIES) expect(BUNDLED_FAMILIES).toContain(family);
   });
 
   it.each(BUNDLED_FONTS.map((f) => [f.family, f] as const))('%s: ships exactly the files listed, byte for byte as upstream published them', async (_family, font) => {

@@ -1,6 +1,6 @@
 # Font credits
 
-Pulp bundles ten font families so a layer of text can be set in a face that exists on every machine (milestone 23, decision record 0014). Every one is under the **SIL Open Font License 1.1**, confirmed from the license file shipped beside the fonts — the file each upstream publishes, copied as it is — not from a package listing. The fonts live in `fonts/<family>/`, each with that license file; `src/core/fonts.ts` is the list the app reads, and `tests/fonts.test.ts` checks this page, the files and their hashes against it.
+Pulp bundles twelve font families so a layer of text can be set in a face that exists on every machine (milestone 23, decision record 0014; the Arabic and Hebrew Notos joined with milestone 70). Every one is under the **SIL Open Font License 1.1**, confirmed from the license file shipped beside the fonts — the file each upstream publishes, copied as it is — not from a package listing. The fonts live in `fonts/<family>/`, each with that license file; `src/core/fonts.ts` is the list the app reads, and `tests/fonts.test.ts` checks this page, the files and their hashes against it.
 
 Pulp's own code is MIT. The fonts are not: they stay under the OFL, which lets them be bundled, used, and passed on with their license, and forbids selling them on their own. Two families declare a **Reserved Font Name**; the OFL lets an unmodified font keep its name, so those files are the upstream bytes untouched (no subsetting, no renaming) and the hashes in the list are how the test knows.
 
@@ -16,6 +16,8 @@ Pulp's own code is MIT. The fonts are not: they stay under the OFL, which lets t
 | Caveat | 2.000 (main, commit 59745e818ef7, 2020-10-01) | OFL 1.1 (`OFL.txt`) | none | https://github.com/googlefonts/caveat | `Caveat[wght].ttf`, variable weight 400–700 |
 | Dancing Script | 3.000 (master, commit 09b7abf420f2, 2024-08-12) | OFL 1.1 (`OFL.txt`) | Dancing Script — shipped unmodified | https://github.com/impallari/DancingScript | `DancingScript-Regular.otf`, `-Medium.otf`, `-SemiBold.otf`, `-Bold.otf`, four static weights |
 | Noto Sans | 2.015 (release NotoSans-v2.015) | OFL 1.1 (`OFL.txt`) | none | https://github.com/notofonts/latin-greek-cyrillic | `NotoSans[wght].ttf`, `NotoSans-Italic[wght].ttf`, the "slim" weight-only variable fonts, 100–900 |
+| Noto Sans Arabic | 2.013 (release NotoSansArabic-v2.013) | OFL 1.1 (`OFL.txt`) | none | https://github.com/notofonts/arabic | `NotoSansArabic[wdth,wght].ttf`, variable weight 100–900 with a width axis |
+| Noto Sans Hebrew | 3.001 (release NotoSansHebrew-v3.001) | OFL 1.1 (`OFL.txt`) | none | https://github.com/notofonts/hebrew | `NotoSansHebrew[wdth,wght].ttf`, variable weight 100–900 with a width axis |
 
 ## Notes on the set
 
@@ -24,6 +26,7 @@ Pulp's own code is MIT. The fonts are not: they stay under the OFL, which lets t
 - **Inter's** release is v4.1; the files inside carry the version string 4.001, which is how that project numbers its builds.
 - **Italics.** Where upstream publishes an italic, it is bundled, so an italic layer is set in a drawn italic rather than a slanted roman. Oswald, Bebas Neue, Caveat and Dancing Script have no italic; a layer set italic in them is slanted by the renderer.
 - **Weights.** A variable font covers its whole range in one file, so a layer may ask for any weight in it. Outside the range — weight 100 in Oswald, say — the renderer uses the nearest the font has.
+- **Arabic, Hebrew and Devanagari fall back to Noto (milestone 70).** Every text layer's canvas font stack ends with Noto Sans Arabic, Noto Sans Hebrew and Noto Sans (whose bundled file carries Devanagari), so a layer set in any family draws those scripts the same on every machine instead of falling to whatever the system has. The Arabic and Hebrew files have no italic; an italic layer in them is slanted by the renderer.
 - **Nothing is subset.** The files are the upstream ones; the hashes in `src/core/fonts.ts` are checked by the test. This matters for the two Reserved Font Names and keeps every family's full character set.
 
 ## How they reach a page

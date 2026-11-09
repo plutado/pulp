@@ -247,11 +247,28 @@ export const BRIDGE_SCRIPT = `(function () {
     return String(stack).split(',').map(function (p) { return p.trim().replace(/^["']|["']$/g, ''); }).filter(Boolean)
       .map(function (p) { return GENERIC[p.toLowerCase()] ? p : '"' + p.replace(/"/g, '\\"') + '"'; }).join(', ');
   }
-  function layerFont(layer, size) { return (layer.italic ? 'italic ' : '') + layer.weight + ' ' + size + 'px ' + cssFamily(layer.family); }
+  /* Mirrors SCRIPT_FALLBACK_FAMILIES in src/core/fonts.ts: change both or neither. */
+  var SCRIPT_FALLBACKS = ', "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans"';
+  function layerFont(layer, size) { return (layer.italic ? 'italic ' : '') + layer.weight + ' ' + size + 'px ' + cssFamily(layer.family) + SCRIPT_FALLBACKS; }
+  /* Mirrors complexText in src/core/layer-layout.ts: change both or neither. Scripts whose letters
+     join, reorder or stack (Arabic, Hebrew with its points, the Indic scripts): their text must be
+     shaped as one run, never a character at a time (milestone 70). */
+  function complexText(text) { return /[\\u0590-\\u08FF\\u0900-\\u0DFF\\uFB1D-\\uFDFF\\uFE70-\\uFEFF]/.test(text); }
+  /* Mirrors lineDirection in src/core/layer-layout.ts: change both or neither. The line's base
+     direction, from its first strong character, so neutrals (punctuation, digits) land where a
+     right-to-left reader expects them. */
+  function lineDirection(text) {
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i);
+      if ((c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF)) return 'rtl';
+      if ((c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A) || (c >= 0xC0 && c <= 0x058F) || (c >= 0x0900 && c <= 0x1FFF) || (c >= 0x2C00 && c <= 0xD7FF)) return 'ltr';
+    }
+    return 'ltr';
+  }
   function textWidth(ctx, text, layer, size, spacingEm) {
     ctx.font = layerFont(layer, size);
     var spacing = spacingEm * size;
-    if (spacing === 0 && layer.kerning) return ctx.measureText(text).width;
+    if ((spacing === 0 && layer.kerning) || complexText(text)) return ctx.measureText(text).width;
     var total = 0;
     for (var i = 0; i < text.length; i++) total += ctx.measureText(text[i]).width + (i < text.length - 1 ? spacing : 0);
     return total;
@@ -277,7 +294,10 @@ export const BRIDGE_SCRIPT = `(function () {
     if (layer.overflow === 'truncate') {
       if (textWidth(ctx, text, layer, layer.fontSize, spacingEm) <= maxWidth) return { size: layer.fontSize, lines: [text] };
       var cut = text;
-      while (cut.length > 0 && textWidth(ctx, cut + '…', layer, layer.fontSize, spacingEm) > maxWidth) cut = cut.slice(0, -1);
+      while (cut.length > 0 && textWidth(ctx, cut + '…', layer, layer.fontSize, spacingEm) > maxWidth) {
+        var tail = cut.charCodeAt(cut.length - 1);
+        cut = cut.slice(0, cut.length >= 2 && tail >= 0xDC00 && tail <= 0xDFFF ? -2 : -1);
+      }
       return { size: layer.fontSize, lines: [cut.replace(/\\s+$/, '') + '…'] };
     }
     var size = layer.fontSize, wrapped = wrapWords(ctx, text, maxWidth, layer, size, spacingEm);
@@ -812,7 +832,11 @@ export const BRIDGE_SCRIPT = `(function () {
     return true;
   }
   /* Type, filled or stroked (for an outline), with its letter spacing by hand so it behaves the
-     same in every Chromium version. A color given replaces the layer's own fill, for a tint. */
+     same in every Chromium version. A color given replaces the layer's own fill, for a tint.
+     A line that carries a complex script — Arabic, Hebrew, the Indic scripts — is always one run,
+     whatever its spacing: drawing a character at a time would undo the joining, the reordering and
+     the right-to-left order the shaper gives it (milestone 70). Its base direction follows its
+     first strong character, so punctuation and digits land where that script's reader expects. */
   function drawTextLayer(ctx, layer, mode, color) {
     var spacingEm = layer.draw && layer.draw.letterSpacing !== undefined ? layer.draw.letterSpacing : layer.letterSpacing;
     var spacing = spacingEm * layer.size;
@@ -824,7 +848,12 @@ export const BRIDGE_SCRIPT = `(function () {
     var put = function (text, x, y) { if (stroke) ctx.strokeText(text, x, y); else ctx.fillText(text, x, y); };
     for (var i = 0; i < layer.lines.length; i++) {
       var line = layer.lines[i];
-      if (spacing === 0 && layer.kerning) { put(line.text, line.x, line.baseline); continue; }
+      if ((spacing === 0 && layer.kerning) || complexText(line.text)) {
+        ctx.direction = lineDirection(line.text);
+        put(line.text, line.x, line.baseline);
+        ctx.direction = 'inherit';
+        continue;
+      }
       var x = line.x;
       for (var c = 0; c < line.text.length; c++) {
         put(line.text[c], x, line.baseline);
@@ -886,10 +915,16 @@ export const BRIDGE_SCRIPT = `(function () {
     Object.keys(blocks).forEach(function (id) {
       (blocks[id].layers || []).forEach(function (layer) {
         if (layer.type !== 'text') return;
-        var face = (layer.italic ? 'italic ' : '') + layer.weight + ' 16px ' + cssFamily(layer.family);
-        if (loadedFaces[face]) return;
-        loadedFaces[face] = true;
-        pending.push(document.fonts.load(face).then(null, function () { return null; }));
+        /* The face carries the fallback families too, and the load is given the layer's own text:
+           a face limited to a script it does not use is then not fetched, and the Arabic or Hebrew
+           one is ready before the first frame that needs it (milestone 70). */
+        var face = layerFont(layer, 16);
+        var text = layer.text || '';
+        var scripts = (/[\\u0600-\\u06FF\\u0750-\\u077F\\u0870-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]/.test(text) ? 'a' : '') + (/[\\u0590-\\u05FF\\uFB1D-\\uFB4F]/.test(text) ? 'h' : '') + (/[\\u0900-\\u0DFF]/.test(text) ? 'i' : '');
+        var key = face + '|' + scripts;
+        if (loadedFaces[key]) return;
+        loadedFaces[key] = true;
+        pending.push(document.fonts.load(face, layer.text || ' ').then(null, function () { return null; }));
       });
     });
     if (pending.length === 0) return Promise.resolve();
