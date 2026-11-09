@@ -963,6 +963,8 @@ describe.skipIf(!available)('end-to-end render', () => {
     // the script joins across, or a below-base form taller than them where it joins down. Two
     // separate letters are neither. Devanagari comes from the bundled Noto Sans; each of the
     // other seven from its own Noto, found through the fallback stack.
+    // The margin is small on purpose: at this size Gujarati's ligature is 18 pixels against 20 on
+    // Windows, and an unshaped pair, its virama showing, would be at least as wide as the plain one.
     const conjuncts: [string, string, string, 'narrower' | 'taller'][] = [
       ['deva', 'क्क', 'कक', 'narrower'],
       ['bengali', 'ক্ক', 'কক', 'narrower'],
@@ -976,7 +978,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     for (const [script, stacked, apart, how] of conjuncts) {
       const conjunct = await ink(`script-${script}-conjunct`, stacked);
       const plain = await ink(`script-${script}-plain`, apart);
-      if (how === 'narrower') expect(conjunct.width, `${script}: the conjunct is one joined form, narrower than two letters`).toBeLessThan(plain.width * 0.9);
+      if (how === 'narrower') expect(conjunct.width, `${script}: the conjunct is one joined form, narrower than two letters`).toBeLessThan(plain.width * 0.95);
       else expect(conjunct.rows, `${script}: the conjunct hangs below its base, taller than two letters`).toBeGreaterThan(plain.rows * 1.2);
     }
 
