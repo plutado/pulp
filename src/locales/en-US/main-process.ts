@@ -113,6 +113,12 @@ export const mainProcess = {
   'dialog.save-lottie.title': 'Save the animation as a template folder',
   'dialog.save-lottie.read-failed': 'Could not read the animation: {reason}',
   'dialog.save-lottie.note.image': 'The picture “{name}” could not be copied; the template looks for it beside itself.',
+  // ---------------------------------------------------------------- motion tracking (src/main/track-service.ts, milestone 76)
+  'track.error.no-clip': 'That clip is not a video in the library, or its folder is offline.',
+  'track.error.unmeasured': 'The clip has not been measured yet; open it once and try again.',
+  'track.error.no-ffmpeg': 'FFmpeg was not found, so the clip\'s frames cannot be read.',
+  'track.error.window': 'The cut is too short to track.',
+  'track.error.timeout': 'Tracking did not finish in time.',
   // ---------------------------------------------------------------- clip clean-up (src/main/cleanup-service.ts)
   'cleanup.timeout': 'ffmpeg did not finish in time',
   'cleanup.not-a-clip': 'That item is not a clip in the library, or its folder is offline.',

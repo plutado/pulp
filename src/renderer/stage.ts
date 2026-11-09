@@ -35,6 +35,7 @@ import { resolveTemplateSoundChoice, templateSoundValue, wipeSoundValue } from '
 import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
 import { mountOverlayTrack, overlayTrackUpdate } from './overlay-track';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
+import { motionTracksDebug, motionTracksDraw, mountMotionTracks } from './motion-track';
 import { captionsPreviewDraw, captionsPreviewSync, mountCaptionsPreview } from './stage-captions';
 import { registerPlayerSetter } from './settings';
 import type { CaptionsValue } from '../core/captions';
@@ -543,6 +544,8 @@ function postFrame(frame: number): void {
   // to this frame, so a cut lands in the preview on the frame it lands on in the file.
   trackPictureSync(s.track, els.previewFrame.getBoundingClientRect().height);
   trackPictureDraw(frame / Math.max(1, previewFps()), previewSize());
+  // The motion tracks of the clip under the playhead, over the picture (milestone 76).
+  motionTracksDraw(frame / Math.max(1, previewFps()), previewSize());
   // The captions ride over the graphic, on the project's own clock (milestone 50).
   captionsPreviewDraw(frame / Math.max(1, previewFps()), previewSize());
   updateTimecode(frame);
@@ -1316,6 +1319,7 @@ export function initStage(): void {
   // And the layer editor, for a test to read a layer as it stands (milestone 57).
   (window as unknown as { pulpLayerEditor?: typeof layerEditor }).pulpLayerEditor = layerEditor;
   (window as unknown as { pulpTrackPicture?: typeof trackPictureDebug }).pulpTrackPicture = trackPictureDebug;
+  (window as unknown as { pulpMotionTracks?: typeof motionTracksDebug }).pulpMotionTracks = motionTracksDebug;
   initLoudness();
   // The picture's box changes with the window, the stage split, the browse panel and the
   // aspect: the splits resize the center column, the rest resize the picture itself, so
@@ -1356,7 +1360,16 @@ export function initStage(): void {
   // The cut track's lane, with the stage's own fps for the split's frame step and the stage's
   // note for a refused drop (milestone 49).
   mountTrackPicture($<HTMLCanvasElement>('track-picture'), () => {
-    if (s.manifest) trackPictureDraw(s.frame / Math.max(1, previewFps()), previewSize());
+    if (s.manifest) {
+      trackPictureDraw(s.frame / Math.max(1, previewFps()), previewSize());
+      motionTracksDraw(s.frame / Math.max(1, previewFps()), previewSize());
+    }
+  });
+  // The tracks over the picture (milestone 76): drawn with each frame, their handles the only part that takes the pointer.
+  mountMotionTracks(els.previewFrame, {
+    frameSize: () => previewSize(),
+    playheadSeconds: () => s.frame / Math.max(1, previewFps()),
+    note: (text) => showNoteText(text),
   });
   mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
     showNoteText(text);

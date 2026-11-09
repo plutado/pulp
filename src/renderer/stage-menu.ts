@@ -44,6 +44,7 @@ import { closeContextMenu, openContextMenu } from './context-menu';
 import { openInspector } from './inspector-tabs';
 import { layerEditor, selectedLayer } from './layer-edit';
 import { placeLayerAt } from './stage-layers';
+import { canTrackHere, motionTrackNames, pinSelected, removeTrack, trackFromPoint, unpinSelected } from './motion-track';
 import { DEFAULT_PLAYER, STAGE_BACKGROUNDS, type StageBackground } from '../core/player';
 import { appState } from './store';
 
@@ -122,6 +123,7 @@ export function currentLayerFacts(): LayerMenuFacts {
     canAdd: openBlock() !== null,
     hasCopiedLayer: copied !== null,
     hasCopiedLook: look !== null,
+    hasTracks: (editor.tracks()?.length ?? 0) > 0,
   });
 }
 
@@ -235,6 +237,20 @@ export function runLayerCommand(command: MenuCommand, arg: string | null): void 
       if (it) editor.toggleKeyframing(it.block, it.id);
       return;
     }
+    // Motion tracking (milestone 76): a layer pinned to a track, scaled and turned by a second, or let go.
+    case 'layer.pin': if (arg) pinSelected(arg); return;
+    case 'layer.pinScale': {
+      const it = chosen();
+      if (it?.layer.pin && arg) pinSelected(it.layer.pin.track, arg);
+      return;
+    }
+    case 'layer.unpin': unpinSelected(); return;
+    // And over bare picture: a point or a box followed from where the menu opened, or a track removed.
+    case 'track.point': case 'track.box': {
+      if (openedAt) void trackFromPoint(openedAt, command === 'track.box' ? 'box' : 'point');
+      return;
+    }
+    case 'track.remove': if (arg) removeTrack(arg); return;
     case 'layer.exposeText': case 'layer.exposeColor': case 'layer.exposeImage': {
       const it = chosen();
       if (!it) return;
@@ -354,7 +370,8 @@ function openAt(client: { x: number; y: number }, point: { x: number; y: number 
     layerLabel: label,
     facts: currentLayerFacts(),
     assets: stageAssets(),
-    view: viewFacts(),
+    view: { ...viewFacts(), canTrackHere: canTrackHere() },
+    tracks: motionTrackNames(),
   });
   openContextMenu({
     x: client.x,

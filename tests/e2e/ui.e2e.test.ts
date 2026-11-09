@@ -31,6 +31,7 @@ import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-has
 import { categoryInfo } from '../../src/core/categories';
 import { catalogFor, lengthen, type LocaleId } from '../../src/core/i18n';
 import { libraryWordsFor as libraryWords } from '../../src/core/library-words';
+import { keyedPoseAt } from '../../src/core/layer-keys';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
 const ROOT = join(__dirname, '..', '..');
@@ -501,6 +502,16 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-f', 'lavfi', '-i', 'color=c=blue:s=64x36:d=2:r=10',
           '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=2:r=10',
           '-filter_complex', '[0][1][2]concat=n=3:v=1:a=0', '-c:v', 'mpeg4', '-qscale:v', '2', '-g', '5', join(mediaDir, 'yearbook.mp4'),
+        ]), { timeoutMs: 60_000 });
+        // A clip whose red square crosses a green picture at 4 px a frame (milestone 76): what the
+        // tracker must follow, drawn by an expression the test knows to the pixel. 16:9 like the
+        // frame, so its picture fills it; mpeg4 and sorted last, like the fixtures above. The square
+        // sits on even pixels, since the codec keeps color in 2 × 2 blocks and would otherwise move
+        // its edges a pixel from where the expression put them.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=green:s=160x90:d=2:r=10',
+          '-f', 'lavfi', '-i', 'color=c=red:s=24x24:d=2:r=10',
+          '-filter_complex', "[0][1]overlay=x='floor(t*40)':y=32", '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-mover.mp4'),
         ]), { timeoutMs: 60_000 });
         // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
         await mkdir(join(mediaDir, 'frames'), { recursive: true });
@@ -1734,6 +1745,122 @@ describe.skipIf(!electron)('inspector UI', () => {
         await restoreLayers();
       }
     }, 120_000);
+
+    it('tracks a moving target on a cut to within a pixel, pins a layer to it, and picks the track up again from a frame fixed by hand (milestone 76)', async () => {
+      await clickResult('Title Card');
+      await openTab('output');
+      await fire('#opt-aspect', '16:9', 'change');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const moverId = await onResult<string>('zz-mover', '(li) => li.dataset.id');
+      const frameEl = `document.getElementById('preview-frame')`;
+      const dropOnStage = (id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = ${frameEl};
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      const count = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const scrub = async (frame: number) => {
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '${frame}'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`${frameEl}.dataset.frame`).then((f) => Number(f) === frame), `the playhead on frame ${frame}`);
+      };
+      type Track = { id: string; kind: string; samples: { at: number; x: number; y: number; c: number }[] };
+      const state = () => page.eval<{ tracks: Track[]; shown: number; busy: boolean }>(`window.pulpMotionTracks()`);
+      // The square's center, as the lavfi expression drew it: 24 px wide, its left edge at floor(t × 40) of 160, its top at row 32 of 90.
+      const truth = (t: number) => (Math.floor(t * 40 + 1e-6) + 12) / 160;
+      const truthY = 44 / 90;
+      const menuAt = (fx: number, fy: number) =>
+        page.eval(`(() => { const el = ${frameEl}; const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('contextmenu', { clientX: r.left + r.width * ${fx}, clientY: r.top + r.height * ${fy}, button: 2, bubbles: true, cancelable: true })); return true; })()`);
+      const menuItems = () => page.eval<string[]>(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].map((m) => m.textContent.trim())`);
+      const clickItem = async (label: string) => {
+        try {
+          await until(async () => (await menuItems()).includes(label), `the menu offering ${label}`, 10_000);
+        } catch (err) {
+          throw new Error(`${(err as Error).message}; offered: ${JSON.stringify(await menuItems())}; tracks: ${JSON.stringify(await state())}`, { cause: err });
+        }
+        await page.eval(`[...document.querySelectorAll('.context-menu-layer [role=menuitem]')].find((m) => m.textContent.trim() === ${JSON.stringify(label)}).click()`);
+      };
+      const before = await layerIds();
+      try {
+        await dropOnStage(moverId!);
+        await until(async () => (await count()) === 1, 'the clip on the cut track');
+        await scrub(0);
+
+        // Tracked from the stage menu, at the square: the main process reads the clip's frames and
+        // follows it to the cut's end and back. Every sample lands within a clip pixel of the truth.
+        await menuAt(truth(0), truthY);
+        await clickItem('Track Point Here');
+        await until(async () => { const s = await state(); return s.tracks.length === 1 && !s.busy; }, 'the track made', 90_000);
+        const made = (await state()).tracks[0]!;
+        expect(made.kind).toBe('point');
+        expect(made.samples.length).toBeGreaterThanOrEqual(19);
+        for (const s of made.samples) {
+          expect(Math.abs(s.x - truth(s.at)) * 160, `x at ${s.at} s`).toBeLessThan(1);
+          expect(Math.abs(s.y - truthY) * 90, `y at ${s.at} s`).toBeLessThan(1);
+          expect(s.c, `confidence at ${s.at} s`).toBeGreaterThan(0.6);
+        }
+        // Its path is drawn over the picture, the frame's own point a handle.
+        await until(async () => (await state()).shown === 1, 'the track drawn');
+        expect(await page.eval<number>(`document.querySelectorAll('.track-overlay .track-handle').length`)).toBe(1);
+
+        // A shape added and pinned: its keys follow the square, keeping the shape where it stood.
+        await page.eval(`window.pulpMenuCommand('layer.addShape')`);
+        await until(async () => (await layerIds()).length === before.length + 1, 'the shape added');
+        const shapeId = (await layerIds()).find((id) => !before.includes(id))!;
+        await page.eval(`window.pulpMenuCommand('layer.pin', 'track_1')`);
+        const layer = () => page.eval<{ keys?: { at: number; dx: number; dy: number }[]; pin?: { track: string } }>(`(() => { const l = window.pulpLayerEditor().get('card', ${JSON.stringify(shapeId)}); return { keys: l.keys, pin: l.pin }; })()`);
+        await until(async () => ((await layer()).keys?.length ?? 0) >= 2, 'the keys baked');
+        const pinned = await layer();
+        expect(pinned.pin).toEqual({ track: 'track_1' });
+        // From 0 to 1 s the square moves 40 of 160 px: a quarter of the frame's width.
+        const at = (t: number) => keyedPoseAt(pinned.keys!.map((k) => ({ ...k, scale: 1, rotate: 0, opacity: 1, easing: 'linear' as const })), t)!;
+        expect(at(1).dx - at(0).dx).toBeCloseTo(0.25, 1);
+        expect(Math.abs(at(1).dy - at(0).dy)).toBeLessThan(0.01);
+
+        // A frame fixed by hand: the handle at 1 s dragged 6 clip pixels right of the square, and the
+        // track followed again from there — that frame is where it was dropped, the frames after it
+        // find the square again, and the frames before it stand as they were.
+        await scrub(30); // 1 s: the template runs at 30 fps
+        await until(() => page.eval<boolean>(`!!document.querySelector('.track-overlay .track-handle')`), 'the handle on frame 30');
+        const dropX = truth(1) + 6 / 160;
+        await page.eval(`(() => {
+          const h = document.querySelector('.track-overlay .track-handle');
+          const svg = h.closest('svg').getBoundingClientRect();
+          const hb = h.getBoundingClientRect();
+          const from = { clientX: hb.left + hb.width / 2, clientY: hb.top + hb.height / 2, pointerId: 7, button: 0, bubbles: true };
+          const to = { clientX: svg.left + svg.width * ${dropX}, clientY: svg.top + svg.height * ${truthY}, pointerId: 7, button: 0, bubbles: true };
+          h.dispatchEvent(new PointerEvent('pointerdown', from));
+          h.dispatchEvent(new PointerEvent('pointermove', to));
+          h.dispatchEvent(new PointerEvent('pointerup', to));
+        })()`);
+        try {
+          await until(async () => { const s = await state(); return !s.busy && Math.abs((s.tracks[0]!.samples.find((x) => Math.abs(x.at - 1) < 1e-6)?.x ?? 0) - dropX) * 160 < 0.6; }, 'the frame set where it was dropped', 60_000);
+        } catch (err) {
+          const s = await state();
+          const note = await page.eval<string>(`document.getElementById('stage-note')?.textContent || ''`);
+          throw new Error(`${(err as Error).message}; note "${note}"; busy ${s.busy}; at 1 s ${JSON.stringify(s.tracks[0]?.samples.find((x) => Math.abs(x.at - 1) < 1e-6))}; wanted x ${dropX}; handles ${await page.eval<number>(`document.querySelectorAll('.track-overlay .track-handle').length`)}`, { cause: err });
+        }
+        const fixed = (await state()).tracks[0]!;
+        for (const s of fixed.samples) {
+          if (Math.abs(s.at - 1) < 1e-6) continue;
+          expect(Math.abs(s.x - truth(s.at)) * 160, `x at ${s.at} s after the fix`).toBeLessThan(1);
+        }
+        // And the pinned shape's keys were baked again from the fixed track.
+        const refixed = await layer();
+        expect(refixed.keys!.length).toBeGreaterThanOrEqual(3);
+      } finally {
+        await page.eval(`(() => { const e = window.pulpLayerEditor(); e.setTracks(null, true); e.setTrack(null, true); })()`);
+        await restoreLayers();
+      }
+    }, 240_000);
 
     it('finishes a cut: transitions from the menu or a wipe dropped on the join, the sound unlinked, and silences shown before they are cut (milestone 49)', async () => {
       await clickResult('Title Card');

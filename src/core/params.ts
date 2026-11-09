@@ -14,6 +14,7 @@ import { sanitizeImageValue, type ImageValue } from './image-slot';
 import { clipValueFromText, sanitizeClipValue, type ClipValue } from './video-layer';
 import type { LayerValues } from './layers';
 import { isValidColor, type TemplateManifest, type TemplateParameter } from './manifest';
+import { sanitizeMotionTracks, type MotionTrack } from './motion-track';
 
 export type ParamValue = string | number | boolean | ImageValue | ClipValue | null;
 export type ResolvedParams = Record<string, ParamValue>;
@@ -41,6 +42,9 @@ export const TRACK_KEY = '@track';
 /** Where the captions ride (milestone 50): the words said, their timings and the style that draws them. */
 export const CAPTIONS_KEY = '@captions';
 
+/** Where the motion tracks ride (milestone 76): what was followed in the footage, in the clips' own seconds and pictures. */
+export const TRACKS_KEY = '@tracks';
+
 /**
  * Where the chosen variant of the template's own sound rides (milestone 16):
  * a variant's value, or "none" for silence chosen on purpose. Absent means the
@@ -61,6 +65,7 @@ export function splitLayers(raw: Record<string, unknown>): { params: Record<stri
   delete rest[LENGTH_KEY];
   delete rest[TRACK_KEY];
   delete rest[CAPTIONS_KEY];
+  delete rest[TRACKS_KEY];
   delete rest[SOUND_KEY];
   delete rest[EXPOSE_KEY_INTERNAL];
   return { params: rest, layers: (layers ?? {}) as LayerValues };
@@ -76,6 +81,19 @@ export function withCaptions(params: Record<string, unknown>, captions: Captions
   const out = { ...params };
   if (captions === null || captions.lines.length === 0) delete out[CAPTIONS_KEY];
   else out[CAPTIONS_KEY] = captions;
+  return out;
+}
+
+/** The motion tracks riding with a bag of raw values, sanitized, or null when the project has none. */
+export function motionTracksIn(raw: Record<string, unknown>): MotionTrack[] | null {
+  return sanitizeMotionTracks(raw[TRACKS_KEY]);
+}
+
+/** The raw values with the motion tracks put in, or with them taken out when there are none. */
+export function withMotionTracks(params: Record<string, unknown>, tracks: readonly MotionTrack[] | null): Record<string, unknown> {
+  const out = { ...params };
+  if (tracks === null || tracks.length === 0) delete out[TRACKS_KEY];
+  else out[TRACKS_KEY] = tracks;
   return out;
 }
 

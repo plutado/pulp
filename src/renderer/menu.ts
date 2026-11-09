@@ -109,6 +109,7 @@ import { startTour } from './tour';
 import { findControl, stageIsOut, stageOnDisplay, toggleStagePopOut } from './stage-window';
 import { libraryAddState, runLibraryAdd } from './library-add';
 import { theaterOn } from './theater';
+import { canTrackHere } from './motion-track';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -169,6 +170,7 @@ function run(command: MenuCommand, arg: string | null): void {
     case 'layer.cut': case 'layer.copy': case 'layer.paste': case 'layer.duplicate': case 'layer.delete':
     case 'layer.forward': case 'layer.backward': case 'layer.front': case 'layer.back':
     case 'layer.copyLook': case 'layer.pasteLook': case 'layer.startHere': case 'layer.endHere': case 'layer.reset':
+    case 'layer.pin': case 'layer.pinScale': case 'layer.unpin': case 'track.point': case 'track.box': case 'track.remove':
       runLayerCommand(command, arg);
       return;
     case 'search.focus': focusSearch(); return;
@@ -278,6 +280,7 @@ function readState(recent: string[]): MenuState {
     // What can be done to a layer, worked out once and read by both menus (milestone 39).
     ...currentLayerFacts(),
     keyframing: recording(),
+    canTrackHere: canTrackHere(),
     canSaveCanvas: selectedTemplate.value?.manifest.id === BLANK_CANVAS_ID,
     canSaveLottie: selectedTemplate.value?.lottie !== undefined,
     recent,

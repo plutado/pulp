@@ -212,8 +212,28 @@ interface LayerBase {
    * own at all.
    */
   keys?: LayerKey[];
+  /**
+   * The motion track its keys were baked from (milestone 76), and a second
+   * track for scale and rotation when there is one: kept so the keys follow
+   * when the track is fixed, and shown on the layer. Absent is not pinned.
+   */
+  pin?: LayerPin;
   /** How it looks — opacity, shadow, glow, outline, blur, blend, color (src/core/layer-look.ts); absent is as the template draws it. */
   look?: LayerLook;
+}
+
+/** A layer pinned to a motion track (milestone 76): the track it follows, and one more for scale and rotation. */
+export interface LayerPin {
+  track: string;
+  second?: string;
+}
+
+/** A pin with its ids well formed, or undefined for anything else. */
+export function readPin(raw: unknown): LayerPin | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.track !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(r.track)) return undefined;
+  return { track: r.track, ...(typeof r.second === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(r.second) ? { second: r.second } : {}) };
 }
 
 export interface TextLayer extends LayerBase, Typography {
@@ -580,7 +600,7 @@ function readSpan(raw: unknown, base: LayerSpan | undefined, issue: (field: stri
   return isWholeGraphic(out) ? undefined : out;
 }
 
-type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span' | 'look' | 'keys'>;
+type LayerBaseFields = Pick<LayerBase, 'label' | 'hidden' | 'spaceBefore' | 'transition' | 'placement' | 'span' | 'look' | 'keys' | 'pin'>;
 
 /** The fields a layer of either type has, read against a base the same way as typography. */
 function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issue: (field: string, message: string) => void): LayerBaseFields {
@@ -615,6 +635,16 @@ function readLayerBase(raw: Record<string, unknown>, base: LayerBaseFields, issu
     }
   } else if (base.keys && base.keys.length > 0) out.keys = base.keys;
   else delete out.keys;
+  // The pin (milestone 76): kept, replaced by a well-formed one, or cleared by null.
+  if (raw.pin !== undefined) {
+    const pin = raw.pin === null ? undefined : readPin(raw.pin);
+    if (pin) out.pin = pin;
+    else {
+      if (raw.pin !== null) issue('pin', 'must name a track id, and may name a second'); // i18n-exempt(diagnostic)
+      delete out.pin;
+    }
+  } else if (base.pin) out.pin = base.pin;
+  else delete out.pin;
   if (raw.label !== undefined) {
     if (isNonEmptyString(raw.label)) out.label = raw.label.trim();
     else issue('label', 'must be a non-empty string'); // i18n-exempt(diagnostic)

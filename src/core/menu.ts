@@ -78,6 +78,16 @@ export type MenuCommand =
   | 'layer.startHere'
   | 'layer.endHere'
   | 'layer.reset'
+  // Motion tracking (milestone 76): a layer pinned to a track (the track's id rides as the
+  // argument), scaled and turned by a second, or let go; and over bare picture, a point or a box
+  // followed from where the pointer is, or a track removed. Stage-only, like the keys' and the
+  // cuts' commands: the application menu has no "the point under the pointer" to act on.
+  | 'layer.pin'
+  | 'layer.pinScale'
+  | 'layer.unpin'
+  | 'track.point'
+  | 'track.box'
+  | 'track.remove'
   // A keyframe's mark on a layer's bar (milestone 51). Named here so the bar's right-click menu
   // speaks the one command type, but run by the bars themselves rather than the dispatcher: the
   // application menu has no "the mark under the pointer" to act on.
@@ -187,6 +197,12 @@ export interface MenuState {
   canExposeColor: boolean;
   /** Keyframe recording is on for the selected layer (milestone 51): moving it writes a key at the playhead. */
   keyframing: boolean;
+  /** A cut plays under the playhead (milestone 76), so a point or a box on it can be tracked from here. */
+  canTrackHere: boolean;
+  /** A layer is selected and the project has tracks, so the layer can be pinned to one. */
+  canPinLayer: boolean;
+  /** The selected layer is pinned to a track, so it can take a second track or be let go. */
+  canUnpinLayer: boolean;
   /** The blank canvas is on the stage, so what is composed on it can be saved as a template (milestone 55). */
   canSaveCanvas: boolean;
   /** A Lottie animation is shown: it can be saved as an editable template folder (milestone 35). */
@@ -248,6 +264,9 @@ export const EMPTY_MENU_STATE: MenuState = {
   canReplaceImage: false,
   canExposeColor: false,
   keyframing: false,
+  canTrackHere: false,
+  canPinLayer: false,
+  canUnpinLayer: false,
   canSaveCanvas: false,
   canSaveLottie: false,
   canReplaceClip: false,
@@ -468,6 +487,11 @@ export const SHARED_COMMAND_FLAGS: Readonly<Partial<Record<MenuCommand, Flag>>> 
   'layer.pasteLook': 'canPasteLook',
   'layer.startHere': 'canEditLayer',
   'layer.endHere': 'canEditLayer',
+  'layer.pin': 'canPinLayer',
+  'layer.pinScale': 'canUnpinLayer',
+  'layer.unpin': 'canUnpinLayer',
+  'track.point': 'canTrackHere',
+  'track.box': 'canTrackHere',
   'layer.reset': 'canResetLayer',
 };
 

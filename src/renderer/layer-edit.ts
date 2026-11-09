@@ -12,6 +12,7 @@ import { signal } from '@preact/signals';
 import type { CaptionsValue } from '../core/captions';
 import type { CutTrack } from '../core/cut-track';
 import type { Block, Layer, LayerType } from '../core/layers';
+import type { MotionTrack } from '../core/motion-track';
 
 /** The selected layer, shared by the stage and the Parameters tab; null is nothing selected. */
 export const selectedLayer = signal<{ block: string; id: string } | null>(null);
@@ -84,6 +85,10 @@ export interface LayerEditor {
    * every caption edit is: there is no live drag here.
    */
   setCaptions(captions: CaptionsValue | null, commit: boolean): void;
+  /** The project's motion tracks (milestone 76); null when it has none. */
+  tracks(): MotionTrack[] | null;
+  /** Replace the motion tracks, as tracking and fixing do; null takes them off the project. Always one undo step. */
+  setTracks(tracks: readonly MotionTrack[] | null, commit: boolean): void;
 }
 
 let editor: LayerEditor | null = null;

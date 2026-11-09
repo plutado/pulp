@@ -25,6 +25,9 @@ import { SAMPLE_MEDIA, sampleAudioArgs, sampleMediaPath, samplesForTypes } from 
 import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
 import { lottieEditables, lottieInfo, lottieManifest, lottieManifestId, parseLottie, prepareLottieData } from '../../src/core/lottie';
 import { LOTTIE_TEMPLATE_PLAYER, lottieTemplateFiles } from '../../src/core/lottie-template';
+import { IDENTITY_KEY } from '../../src/core/layer-keys';
+import type { MotionTrack } from '../../src/core/motion-track';
+import { pinKeys } from '../../src/core/track-pin';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
 
 const ROOT = join(__dirname, '..', '..');
@@ -2555,6 +2558,50 @@ describe.skipIf(!available)('end-to-end render', () => {
    * fixture's square crosses the frame on linear keyframes, so where it is on a given frame is
    * known exactly; its text and colors are the parameters the file exposes.
    */
+  it('renders a layer pinned to a motion track over the target it follows (milestone 76)', async () => {
+    // A clip whose red square crosses a green picture at 4 px a frame, and a track made from the
+    // expression that drew it — the same track the UI suite's tracker recovers from the frames.
+    // The shape's keys are baked from it as a pin bakes them, and the render draws the shape over
+    // the square on every frame checked: the keys are what the preview shows too, so the two agree.
+    const lib = join(out, 'track-library');
+    await mkdir(lib, { recursive: true });
+    const clip = join(lib, 'mover.mp4');
+    const built = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y',
+      '-f', 'lavfi', '-i', 'color=c=green:s=160x90:d=1:r=30',
+      '-f', 'lavfi', '-i', 'color=c=red:s=24x24:d=1:r=30',
+      '-filter_complex', "[0][1]overlay=x='floor(t*40)':y=32", '-c:v', 'mpeg4', '-qscale:v', '2', clip,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const clipId = itemId(`media:${clip}`);
+    const truth = (t: number) => (Math.floor(t * 40 + 1e-6) + 12) / 160;
+    const track: MotionTrack = {
+      id: 'track_1', clip: clipId, kind: 'point', size: { w: 0.05, h: 0.0889 }, from: 0, to: 1, fps: 30,
+      samples: Array.from({ length: 30 }, (_, i) => ({ at: Math.round((i / 30) * 1000) / 1000, x: truth(i / 30), y: 44 / 90, c: 1 })),
+    };
+    // The fixture's frame is 320 × 180 and the clip 160 × 90: its picture fills the frame at twice
+    // the size. The shape starts at the stack's center and is moved onto the square's first place.
+    const frame = { width: 320, height: 180 };
+    const keys = pinKeys({ track, cut: { from: 0, to: 1 }, cutStart: 0, frame, clip: { width: 160, height: 90 }, at: 0, pose: { ...IDENTITY_KEY, dx: (truth(0) * 320 - 160) / 320, dy: (88 - 90) / 180 } });
+    expect(keys.length).toBeGreaterThanOrEqual(2);
+    const layers = ['--param', `@layers=${JSON.stringify({ stack: [{ id: 'plate', hidden: true }, { id: 'dot', type: 'shape', shape: 'ellipse', color: '#0000ff', size: 0.2, ratio: 1, keys, pin: { track: 'track_1' } }] })}`];
+    const project = ['--param', `@track=${JSON.stringify({ cuts: [{ id: clipId, from: 0, to: 1 }] })}`, '--param', `@tracks=${JSON.stringify([track])}`];
+    const result = await render('pulp.test.video-layer', 'png-sequence', 'pinned', { extra: ['--library', FIXTURES, '--library', lib, '--out-point', '29', ...project, ...layers] });
+    expect(result.code, result.stderr).toBe(0);
+    for (const i of [0, 15, 29]) {
+      const t = i / 30;
+      const x = Math.round(truth(t) * 320);
+      const file = join(out, `pinned_${String(i).padStart(5, '0')}.png`);
+      // The blue shape sits on the square's center, and the green picture is beside it.
+      expect(await pixels(file, x, 88), `frame ${i}: the shape over the square`).toEqual([0, 0, 255, 255]);
+      const beside = await pixels(file, Math.min(319, x + 60), 20);
+      expect(beside[1], `frame ${i}: the picture beside it`).toBeGreaterThan(100);
+      expect(beside[2]).toBeLessThan(80);
+    }
+    // And a frame the shape has left: where it was on frame 0 is red or green by frame 29, not blue.
+    expect((await pixels(join(out, 'pinned_00029.png'), Math.round(truth(0) * 320), 88))[2]).toBeLessThan(80);
+  }, 240_000);
+
   describe('Lottie animations', () => {
     let lib = '';
     let jsonId = '';

@@ -37,6 +37,10 @@ export type SaveCanvasResult =
   | { ok: true; path: string; templateId: string; notes: string[] }
   | { ok: false; cancelled?: boolean; message: string };
 import type { ImageGrantRequest } from '../core/image-slot';
+import type { TrackSample } from '../core/motion-track';
+export type TrackMotionResult =
+  | { ok: true; samples: TrackSample[]; fps: number; from: number; to: number; size: { w: number; h: number }; kind: 'point' | 'box'; frames: number }
+  | { ok: false; message: string };
 import type { PsdOutline } from '../core/psd';
 export type { PsdOutline } from '../core/psd';
 export type PsdOutlineResult = { ok: true; outline: PsdOutline } | { ok: false; message: string };
@@ -459,6 +463,12 @@ export interface PulpApi {
     Promise<{ ok: true; words: { text: string; start: number; end: number }[]; language: string } | { ok: false; message: string }>;
   /** How a fetch or a transcription is going, for the dialog's line of status. */
   onSpeechProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
+  /**
+   * Follow a point or a box on a clip through its frames (milestone 76): the clip by library id,
+   * the window of its file, where the target was picked and when; the samples come back in the
+   * clip's own seconds and picture fractions, with how surely each frame matched.
+   */
+  trackMotion(request: { clip: string; from: number; to: number; at: number; x: number; y: number; kind: 'point' | 'box'; size?: { w: number; h: number }; forward?: boolean; backward?: boolean }): Promise<TrackMotionResult>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if canceled. */

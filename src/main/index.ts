@@ -35,6 +35,7 @@ import { openCollectionFile, readCollectionFile, renderCollection, saveCollectio
 import { panelStatus, setEditorPanel, setPanelCollection, setPanelWindow, startPanelBridgeIfEnabled, stopPanelBridge } from './panel-service';
 import { saveCanvasTemplate, type SaveCanvasRequest } from './canvas-service';
 import { saveLottieTemplate, type SaveLottieRequest } from './lottie-service';
+import { trackMotion, type TrackMotionRequest } from './track-service';
 import {
   clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
   recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
@@ -636,6 +637,8 @@ function registerIpc(): void {
   ipcMain.handle('track:frames', (_event, request: unknown) => loadTrackFrames(request));
   // The track's quiet stretches (milestone 49), shown before anything is cut.
   ipcMain.handle('track:silences', (_event, request: unknown) => trackSilences(request));
+  // Motion tracking (milestone 76): a point or a box on a clip, followed on this machine.
+  ipcMain.handle('track:motion', (_event, request: unknown) => trackMotion((request ?? {}) as TrackMotionRequest));
   // The edit exported for an editing app (milestone 49): FCPXML, an EDL and the graphics with alpha.
   ipcMain.handle('track:export-edit', (_event, request: unknown) => exportEdit(request));
   // Transcription on this machine (milestone 50): what is here, the model fetched once the person

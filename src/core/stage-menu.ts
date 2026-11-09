@@ -27,6 +27,7 @@ export type LayerMenuFacts = Pick<
   MenuState,
   | 'canAddLayer' | 'canEditLayer' | 'canDeleteLayer' | 'canLayerForward' | 'canLayerBackward'
   | 'canPasteLayer' | 'canPasteLook' | 'canResetLayer' | 'canEditText' | 'canReplaceImage' | 'canReplaceClip' | 'canExposeColor'
+  | 'canPinLayer' | 'canUnpinLayer'
 >;
 
 export const NO_LAYER_FACTS: LayerMenuFacts = {
@@ -42,6 +43,8 @@ export const NO_LAYER_FACTS: LayerMenuFacts = {
   canPasteLook: false,
   canResetLayer: false,
   canExposeColor: false,
+  canPinLayer: false,
+  canUnpinLayer: false,
 };
 
 export interface LayerMenuInput {
@@ -55,6 +58,8 @@ export interface LayerMenuInput {
   hasCopiedLayer: boolean;
   /** A look has been copied — which may be "as the template draws it", so this is not "a look exists". */
   hasCopiedLook: boolean;
+  /** The project has motion tracks (milestone 76), so a layer can be pinned to one. */
+  hasTracks?: boolean;
 }
 
 /**
@@ -81,12 +86,21 @@ export function layerMenuFacts(input: LayerMenuInput): LayerMenuFacts {
     canReplaceClip: layer?.type === 'video',
     // One color of the layer's own: a line's, or a shape's fill (milestone 55's picking).
     canExposeColor: layer?.type === 'text' || layer?.type === 'shape',
+    // Pinned to something moving in the footage (milestone 76), or able to be.
+    canPinLayer: layer !== null && input.hasTracks === true,
+    canUnpinLayer: layer !== null && layer.pin !== undefined,
   };
 }
 
 /** Has this layer been placed, timed, given an entrance or a look of its own? Then there is something to reset. */
 export function hasOwnTreatment(layer: Layer): boolean {
-  return layer.placement !== undefined || layer.span !== undefined || layer.transition !== undefined || layer.look !== undefined || layer.keys !== undefined;
+  return layer.placement !== undefined || layer.span !== undefined || layer.transition !== undefined || layer.look !== undefined || layer.keys !== undefined || layer.pin !== undefined;
+}
+
+/** A motion track the menus can offer (milestone 76): its id, and the name the window gives it. */
+export interface StageTrack {
+  id: string;
+  name: string;
 }
 
 // ---------------------------------------------------------------- the menu
@@ -115,7 +129,9 @@ export interface StageMenuContext {
    * What the window is doing with the stage, for the view items on bare
    * picture: the whole `MenuState` is not needed, only what they show.
    */
-  view: Pick<MenuState, 'theater' | 'background' | 'canAddToCollection' | 'keyframing'>;
+  view: Pick<MenuState, 'theater' | 'background' | 'canAddToCollection' | 'keyframing'> & Partial<Pick<MenuState, 'canTrackHere'>>;
+  /** The project's motion tracks (milestone 76), for pinning and removing; none offers nothing. */
+  tracks?: readonly StageTrack[];
 }
 
 const sep: MenuItemSpec = { type: 'separator' };
@@ -153,6 +169,7 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
   // `itemEnabled` and `itemChecked` read one field per item, so the facts and the view stand in
   // for the whole state; nothing here asks it for anything else.
   const state = { ...context.facts, ...context.view } as MenuState;
+  const tracks = context.tracks ?? [];
   const items: MenuItemSpec[] = [];
   if (context.template && context.layerLabel !== null) {
     items.push(
@@ -193,6 +210,14 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
       // Motion (milestone 55): the presets, and keyframe recording for this layer.
       { label: tr('menu.animate'), enabled: state.canEditLayer, submenu: motionSubmenu().map((spec) => ({ ...spec, enabled: itemEnabled(spec, state) })) },
       { ...item('layer.keyframing', tr('menu.layer.keyframing'), state), type: 'checkbox', checked: state.keyframing },
+      // Pinned to a motion track (milestone 76): only where the project has tracks to pin to.
+      ...(tracks.length > 0
+        ? [
+          { label: tr('stage-menu.pin'), enabled: state.canPinLayer, submenu: tracks.map((track) => ({ ...item('layer.pin', track.name, state), arg: track.id })) },
+          { label: tr('stage-menu.pin-scale'), enabled: state.canUnpinLayer && tracks.length > 1, submenu: tracks.map((track) => ({ ...item('layer.pinScale', track.name, state), arg: track.id })) },
+          item('layer.unpin', tr('menu.layer.unpin'), state),
+        ]
+        : []),
       sep,
       item('layer.reset', tr('menu.layer.reset'), state),
       sep,
@@ -206,6 +231,13 @@ export function stageMenu(context: StageMenuContext): MenuItemSpec[] {
     );
     // With no layer under the pointer, Paste is the only edit that still means something.
     if (context.layerLabel === null) items.push(item('layer.paste', tr('menu.layer.paste'), state));
+  }
+  // Motion tracking (milestone 76), over bare picture where a cut plays: a point or a box followed
+  // from the pointer, and the project's tracks taken off.
+  if (context.template && context.layerLabel === null && (state.canTrackHere || tracks.length > 0)) {
+    items.push(sep);
+    if (state.canTrackHere) items.push(item('track.point', tr('menu.track.point'), state), item('track.box', tr('menu.track.box'), state));
+    if (tracks.length > 0) items.push({ label: tr('stage-menu.remove-track'), enabled: true, submenu: tracks.map((track) => ({ ...item('track.remove', track.name, state), arg: track.id })) });
   }
   // What the stage is doing with whatever is shown, offered over bare picture only: on a layer
   // the menu is already about that layer, and these belong to the picture as a whole. They are

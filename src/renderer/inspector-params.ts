@@ -13,7 +13,7 @@ import type { TemplateEntry } from '../core/library-types';
 import type { TemplateManifest, TemplateParameter } from '../core/manifest';
 import { applyPreset, diffFromDefaults } from '../core/param-presets';
 import { saveParamsToEditedCard } from './inspector-output';
-import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, soundIn, trackIn, withCaptions, withLayers, withLength, withSound, withTrack, type ResolvedParams } from '../core/params';
+import { captionsIn, LAYERS_KEY, lengthIn, resolveParams, soundIn, trackIn, withCaptions, withLayers, withLength, withSound, withTrack, type ResolvedParams , motionTracksIn, withMotionTracks } from '../core/params';
 import { resolveTemplateSoundChoice, TEMPLATE_SOUND_NONE } from '../core/template-sound';
 import {
   DEFAULT_TRANSITION, isTemplateMovement, isWholeGraphic, LAYER_TRANSITIONS, roundSeconds, spanWindow,
@@ -77,6 +77,7 @@ import { addedLayer } from '../core/stage-menu';
 import { effect, untracked } from '@preact/signals';
 import { bindText, t, whenLocaleChanges } from './i18n';
 import type { MessageId } from '../core/i18n';
+import type { MotionTrack } from '../core/motion-track';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -1327,6 +1328,20 @@ function setCaptions(captions: CaptionsValue | null, commit: boolean): void {
     commitParams();
     buildParamForm(selected.manifest);
   }
+}
+
+/** The project's motion tracks as they stand (milestone 76); null when it has none. */
+export function currentMotionTracks(): MotionTrack[] | null {
+  return motionTracksIn(p.raw);
+}
+
+/** Replace the motion tracks; null takes them off the project. The same path the captions take. */
+function setMotionTracks(tracks: readonly MotionTrack[] | null, commit: boolean): void {
+  const selected = selectedTemplate.value;
+  if (!selected) return;
+  p.raw = withMotionTracks(p.raw, tracks);
+  editorFor(selected.manifest.id).current = p.raw;
+  if (commit) commitParams();
 }
 
 // ---------------------------------------------------------------- parameters by picking (milestone 55)
@@ -3369,6 +3384,8 @@ export function initInspectorParams(): void {
     params: () => ({ ...p.raw }),
     captions: () => currentCaptions(),
     setCaptions: (captions, commit) => setCaptions(captions, commit),
+    tracks: () => currentMotionTracks(),
+    setTracks: (tracks, commit) => setMotionTracks(tracks, commit),
     setTrack: (track, commit) => {
       // The same gesture rules as edit(): a live drag never leaves the typing timer armed, and a
       // typed edit still waiting on it becomes its own step before the gesture's live edits begin.
