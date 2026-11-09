@@ -1,6 +1,11 @@
 /**
- * Clip clean-up in the window (milestone 52): the key dialog, and the
- * split-at-cuts flow, both reached from a clip's Info tab.
+ * Clip clean-up in the window (milestone 52): the key dialog, the
+ * split-at-cuts flow, and the Stabilize dialog (milestone 78), all reached
+ * from a clip's Info tab.
+ *
+ * Stabilize runs ffmpeg's two passes over the whole clip, so the dialog shows
+ * how far along they are and offers Stop; an ffmpeg built without vid.stab is
+ * said plainly when the dialog opens, before anything is asked of it.
  *
  * The key dialog shows the same frame twice — plain, where a point on it
  * picks the color (the picker: the color wanted is nearly always in the
@@ -10,7 +15,7 @@
  * the library's rescan brings it into the results on its own.
  */
 
-import { KEY_DEFAULTS, sanitizeChromaKey, type ChromaKeySettings } from '../core/clip-clean';
+import { KEY_DEFAULTS, sanitizeChromaKey, STABILIZE_DEFAULTS, type ChromaKeySettings, type StabilizeSettings } from '../core/clip-clean';
 import { playheadSeconds } from './store';
 import { bindText } from './i18n';
 import type { MessageId, MessageValues } from '../core/i18n';
@@ -191,5 +196,113 @@ export function initCleanup(): void {
   els.dialog.addEventListener('close', () => {
     state.id = null;
     clearTimeout(state.timer);
+  });
+}
+
+// ---------------------------------------------------------------- stabilize (milestone 78)
+
+let stabEls: {
+  dialog: HTMLDialogElement;
+  smoothing: HTMLInputElement;
+  edges: HTMLSelectElement;
+  progress: HTMLProgressElement;
+  status: HTMLParagraphElement;
+  make: HTMLButtonElement;
+  cancel: HTMLButtonElement;
+  close: HTMLButtonElement;
+} | null = null;
+
+const stab = {
+  id: null as string | null,
+  settings: { ...STABILIZE_DEFAULTS } as StabilizeSettings,
+  running: false,
+};
+
+/** The status line in words already worked out — the main process's, or none. */
+function stabStatusText(text: string, error = false): void {
+  if (!stabEls) return;
+  delete stabEls.status.dataset.i18n;
+  delete stabEls.status.dataset.i18nValues;
+  stabEls.status.textContent = text;
+  stabEls.status.classList.toggle('error', error);
+}
+
+function stabStatusMessage(id: MessageId, values?: MessageValues): void {
+  if (!stabEls) return;
+  stabEls.status.classList.remove('error');
+  bindText(stabEls.status, id, values);
+}
+
+function stabShowRunning(running: boolean): void {
+  if (!stabEls) return;
+  stab.running = running;
+  stabEls.make.disabled = running;
+  stabEls.cancel.hidden = !running;
+  stabEls.progress.hidden = !running;
+  stabEls.smoothing.disabled = running;
+  stabEls.edges.disabled = running;
+  if (!running) stabEls.progress.removeAttribute('value');
+}
+
+async function runStabilize(): Promise<void> {
+  if (!stabEls || !stab.id || stab.running) return;
+  const id = stab.id;
+  stabShowRunning(true);
+  stabEls.progress.value = 0;
+  stabStatusMessage('cleanup.stabilize.pass1');
+  const result = await window.pulp.stabilizeClip(id, {
+    smoothing: Number(stabEls.smoothing.value),
+    edges: stabEls.edges.value === 'keep' ? 'keep' : 'zoom',
+  });
+  stabShowRunning(false);
+  if (result.ok) {
+    // The name, never the path (docs/ui-style.md): the clip is in the results now, beside the original.
+    stabStatusMessage('cleanup.made', { name: result.path.split(/[\\/]/).pop() ?? '' });
+  } else if (result.cancelled) {
+    stabStatusMessage('cleanup.stabilize.cancelled');
+  } else {
+    stabStatusText(result.message, true);
+  }
+}
+
+/** Open the Stabilize dialog on a clip: whether this ffmpeg can comes first, said plainly where it cannot. */
+export function openStabilize(id: string): void {
+  if (!stabEls) return;
+  stab.id = id;
+  stabShowRunning(false);
+  stabStatusText('');
+  stabEls.make.disabled = true;
+  stabEls.dialog.showModal();
+  void window.pulp.stabilizeStatus().then((status) => {
+    if (!stabEls || stab.id !== id) return;
+    if (status.ok) stabEls.make.disabled = false;
+    else stabStatusText(status.message, true);
+  });
+}
+
+export function initStabilize(): void {
+  stabEls = {
+    dialog: $('stab-dialog'),
+    smoothing: $('stab-smoothing'),
+    edges: $('stab-edges'),
+    progress: $('stab-progress'),
+    status: $('stab-status'),
+    make: $('stab-make'),
+    cancel: $('stab-cancel'),
+    close: $('stab-close'),
+  };
+  stabEls.make.addEventListener('click', () => void runStabilize());
+  stabEls.cancel.addEventListener('click', () => void window.pulp.cancelStabilize());
+  stabEls.close.addEventListener('click', () => stabEls?.dialog.close());
+  // Closing the dialog mid-run stops the run: a dialog gone with ffmpeg grinding on would be a mystery fan noise.
+  stabEls.dialog.addEventListener('close', () => {
+    if (stab.running) void window.pulp.cancelStabilize();
+    stab.id = null;
+  });
+  window.pulp.onStabilizeProgress(({ pass, fraction }) => {
+    if (!stabEls || !stab.running) return;
+    if (fraction === null) stabEls.progress.removeAttribute('value');
+    else stabEls.progress.value = fraction;
+    stabStatusMessage(pass === 1 ? 'cleanup.stabilize.pass1' : 'cleanup.stabilize.pass2');
   });
 }

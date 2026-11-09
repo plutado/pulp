@@ -778,6 +778,29 @@
       </div>
     </form>
   </dialog>
+  <dialog id="stab-dialog" class="pack-dialog stab-dialog" aria-labelledby="stab-title">
+    <form method="dialog">
+      <h2 id="stab-title" data-i18n="ui.stab-title"></h2>
+      <p class="note" data-i18n="ui.stab-dialog.the-shake-is-smoothed"></p>
+      <div class="key-controls">
+        <label class="field inline" data-i18n-attr="data-tip:ui.stab-dialog.smoothing.tip"><span data-i18n="ui.stab-dialog.smoothing"></span><input id="stab-smoothing" type="range" min="1" max="60" step="1" value="10"></label>
+        <label class="field inline"><span data-i18n="ui.stab-dialog.edges"></span>
+          <select id="stab-edges">
+            <option value="zoom" data-i18n="ui.stab-edges.zoom"></option>
+            <option value="keep" data-i18n="ui.stab-edges.keep"></option>
+          </select>
+        </label>
+      </div>
+      <progress id="stab-progress" max="1" value="0" hidden></progress>
+      <p id="stab-status" class="note" role="status"></p>
+      <div class="render-actions">
+        <button id="stab-make" type="button" class="primary" data-i18n="ui.stab-make"></button>
+        <button id="stab-cancel" type="button" hidden data-i18n="ui.stab-cancel"></button>
+        <span class="dialog-spacer"></span>
+        <button id="stab-close" type="button" data-i18n="ui.stab-close"></button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="shortcuts-dialog" class="pack-dialog shortcuts-dialog">
     <form method="dialog">
       <h2 data-i18n="ui.shortcuts-dialog.keyboard-shortcuts"></h2>

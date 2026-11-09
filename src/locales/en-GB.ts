@@ -82,7 +82,7 @@ export const enGB: Catalog = {
   'queue.cancelled-before-start': 'Cancelled before it started.',
   'collection.settings.tint': 'recoloured',
   'results.favorite.aria-label': 'Favourite',
-  'info.cleanup.note': 'Footage made ready to composite: a colour keyed to transparency, or long footage split into its scenes.',
+  'info.cleanup.note': 'Footage made ready to composite: a colour keyed to transparency, long footage split into its scenes, or a shaky take steadied.',
   'info.cleanup.key': 'Key out a colour…',
   'info.favorite.aria-label': 'Favourite',
   'info.layers.blend.color-dodge': 'colour dodge',

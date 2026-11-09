@@ -967,13 +967,13 @@ Decided 2026-11-09. Cutting wide footage to vertical today means placing the cro
 - [ ] **Still yours to change:** the crop shown on the stage as keyframes a person can move, for each aspect (3-5 h)
 - [ ] **Tests:** generated clips with a moving subject and a hard cut, the subject kept in frame (3-5 h)
 
-## 78. Stabilize shaky clips (6-10 h, after 1.0)
+## 78. Stabilize shaky clips (done; 6-10 h, after 1.0)
 
 Decided 2026-11-09. A clean-up action beside those of milestone 52.
 
-- [ ] **Stabilize:** a two-pass ffmpeg stabilization of a clip, the result joining the library as its own clip (3-5 h)
-- [ ] **Strength and edges:** how much to smooth, and whether to zoom or leave the edges; progress and cancel; said plainly when the ffmpeg in use lacks the filter (2-3 h)
-- [ ] **Tests:** a generated shaky clip measured steadier after (1-2 h)
+- [x] **Stabilize:** a two-pass ffmpeg stabilization of a clip, the result joining the library as its own clip (3-5 h) *Built 2026-11-09. Stabilize… sits in the Info tab's clean-up actions beside the key and the split: vid.stab's two passes — the motion read into a transforms file in the temporary folder, then smoothed and rendered — to ProRes HQ beside the original as `<name> steady.mov`, its sound kept, the library rescanned. The argument lists are pure (`src/core/clip-clean.ts`), the spawning is `src/main/cleanup-service.ts`, like the rest of milestone 52.*
+- [x] **Strength and edges:** how much to smooth, and whether to zoom or leave the edges; progress and cancel; said plainly when the ffmpeg in use lacks the filter (2-3 h) *Built 2026-11-09. A small dialog: Smoothing (frames of motion averaged away, 1-60) and Edges (zoom in to hide them, or keep them with the borders showing); a progress bar fed by ffmpeg's own `time=` line, pass one as the first half; Stop kills the run and cleans up — and a Stop that lands before ffmpeg has even spawned still cancels, so it is never lost to timing. An ffmpeg built without vid.stab is said plainly when the dialog opens, with how to get one, and nothing is offered it cannot do.*
+- [x] **Tests:** a generated shaky clip measured steadier after (1-2 h) *Built 2026-11-09. Units hold the argument lists, the output name, the settings' ranges, the filter-list probe and the progress parse. The end-to-end suite crops a jittering window from a static texture — camera shake over a scene that does not itself move — runs the dialog, and measures the mean frame-to-frame difference of both files: the steadied clip must come in under three quarters of the original's (it measures about half). On an ffmpeg without vid.stab the test asserts the plain message and the disabled button instead; a second test cancels a run at its earliest moment and sees nothing made.*
 
 ## 79. Spanish and French (30-52 h, after 1.0)
 

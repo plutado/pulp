@@ -33,7 +33,7 @@ import { Thumb } from './item-preview';
 import { layersTopFirst, layerShown, psdLimitSummary, type PsdBlend } from '../core/psd';
 import type { MessageId } from '../core/i18n';
 import { hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines, togglePsdLayer } from './psd-state';
-import { openChromaKey } from './cleanup';
+import { openChromaKey, openStabilize } from './cleanup';
 import { t } from './i18n';
 
 const shown = computed(() => shownEntry(appState.value));
@@ -147,6 +147,9 @@ function Cleanup({ entry }: { entry: MediaEntry }) {
         </button>
         <button type="button" id="cleanup-split" disabled={splitting} onClick={() => void split()}>
           {t('info.cleanup.split')}
+        </button>
+        <button type="button" id="cleanup-stabilize" onClick={() => openStabilize(entry.id)}>
+          {t('info.cleanup.stabilize')}
         </button>
       </div>
       {status?.id === entry.id && (

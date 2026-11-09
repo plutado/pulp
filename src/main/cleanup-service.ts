@@ -9,14 +9,19 @@
  * of the original is touched for either.
  */
 
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, extname, join } from 'node:path';
+import type { BrowserWindow } from 'electron';
 import {
-  chromaKeyArgs, chromaKeyStillArgs, keyedClipPath, parseSceneCuts, PREVIEW_SECONDS, sanitizeChromaKey,
-  sceneDetectArgs, sceneFolder, scenePattern, sceneSplitArgs, type ChromaKeySettings,
+  chromaKeyArgs, chromaKeyStillArgs, hasStabilizer, keyedClipPath, parseSceneCuts, passSeconds, PREVIEW_SECONDS,
+  sanitizeChromaKey, sceneDetectArgs, sceneFolder, scenePattern, sceneSplitArgs, stabilizeDetectArgs,
+  stabilizedClipPath, stabilizeTransformArgs, type ChromaKeySettings,
 } from '../core/clip-clean';
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
+import { sanitizeStabilize } from '../core/clip-clean';
 import { tr } from '../core/i18n';
 import { lookupMedia, rescan, prepareForUse } from './library-service';
 import { clipSetFile } from './clip-set-service';
@@ -145,4 +150,159 @@ export async function splitScenes(id: string): Promise<{ ok: true; clips: number
   }
   await rescan();
   return { ok: true, clips: cuts.length + 1, folder };
+}
+
+// ---------------------------------------------------------------- stabilization (milestone 78)
+
+/** The window hears how the two passes are going through this; the main window is the only listener. */
+let stabilizeProgressTo: BrowserWindow | null = null;
+
+export function setStabilizeProgressWindow(window: BrowserWindow | null): void {
+  stabilizeProgressTo = window;
+}
+
+function reportStabilize(pass: 1 | 2, fraction: number | null): void {
+  if (stabilizeProgressTo && !stabilizeProgressTo.isDestroyed()) stabilizeProgressTo.webContents.send('cleanup:stabilize-progress', { pass, fraction });
+}
+
+/**
+ * The run in flight, so Cancel can reach it; one stabilization at a time is
+ * all the dialog offers. Made before anything is awaited, so a Stop that lands
+ * while the clip is still being looked up — well before ffmpeg spawns — still
+ * cancels the run rather than being lost to timing.
+ */
+let stabilizing: { child: ReturnType<typeof spawn> | null; cancelled: boolean } | null = null;
+
+/**
+ * One pass, streamed: stderr watched for the `time=` ffmpeg prints as it goes,
+ * each sighting reported as this pass's share of the whole. Cancel kills the
+ * child; the caller reads `cancelled` off the handle.
+ */
+function runPass(ffmpeg: string, args: string[], pass: 1 | 2, duration: number | undefined): Promise<{ code: number; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpeg, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    if (stabilizing) stabilizing.child = child;
+    else stabilizing = { child, cancelled: false };
+    let stderr = '';
+    const timeout = setTimeout(() => {
+      try {
+        child.kill();
+      } catch {
+        // Already gone.
+      }
+      reject(new Error(tr('cleanup.timeout')));
+    }, CLEANUP_TIMEOUT_MS);
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const text = chunk.toString('utf8');
+      stderr = (stderr + text).slice(-8000);
+      const at = passSeconds(text);
+      if (at !== null && duration && duration > 0) {
+        const within = Math.min(1, at / duration);
+        reportStabilize(pass, pass === 1 ? within / 2 : 0.5 + within / 2);
+      } else if (at !== null) {
+        reportStabilize(pass, null);
+      }
+    });
+    child.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      resolve({ code: code ?? 1, stderr });
+    });
+  });
+}
+
+/**
+ * Whether Stabilize can run here: ffmpeg found, and built with vid.stab. Read
+ * from the filter list each time the dialog opens — cheap, and true of the
+ * ffmpeg actually in use, which Settings can change.
+ */
+export async function stabilizeStatus(): Promise<{ ok: true } | { ok: false; message: string }> {
+  const ffmpeg = await ffmpegPath();
+  if (!ffmpeg) return { ok: false, message: tr('cleanup.stabilize.no-ffmpeg') };
+  try {
+    const filters = await run(ffmpeg, ['-hide_banner', '-filters']);
+    if (filters.code === 0 && hasStabilizer(filters.stdout.toString('utf8'))) return { ok: true };
+  } catch {
+    // Listing failed: treated as a build without the filter, said below.
+  }
+  return { ok: false, message: tr('cleanup.stabilize.no-filter') };
+}
+
+/** Stop the stabilization in flight, if one is; the run itself answers with `cancelled`. */
+export function cancelStabilize(): void {
+  if (!stabilizing) return;
+  stabilizing.cancelled = true;
+  try {
+    stabilizing.child?.kill();
+  } catch {
+    // Already gone.
+  }
+}
+
+/**
+ * The stabilization itself: pass one reads the motion into a transforms file
+ * in the temporary folder, pass two smooths and renders the steadier clip
+ * beside the original, and the library rescans so it is there to place.
+ * Cancelled, it cleans up after itself and says nothing went wrong.
+ */
+export async function stabilizeClip(id: string, rawSettings: unknown): Promise<{ ok: true; path: string } | { ok: false; cancelled?: boolean; message: string }> {
+  // The handle Cancel reaches, there from the first moment of the run (see `stabilizing`).
+  stabilizing = { child: null, cancelled: false };
+  // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
+  await prepareForUse([id]);
+  const clip = await clipFor(id);
+  if (!clip) return { ok: false, message: tr('cleanup.not-a-clip') };
+  const ready = await stabilizeStatus();
+  if (!ready.ok) return ready;
+  if (stabilizing?.cancelled) {
+    stabilizing = null;
+    return { ok: false, cancelled: true, message: '' };
+  }
+  const ffmpeg = (await ffmpegPath())!;
+  const settings = sanitizeStabilize(rawSettings);
+  const output = stabilizedClipPath(clip.named);
+  if (existsSync(output)) return { ok: false, message: tr('cleanup.stabilize.exists', { file: output.split(/[\\/]/).pop() ?? output }) };
+  const transforms = join(tmpdir(), `pulp-stabilize-${process.pid}-${Date.now()}.trf`);
+  const tidy = async (alsoOutput: boolean): Promise<void> => {
+    await rm(transforms, { force: true }).catch(() => undefined);
+    if (alsoOutput) await rm(output, { force: true }).catch(() => undefined);
+  };
+  try {
+    reportStabilize(1, 0);
+    const detect = await runPass(ffmpeg, stabilizeDetectArgs(clip.path, transforms), 1, clip.duration);
+    if (stabilizing?.cancelled) {
+      await tidy(true);
+      return { ok: false, cancelled: true, message: '' };
+    }
+    if (detect.code !== 0) {
+      await tidy(false);
+      return { ok: false, message: `ffmpeg exited with ${detect.code} while reading the motion: ${detect.stderr.trim().slice(-300) || 'no error output'}` }; // i18n-exempt(diagnostic)
+    }
+    if (stabilizing?.cancelled) {
+      await tidy(true);
+      return { ok: false, cancelled: true, message: '' };
+    }
+    reportStabilize(2, 0.5);
+    const made = await runPass(ffmpeg, stabilizeTransformArgs(clip.path, transforms, settings, output), 2, clip.duration);
+    if (stabilizing?.cancelled) {
+      await tidy(true);
+      return { ok: false, cancelled: true, message: '' };
+    }
+    if (made.code !== 0) {
+      await tidy(true);
+      return { ok: false, message: `ffmpeg exited with ${made.code} while rendering: ${made.stderr.trim().slice(-300) || 'no error output'}` }; // i18n-exempt(diagnostic)
+    }
+  } catch (err) {
+    await tidy(true);
+    return { ok: false, message: (err as Error).message };
+  } finally {
+    stabilizing = null;
+  }
+  await tidy(false);
+  reportStabilize(2, 1);
+  await rescan();
+  return { ok: true, path: output };
 }

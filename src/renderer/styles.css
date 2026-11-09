@@ -923,6 +923,10 @@ button > .icon + .label, button > .icon-wrap + .label { margin-inline-start: 6px
 
 /* The key dialog's before and after (milestone 52). */
 .key-dialog { width: min(720px, 92vw); }
+/* The Stabilize dialog (milestone 78): small — two settings, a progress bar for the two passes. */
+.stab-dialog { width: min(440px, 92vw); }
+.stab-dialog #stab-progress { width: 100%; margin: var(--space-2) 0 0; }
+.stab-dialog #stab-smoothing { width: 160px; }
 .key-previews { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-2) 0; }
 .key-previews figure { margin: 0; min-width: 0; }
 .key-previews img { display: block; width: 100%; height: auto; border-radius: var(--radius-control); min-height: 40px; }

@@ -434,9 +434,10 @@ export const library = {
   // ---------------------------------------------------------------- the Info tab and the strip under the stage (src/renderer/item-info.tsx)
   'info.cleanup.looking': 'Looking for cuts…',
   'info.cleanup.split-done': { other: 'Split into {count} clips, in {folder} beside it.' },
-  'info.cleanup.note': 'Footage made ready to composite: a color keyed to transparency, or long footage split into its scenes.',
+  'info.cleanup.note': 'Footage made ready to composite: a color keyed to transparency, long footage split into its scenes, or a shaky take steadied.',
   'info.cleanup.key': 'Key out a color…',
   'info.cleanup.split': 'Split at its cuts',
+  'info.cleanup.stabilize': 'Stabilize…',
   'info.chip.yours': 'Yours',
   'info.chip.from-folder': 'From the folder or the manifest',
   'info.chip.remove': 'Remove {label}',

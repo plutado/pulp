@@ -214,3 +214,93 @@ export function scenePattern(input: string): string {
   const ext = dot > 0 ? file.slice(dot) : '.mp4';
   return `${stem}_%03d${ext}`;
 }
+
+// ---------------------------------------------------------------- stabilization (milestone 78)
+
+/**
+ * Stabilizing a shaky clip: ffmpeg's two-pass vid.stab — `vidstabdetect` reads
+ * the camera's motion into a transforms file, `vidstabtransform` smooths it
+ * and renders the steadier clip, which joins the library beside the original
+ * as `<name> steady.mov`. The filters come from libvidstab, which not every
+ * ffmpeg is built with; `hasStabilizer` reads the filter list so the window
+ * can say so plainly instead of failing mid-run.
+ */
+export interface StabilizeSettings {
+  /**
+   * Frames of motion averaged away on either side (`vidstabtransform`'s
+   * smoothing): more is steadier and drifts further from the framing.
+   */
+  smoothing: number;
+  /** What to do about the edges the steadied picture exposes: zoom past them, or keep them (black borders ride along). */
+  edges: 'zoom' | 'keep';
+}
+
+export const STABILIZE_LIMITS = {
+  smoothing: { min: 1, max: 60 },
+} as const;
+
+export const STABILIZE_DEFAULTS: StabilizeSettings = { smoothing: 10, edges: 'zoom' };
+
+/** Settings with every field in range, from anything at all. */
+export function sanitizeStabilize(raw: unknown): StabilizeSettings {
+  const input = (raw ?? {}) as Partial<Record<keyof StabilizeSettings, unknown>>;
+  const smoothing = typeof input.smoothing === 'number' && Number.isFinite(input.smoothing)
+    ? Math.round(Math.min(STABILIZE_LIMITS.smoothing.max, Math.max(STABILIZE_LIMITS.smoothing.min, input.smoothing)))
+    : STABILIZE_DEFAULTS.smoothing;
+  return { smoothing, edges: input.edges === 'keep' ? 'keep' : 'zoom' };
+}
+
+/** The first pass: the motion read into a transforms file, nothing rendered. */
+export function stabilizeDetectArgs(input: string, transforms: string): string[] {
+  return [
+    '-hide_banner', '-nostdin', '-y',
+    '-i', input,
+    '-vf', `vidstabdetect=result=${filterQuoted(transforms)}:shakiness=8`,
+    '-an', '-f', 'null', '-',
+  ];
+}
+
+/**
+ * The second pass: the transforms smoothed and applied, a light unsharp after
+ * (the resampling softens the picture a touch, as vid.stab's own docs note),
+ * rendered to ProRes HQ — an encoder every ffmpeg carries — with the clip's
+ * own sound kept untouched where it has one.
+ */
+export function stabilizeTransformArgs(input: string, transforms: string, settings: StabilizeSettings, output: string): string[] {
+  const edges = settings.edges === 'keep' ? 'optzoom=0:crop=keep' : 'optzoom=1:crop=black';
+  return [
+    '-hide_banner', '-nostdin', '-y',
+    '-i', input,
+    '-vf', `vidstabtransform=input=${filterQuoted(transforms)}:smoothing=${settings.smoothing}:${edges},unsharp=5:5:0.8:3:3:0.4`,
+    '-c:v', 'prores_ks', '-profile:v', '3', '-vendor', 'apl0',
+    '-c:a', 'copy',
+    output,
+  ];
+}
+
+/** Where the steadied clip goes: beside the original, "<name> steady.mov", so the library's rescan takes it in. */
+export function stabilizedClipPath(input: string): string {
+  const slash = Math.max(input.lastIndexOf('/'), input.lastIndexOf('\\'));
+  const dir = input.slice(0, slash + 1);
+  const file = input.slice(slash + 1);
+  const dot = file.lastIndexOf('.');
+  return `${dir}${dot > 0 ? file.slice(0, dot) : file} steady.mov`; // i18n-exempt(content)
+}
+
+/** Whether this ffmpeg carries vid.stab, from `ffmpeg -hide_banner -filters`. */
+export function hasStabilizer(filtersOutput: string): boolean {
+  return /\bvidstabdetect\b/.test(filtersOutput) && /\bvidstabtransform\b/.test(filtersOutput);
+}
+
+/**
+ * The seconds a pass has reached, from the `time=HH:MM:SS.cc` ffmpeg writes to
+ * stderr as it goes; null where the chunk carries none. The last mention wins,
+ * which is the newest.
+ */
+export function passSeconds(stderrChunk: string): number | null {
+  let seconds: number | null = null;
+  for (const m of stderrChunk.matchAll(/time=\s*(\d+):(\d\d):(\d\d(?:\.\d+)?)/g)) {
+    seconds = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
+  }
+  return seconds;
+}

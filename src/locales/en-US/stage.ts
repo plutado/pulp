@@ -232,6 +232,9 @@ export const stage = {
   'cleanup.keying': 'Keying the whole clip…',
   'cleanup.made': 'Made {name}, in the library beside the original.',
   'cleanup.reading': 'Reading the frame…',
+  'cleanup.stabilize.pass1': 'Reading the motion…',
+  'cleanup.stabilize.pass2': 'Rendering the steadier clip…',
+  'cleanup.stabilize.cancelled': 'Stopped; nothing was made.',
 
   // ---- speech models and languages (src/core/speech.ts); a language is named by its whisper code
   'speech.model.tiny': 'Whisper tiny',

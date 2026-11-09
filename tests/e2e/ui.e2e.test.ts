@@ -503,6 +503,14 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=2:r=10',
           '-filter_complex', '[0][1][2]concat=n=3:v=1:a=0', '-c:v', 'mpeg4', '-qscale:v', '2', '-g', '5', join(mediaDir, 'yearbook.mp4'),
         ]), { timeoutMs: 60_000 });
+        // A shaky take (milestone 78): a 320 × 180 window over allrgb's static texture, jittering
+        // by sinusoids — camera shake over a scene that does not itself move, so steadiness can be
+        // measured as the frame-to-frame difference. mpeg4 and sorted last, like the fixtures above.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi', '-i', 'allrgb=rate=10:duration=2',
+          '-vf', "crop=320:180:x='1000+round(30*sin(n*2.3))':y='1000+round(22*sin(n*1.7+1))'",
+          '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-shaky.mp4'),
+        ]), { timeoutMs: 60_000 });
         // A clip whose red square crosses a green picture at 4 px a frame (milestone 76): what the
         // tracker must follow, drawn by an expression the test knows to the pixel. 16:9 like the
         // frame, so its picture fills it; mpeg4 and sorted last, like the fixtures above. The square
@@ -5973,6 +5981,87 @@ describe.skipIf(!electron)('inspector UI', () => {
       // The clips are in the library, named for the file and numbered in order.
       await until(() => onResult<boolean>('yearbook_000', '(li) => true').then(() => true), 'the first scene in the results', 30_000);
       await until(() => onResult<boolean>('yearbook_002', '(li) => true').then(() => true), 'and the last', 30_000);
+    }, 120_000);
+
+    it('stabilizes a shaky clip from the Info tab, measured steadier, the result joining the library (milestone 78)', async () => {
+      if (!haveVideo) return;
+      // Whether this ffmpeg carries vid.stab decides which half is tested: without it, the dialog
+      // must say so plainly and offer nothing — which is milestone 78's own promise.
+      const status = await page.eval<{ ok: boolean; message?: string }>(`window.pulp.stabilizeStatus()`);
+      await selectMedia('zz-shaky');
+      await openTab('info');
+      await until(() => page.eval<boolean>(`!!document.querySelector('.info-section[data-section=cleanup]')`), 'the clean-up section');
+      await page.eval(`(() => { const h = document.querySelector('.info-section[data-section=cleanup] .section-heading'); if (h.getAttribute('aria-expanded') !== 'true') h.click(); })()`);
+      await until(() => page.eval<boolean>(`!!document.getElementById('cleanup-stabilize')`), 'the Stabilize action');
+      await page.eval(`document.getElementById('cleanup-stabilize').click()`);
+      await until(() => page.eval<boolean>(`document.getElementById('stab-dialog').open`), 'the Stabilize dialog');
+      try {
+        if (!status.ok) {
+          await until(
+            () => page.eval<string>(`document.getElementById('stab-status').textContent`).then((t) => t.includes('vid.stab') || t.includes('FFmpeg')),
+            'the missing filter said plainly',
+          );
+          expect(await page.eval<boolean>(`document.getElementById('stab-make').disabled`), 'nothing offered it cannot do').toBe(true);
+          console.info('This ffmpeg has no vid.stab; the Stabilize run itself was not tested.');
+          return;
+        }
+        await until(() => page.eval<boolean>(`!document.getElementById('stab-make').disabled`), 'the dialog ready');
+        await page.eval(`(() => { const s = document.getElementById('stab-smoothing'); s.value = '10'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('stab-make').click()`);
+        // The run shows its progress and offers Stop while it goes.
+        await until(() => page.eval<boolean>(`!document.getElementById('stab-cancel').hidden || document.getElementById('stab-status').textContent.includes('steady')`), 'the run under way');
+        await until(
+          () => page.eval<string>(`document.getElementById('stab-status').textContent`).then((t) => t.includes('zz-shaky steady')),
+          'the steadier clip made and said',
+          120_000,
+        );
+        await page.eval(`document.getElementById('stab-close').click()`);
+        await until(() => onResult<boolean>('zz-shaky steady', '(li) => true').then(() => true), 'the steadier clip in the results', 30_000);
+
+        // Measured steadier: the mean frame-to-frame difference over the middle of the picture —
+        // shake moves the whole textured frame, so a steadier clip differs less from itself.
+        const { runBoundedBuffer } = await import('./process');
+        const ffmpegPath = (await page.eval<{ path?: string }>(`window.pulp.ffmpegStatus()`)).path!;
+        const shake = async (file: string): Promise<number> => {
+          const { stdout } = await runBoundedBuffer(ffmpegPath, ffmpegArgs([
+            '-v', 'error', '-i', file, '-vf', 'format=gray,tblend=all_mode=difference,crop=240:120:40:30', '-f', 'rawvideo', 'pipe:1',
+          ]), { timeoutMs: 60_000, maxBuffer: 64 * 1024 * 1024 });
+          const size = 240 * 120;
+          let total = 0;
+          let frames = 0;
+          // The first tblend frame is the frame against nothing; start at the second.
+          for (let at = size; at + size <= stdout.length; at += size) {
+            let sum = 0;
+            for (let i = at; i < at + size; i++) sum += stdout[i]!;
+            total += sum / size;
+            frames += 1;
+          }
+          expect(frames, `frames measured in ${file}`).toBeGreaterThan(10);
+          return total / frames;
+        };
+        const before = await shake(join(mediaDir, 'zz-shaky.mp4'));
+        const after = await shake(join(mediaDir, 'zz-shaky steady.mov'));
+        expect(before, 'the fixture really shakes').toBeGreaterThan(10);
+        expect(after, `steadier: ${after.toFixed(1)} against ${before.toFixed(1)}`).toBeLessThan(before * 0.75);
+      } finally {
+        await page.eval(`(() => { const d = document.getElementById('stab-dialog'); if (d.open) d.close(); })()`);
+      }
+    }, 240_000);
+
+    it('stops a stabilization when asked, cleaning up after itself (milestone 78)', async () => {
+      if (!haveVideo) return;
+      const status = await page.eval<{ ok: boolean }>(`window.pulp.stabilizeStatus()`);
+      if (!status.ok) return; // the missing filter was already said plainly above
+      const clipId = await onResult<string>('clip', '(li) => li.dataset.id');
+      // Stop lands while the run is still looking the clip up — well before ffmpeg spawns — and
+      // must still cancel it: a Stop must never be lost to timing.
+      const result = await page.eval<{ ok: boolean; cancelled?: boolean }>(
+        `(() => { const p = window.pulp.stabilizeClip(${JSON.stringify(clipId)}, { smoothing: 10, edges: 'zoom' }); return window.pulp.cancelStabilize().then(() => p); })()`,
+      );
+      expect(result.ok).toBe(false);
+      expect(result.cancelled).toBe(true);
+      // Nothing was made and nothing joined the library.
+      expect(existsSync(join(mediaDir, 'clip steady.mov'))).toBe(false);
     }, 120_000);
 
     // Milestone 50: the words of a bundled spoken sample, from the model on this machine. The model

@@ -343,6 +343,14 @@ export interface PulpApi {
   chromaKeyClip(id: string, settings: unknown): Promise<{ ok: true; path: string } | { ok: false; message: string }>;
   /** Split footage at its cuts into clips in a folder beside it, by stream copy, and rescan. */
   splitScenes(id: string): Promise<{ ok: true; clips: number; folder: string } | { ok: false; message: string }>;
+  /** Whether Stabilize can run here (milestone 78): ffmpeg found and built with vid.stab, or why not, plainly. */
+  stabilizeStatus(): Promise<{ ok: true } | { ok: false; message: string }>;
+  /** Smooth a shaky clip (milestone 78): two passes, the steadier clip beside the original, and a rescan. */
+  stabilizeClip(id: string, settings: { smoothing: number; edges: 'zoom' | 'keep' }): Promise<{ ok: true; path: string } | { ok: false; cancelled?: boolean; message: string }>;
+  /** Stop the stabilization in flight; its own promise answers with `cancelled`. */
+  cancelStabilize(): Promise<void>;
+  /** How the two passes are going: which pass, and how far through the whole, when the clip's length is known. */
+  onStabilizeProgress(listener: (progress: { pass: 1 | 2; fraction: number | null }) => void): () => void;
   /** Ask for a `.cube` file; null when the dialog is closed without one. */
   chooseLutFile(): Promise<string | null>;
   /**

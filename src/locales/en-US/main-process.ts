@@ -128,6 +128,9 @@ export const mainProcess = {
   'cleanup.key.exists': 'There is already a keyed clip beside it ({file}); move or rename it first.',
   'cleanup.split.no-ffmpeg': 'FFmpeg was not found, so nothing can be split.',
   'cleanup.split.no-cuts': 'No cuts were found: the footage reads as one scene.',
+  'cleanup.stabilize.no-ffmpeg': 'FFmpeg was not found, so nothing can be stabilized.',
+  'cleanup.stabilize.no-filter': 'This FFmpeg was built without vid.stab, which does the stabilizing. Install one that has it (macOS: "brew install ffmpeg"), or point Settings at one, then try again.',
+  'cleanup.stabilize.exists': 'There is already a steadied clip beside it ({file}); move or rename it first.',
   // ---------------------------------------------------------------- rendering (src/main/render.ts)
   'render.warning.loudness-unmeasured': 'The mix could not be measured for leveling ({reason}); it is leveled to {lufs} LUFS in one pass instead.',
   'render.warning.capture-format': 'Could not determine the capture pixel format ({reason}); frames are sent to ffmpeg as PNG instead.',

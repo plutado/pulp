@@ -26,7 +26,7 @@ import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } f
 import { fetchSemanticModel, semanticSearch, semanticStatus, setSemanticProgressWindow, setSemanticSearch } from './semantic-service';
 import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
-import { chromaKeyClip, chromaKeyPreview, splitScenes } from './cleanup-service';
+import { cancelStabilize, chromaKeyClip, chromaKeyPreview, setStabilizeProgressWindow, splitScenes, stabilizeClip, stabilizeStatus } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
@@ -206,6 +206,7 @@ function createWindow(): void {
   // Where a model fetch and a transcription say how far along they are (milestone 50),
   // and where the FFmpeg download helper says how far along it is (milestone 17).
   setSpeechProgressWindow(mainWindow);
+  setStabilizeProgressWindow(mainWindow);
   setSemanticProgressWindow(mainWindow);
   setFfmpegProgressWindow(mainWindow);
   // Where the editor panel's "open in Pulp" lands (milestone 54).
@@ -625,6 +626,10 @@ function registerIpc(): void {
   ipcMain.handle('cleanup:key-preview', (_event, id: unknown, settings: unknown, at: unknown) => chromaKeyPreview(String(id), settings, at));
   ipcMain.handle('cleanup:key', (_event, id: unknown, settings: unknown) => chromaKeyClip(String(id), settings));
   ipcMain.handle('cleanup:split-scenes', (_event, id: unknown) => splitScenes(String(id)));
+  // Stabilization (milestone 78): whether this ffmpeg can, the two passes, and the cancel.
+  ipcMain.handle('cleanup:stabilize-status', () => stabilizeStatus());
+  ipcMain.handle('cleanup:stabilize', (_event, id: unknown, settings: unknown) => stabilizeClip(String(id), settings));
+  ipcMain.handle('cleanup:stabilize-cancel', () => cancelStabilize());
   ipcMain.handle('cleanup:choose-lut', async () => {
     const pick = await dialog.showOpenDialog({ title: tr('dialog.lut.title'), filters: [{ name: tr('dialog.lut.filter'), extensions: ['cube'] }], properties: ['openFile'] });
     return pick.canceled || !pick.filePaths[0] ? null : pick.filePaths[0];

@@ -201,6 +201,14 @@ const api: PulpApi = {
   chromaKeyPreview: (id, settings, atSeconds) => ipcRenderer.invoke('cleanup:key-preview', id, settings, atSeconds),
   chromaKeyClip: (id, settings) => ipcRenderer.invoke('cleanup:key', id, settings),
   splitScenes: (id) => ipcRenderer.invoke('cleanup:split-scenes', id),
+  stabilizeStatus: () => ipcRenderer.invoke('cleanup:stabilize-status'),
+  stabilizeClip: (id, settings) => ipcRenderer.invoke('cleanup:stabilize', id, settings),
+  cancelStabilize: () => ipcRenderer.invoke('cleanup:stabilize-cancel'),
+  onStabilizeProgress: (listener) => {
+    const handler = (_event: unknown, progress: Parameters<typeof listener>[0]) => listener(progress);
+    ipcRenderer.on('cleanup:stabilize-progress', handler);
+    return () => ipcRenderer.removeListener('cleanup:stabilize-progress', handler);
+  },
   chooseLutFile: () => ipcRenderer.invoke('cleanup:choose-lut'),
   getDragNoticeSeen: () => ipcRenderer.invoke('drag-notice:get'),
   setDragNoticeSeen: () => ipcRenderer.invoke('drag-notice:seen'),

@@ -10,6 +10,7 @@ import {
   chromaKeyArgs, chromaKeyFilter, chromaKeyStillArgs, despillType, filterQuoted, isCubeFile, KEY_DEFAULTS,
   keyedClipPath, lutFilter, MIN_SCENE_SECONDS, parseSceneCuts, sanitizeChromaKey, sceneDetectArgs, sceneFolder,
   scenePattern, sceneSplitArgs,
+  hasStabilizer, passSeconds, sanitizeStabilize, STABILIZE_DEFAULTS, stabilizeDetectArgs, stabilizedClipPath, stabilizeTransformArgs,
 } from '../src/core/clip-clean';
 
 describe('the LUT filter', () => {
@@ -89,5 +90,46 @@ describe('scene detection', () => {
     expect(sceneFolder('/lib/long.mp4')).toBe('/lib/long scenes');
     expect(scenePattern('/lib/long.mp4')).toBe('long_%03d.mp4');
     expect(scenePattern('C:\\clips\\b-roll.mov')).toBe('b-roll_%03d.mov');
+  });
+});
+
+describe('stabilization (milestone 78)', () => {
+  it('keeps every setting in range and starts from a gentle smoothing with the edges zoomed away', () => {
+    expect(sanitizeStabilize(undefined)).toEqual(STABILIZE_DEFAULTS);
+    expect(sanitizeStabilize({ smoothing: 200, edges: 'keep' })).toEqual({ smoothing: 60, edges: 'keep' });
+    expect(sanitizeStabilize({ smoothing: -3, edges: 'sideways' })).toEqual({ smoothing: 1, edges: 'zoom' });
+    expect(sanitizeStabilize({ smoothing: 14.6 })).toEqual({ smoothing: 15, edges: 'zoom' });
+  });
+
+  it('reads the motion in pass one and renders the steadier clip in pass two, its sound kept', () => {
+    const detect = stabilizeDetectArgs('/clips/take 1.mp4', '/tmp/t.trf');
+    expect(detect).toEqual(expect.arrayContaining(['-i', '/clips/take 1.mp4', '-f', 'null', '-']));
+    expect(detect.join(' ')).toContain("vidstabdetect=result='/tmp/t.trf':shakiness=8");
+    const zoomed = stabilizeTransformArgs('/clips/take 1.mp4', '/tmp/t.trf', { smoothing: 20, edges: 'zoom' }, '/clips/take 1 steady.mov');
+    expect(zoomed.join(' ')).toContain("vidstabtransform=input='/tmp/t.trf':smoothing=20:optzoom=1:crop=black,unsharp");
+    expect(zoomed).toEqual(expect.arrayContaining(['-c:v', 'prores_ks', '-c:a', 'copy', '/clips/take 1 steady.mov']));
+    const kept = stabilizeTransformArgs('/clips/a.mp4', 'C\\x\\t.trf', { smoothing: 5, edges: 'keep' }, '/clips/a steady.mov');
+    expect(kept.join(' ')).toContain('optzoom=0:crop=keep');
+    // A Windows transforms path is quoted for the filtergraph like a LUT's.
+    expect(kept.join(' ')).toContain("input='C/x/t.trf'");
+  });
+
+  it('names the steadied clip beside the original, whatever the original is called', () => {
+    expect(stabilizedClipPath('/media/B-roll/take 1.mp4')).toBe('/media/B-roll/take 1 steady.mov');
+    expect(stabilizedClipPath('C\\media\\clip.mov')).toBe('C\\media\\clip steady.mov');
+    expect(stabilizedClipPath('/media/no-extension')).toBe('/media/no-extension steady.mov');
+  });
+
+  it('knows an ffmpeg with vid.stab from one without, off the filter list', () => {
+    expect(hasStabilizer(' .. vidstabdetect     V->V\n .. vidstabtransform  V->V\n')).toBe(true);
+    expect(hasStabilizer(' .. vidstabdetect     V->V\n')).toBe(false);
+    expect(hasStabilizer(' .. deshake           V->V\n')).toBe(false);
+  });
+
+  it('reads how far a pass has reached off ffmpeg\'s own progress line, the newest mention winning', () => {
+    expect(passSeconds('frame=  120 fps= 30 time=00:00:04.00 bitrate=...')).toBe(4);
+    expect(passSeconds('time=00:01:02.50 ...\ntime=01:00:00.25 ...')).toBe(3600.25);
+    expect(passSeconds('frame=  120 fps= 30 bitrate=...')).toBeNull();
+    expect(passSeconds('')).toBeNull();
   });
 });
