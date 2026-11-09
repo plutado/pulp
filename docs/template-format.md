@@ -197,7 +197,7 @@ A layer has an `id` (unique within its block, same form as a block id), a `label
 
 | Property | Type | Description |
 |---|---|---|
-| `family` | string | A font family name or CSS font stack. The ten bundled families (see **Fonts**, below) are available in every template page by name; anything else works where it is installed and falls back where it is not. |
+| `family` | string | A font family name or CSS font stack. The twelve bundled families (see **Fonts**, below) are available in every template page by name; anything else works where it is installed and falls back where it is not. |
 | `size` | number | The type size as a fraction of the frame's short side, so it holds at every resolution and shape. |
 | `weight` | integer | 100 to 900. |
 | `italic` | boolean | |

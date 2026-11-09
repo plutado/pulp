@@ -134,7 +134,7 @@ The Info tab is the worked example; anything that shows what an item *is* follow
 
 ## Fonts are credited dependencies
 
-A font is code someone else wrote, under a license of its own. Pulp bundles ten families under the SIL Open Font License 1.1 (`docs/font-credits.md`, ADR 0014) and the rule for them, and for any added later, is the same as for a library:
+A font is code someone else wrote, under a license of its own. Pulp bundles twelve families under the SIL Open Font License 1.1 (`docs/font-credits.md`, ADR 0014) and the rule for them, and for any added later, is the same as for a library:
 
 - **Taken from upstream, with its license file**, which is read, not assumed. The credits file names the family, the version, the license, any Reserved Font Name and the source, and a test holds the files, their hashes and the credits to one list.
 - **Shipped unmodified.** No subsetting, no renaming: a Reserved Font Name requires it, and every family keeps its full character set.

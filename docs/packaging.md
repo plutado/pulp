@@ -27,7 +27,7 @@ What Pulp reads at run time is copied into the application's `Resources/` instea
 | In `Resources/` | What it is |
 |---|---|
 | `templates/` | The bundled CC0 templates, shown in the library as "Built-in templates" |
-| `fonts/` | The ten OFL families every template page is given (ADR 0014) |
+| `fonts/` | The twelve OFL families every template page is given (ADR 0014) |
 | `examples/` | The example projects the start screen opens as copies |
 | `pdfjs/` | pdf.js's `pdf.min.mjs` and `pdf.worker.min.mjs`, read as text into the sandboxed rasterizer (milestone 33) |
 | `lottie/` | lottie-web's `lottie_light.min.js`, served to a Lottie's own page (milestone 35) |
