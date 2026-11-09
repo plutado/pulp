@@ -632,6 +632,14 @@ Without it the license is "not stated", which is the truth about most files; the
 
 **It is placed as a layer** wherever a clip is: it plays, so a video layer takes it, with the in and out points, loop or once, speed and delay a clip has.
 
+**Fonts it names but does not carry become a Font parameter each** (milestone 35): any family may stand in — a bundled one, an import, whatever is installed — and the chosen family is written into the file's font list, where every text set in it reads it. A file that carries its letters as glyph outlines draws them as shipped and offers nothing to pick.
+
+**A dotLottie's themes are read in full** and offered as a Theme parameter: each theme is a named set of slot values — colors, scalars, positions, vectors, gradients, keyframed or static — applied before the item's own parameters, so a color left at its default takes the theme's and one a person changed wins. Rules the player cannot apply (images) are skipped and named in the Info tab.
+
+**An archive holding several animations is several items**, one per animation, each with its own manifest, parameters and length; the first keeps the file's own id, and the rest are keyed by the file plus the animation's id.
+
+**Save Animation as Template…** (File menu, while a Lottie is shown) turns the item into an editable template folder: `template.json` carrying the item's manifest under a `custom.` id, an `index.html` that inlines the animation and draws it through `player.js` written beside it, and the pictures the animation names. The folder is a template like any other — editable by hand, rendered, packed and shared — with no Lottie file behind it.
+
 ## Licensing templates
 
 The `license` field describes the template, not Pulp. When you share templates, include any font or image licenses they depend on in the folder. Pulp shows the license in the UI; it does not enforce it.

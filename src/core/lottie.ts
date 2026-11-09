@@ -22,9 +22,9 @@
 
 import { ASPECT_IDS, aspectOf, MAX_DIMENSION, MIN_DIMENSION } from './aspect';
 import { STRUCTURE_LIMITS, type TemplateStructure } from './timing';
-import type { LottieBinding, LottieDocumentMeta, LottieFormat, LottieInfo, LottieMarker, LottieNote, LottiePath, LottieTarget } from './lottie-types';
+import type { LottieBinding, LottieDocumentMeta, LottieFormat, LottieInfo, LottieMarker, LottieNote, LottiePath, LottieTarget, LottieTheme, LottieThemeRule } from './lottie-types';
 import { SOURCE_TRANSLATOR, type MessageId, type Translator } from './i18n';
-import { LOTTIE_FIT_PARAM } from './lottie-types';
+import { LOTTIE_FIT_PARAM, LOTTIE_THEME_PARAM } from './lottie-types';
 import { validateManifest, type TemplateParameter, type ValidationResult } from './manifest';
 import { typeInfo } from './taxonomy';
 import { readZip } from './zip';
@@ -143,15 +143,67 @@ function round3(n: number): number {
 // ---------------------------------------------------------------- .lottie archives
 
 export interface DotLottie {
+  /** The first animation, which stands for the archive where one must. */
   document: LottieDocument;
-  /** The ids of every animation the archive holds, the shown one first. */
-  animations: string[];
+  /** Every animation the archive holds, in the manifest's order: each becomes an item of its own (milestone 35). */
+  animations: { id: string; document: LottieDocument }[];
   /** Pictures inside the archive by their file name (the part after the last slash). */
   images: Map<string, Buffer>;
   /** The archive's author, when its manifest says. */
   author?: string;
-  /** What the archive carries that is not read: themes, states. */
+  /** The themes the archive carries, read in full: each a named set of slot values (milestone 35). */
+  themes: LottieTheme[];
+  /** What the archive carries that is not read: states, an unreadable animation or theme. */
   limits: LottieNote[];
+}
+
+/**
+ * A theme file's rules as Lottie slot properties. The dotLottie theming format
+ * is `{rules: [{id, type, value | keyframes, animations?}]}`: a static `value`
+ * becomes `{a: 0, k: value}`, `keyframes` become `{a: 1, k: keyframes}`, and a
+ * Gradient's stops are flattened the way Lottie writes gradient data. An older
+ * theme file is a plain map of slot id to value, read the same way. Rules that
+ * cannot be made into a property (Image) are skipped and counted.
+ */
+function themeRules(raw: unknown): { rules: LottieThemeRule[]; skipped: string[] } {
+  const rules: LottieThemeRule[] = [];
+  const skipped: string[] = [];
+  const property = (rule: Record<string, unknown>): unknown | undefined => {
+    if (Array.isArray(rule.keyframes) && rule.keyframes.length > 0) return { a: 1, k: rule.keyframes };
+    if (rule.value === undefined) return undefined;
+    if (rule.type === 'Gradient' && Array.isArray(rule.value)) {
+      // Stops [{color: [r,g,b,a?], offset}] to Lottie's gradient data: [o,r,g,b]* then [o,a]* when any stop has alpha.
+      const stops = rule.value.filter((s): s is Record<string, unknown> => isRecord(s) && Array.isArray(s.color) && typeof s.offset === 'number');
+      if (stops.length === 0) return undefined;
+      const flat = stops.flatMap((s) => [s.offset as number, ...(s.color as number[]).slice(0, 3)]);
+      const withAlpha = stops.some((s) => (s.color as number[]).length === 4);
+      const alphas = withAlpha ? stops.flatMap((s) => [s.offset as number, (s.color as number[])[3] ?? 1]) : [];
+      return { p: stops.length, k: { a: 0, k: [...flat, ...alphas] } };
+    }
+    if (rule.type === 'Image') return undefined;
+    return { a: 0, k: rule.value };
+  };
+  if (isRecord(raw) && Array.isArray(raw.rules)) {
+    for (const rule of raw.rules) {
+      if (!isRecord(rule) || typeof rule.id !== 'string') continue;
+      const p = property(rule);
+      if (p === undefined) {
+        skipped.push(rule.id);
+        continue;
+      }
+      const animations = Array.isArray(rule.animations) ? rule.animations.filter((a): a is string => typeof a === 'string') : undefined;
+      rules.push({ sid: rule.id, p, ...(animations && animations.length > 0 ? { animations } : {}) });
+    }
+    return { rules, skipped };
+  }
+  if (isRecord(raw)) {
+    // The older format: a map of slot id to a property, or to a bare value.
+    for (const [sid, value] of Object.entries(raw)) {
+      if (isRecord(value) && 'p' in value) rules.push({ sid, p: value.p });
+      else if (value !== undefined) rules.push({ sid, p: { a: 0, k: value } });
+    }
+  }
+  return { rules, skipped };
 }
 
 const fileName = (path: string): string => path.split('/').pop() ?? path;
@@ -159,12 +211,16 @@ const fileName = (path: string): string => path.split('/').pop() ?? path;
 /**
  * Read a `.lottie`: a zip whose `manifest.json` lists its animations, each a
  * Lottie JSON under `animations/` (or `a/` in the newer layout), with images
- * under `images/` (or `i/`). The first listed animation is the one shown.
+ * under `images/` (or `i/`) and themes under `themes/` (or `t/`). Every
+ * animation is read — each becomes a library item of its own — and every
+ * theme, each a named set of slot values a Theme parameter picks from
+ * (milestone 35). One that cannot be read is skipped and named in the limits.
  */
 export function readDotLottie(bytes: Buffer): DotLottie {
   const entries = readZip(bytes, { maxBytes: 256 * 1024 * 1024, maxEntries: 2000 });
   const byName = new Map(entries.map((e) => [e.name, e.data]));
   let ids: string[] = [];
+  let themeIds: string[] = [];
   let author: string | undefined;
   const limits: LottieNote[] = [];
   const manifestBytes = byName.get('manifest.json');
@@ -175,8 +231,10 @@ export function readDotLottie(bytes: Buffer): DotLottie {
         if (Array.isArray(manifest.animations)) {
           ids = manifest.animations.map((a) => (isRecord(a) && typeof a.id === 'string' ? a.id : '')).filter(Boolean);
         }
+        if (Array.isArray(manifest.themes)) {
+          themeIds = manifest.themes.map((t) => (isRecord(t) && typeof t.id === 'string' ? t.id : typeof t === 'string' ? t : '')).filter(Boolean);
+        }
         if (typeof manifest.author === 'string' && manifest.author.trim()) author = manifest.author.trim();
-        if ((Array.isArray(manifest.themes) && manifest.themes.length > 0) || entries.some((e) => /^(themes|t)\//.test(e.name))) limits.push({ id: 'lottie.limit.themes' });
         if ((Array.isArray(manifest.states) && manifest.states.length > 0) || entries.some((e) => /^(states|s)\//.test(e.name))) limits.push({ id: 'lottie.limit.states' });
       }
     } catch {
@@ -188,15 +246,42 @@ export function readDotLottie(bytes: Buffer): DotLottie {
     // No manifest, or one that names nothing: every animation file there is, in archive order.
     ids = entries.filter((e) => /^(animations|a)\/[^/]+\.json$/.test(e.name)).map((e) => fileName(e.name).replace(/\.json$/, ''));
   }
-  const first = ids.map((id) => ({ id, file: animationFile(id) })).find((a) => a.file !== undefined);
-  if (!first) throw new Error('not a dotLottie archive (no animation inside)'); // i18n-exempt(diagnostic)
-  const document = parseLottie(byName.get(first.file!)!.toString('utf8'));
+  const animations: { id: string; document: LottieDocument }[] = [];
+  for (const id of ids) {
+    const file = animationFile(id);
+    if (!file) continue;
+    try {
+      animations.push({ id, document: parseLottie(byName.get(file)!.toString('utf8')) });
+    } catch {
+      limits.push({ id: 'lottie.limit.animation-unread', values: { id } });
+    }
+  }
+  if (animations.length === 0) throw new Error('not a dotLottie archive (no animation inside)'); // i18n-exempt(diagnostic)
   const images = new Map<string, Buffer>();
   for (const e of entries) {
     if (/^(images|i)\//.test(e.name)) images.set(fileName(e.name), e.data);
   }
-  if (ids.length > 1) limits.push({ id: 'lottie.limit.animations', values: { count: ids.length, first: first.id } });
-  return { document, animations: [first.id, ...ids.filter((id) => id !== first.id)], images, ...(author ? { author } : {}), limits };
+  // Themes: the manifest's list, else every theme file there is.
+  const themeFile = (id: string): string | undefined => [`themes/${id}.json`, `t/${id}.json`].find((n) => byName.has(n));
+  if (themeIds.length === 0) {
+    themeIds = entries.filter((e) => /^(themes|t)\/[^/]+\.json$/.test(e.name)).map((e) => fileName(e.name).replace(/\.json$/, ''));
+  }
+  const themes: LottieTheme[] = [];
+  const skippedRules: string[] = [];
+  for (const id of themeIds) {
+    const file = themeFile(id);
+    if (!file) continue;
+    try {
+      const read = themeRules(JSON.parse(byName.get(file)!.toString('utf8')));
+      skippedRules.push(...read.skipped.map((sid) => `${id}: ${sid}`));
+      if (read.rules.length > 0) themes.push({ id, rules: read.rules });
+      else if (read.skipped.length === 0) limits.push({ id: 'lottie.limit.theme-unread', values: { id } });
+    } catch {
+      limits.push({ id: 'lottie.limit.theme-unread', values: { id } });
+    }
+  }
+  if (skippedRules.length > 0) limits.push({ id: 'lottie.limit.theme-unsupported', values: { rules: skippedRules.join(', ') } });
+  return { document: animations[0]!.document, animations, images, ...(author ? { author } : {}), themes, limits };
 }
 
 // ---------------------------------------------------------------- what the file exposes
@@ -369,6 +454,20 @@ export function lottieEditables(data: LottieData): LottieEditables {
     });
   }
 
+  // Fonts the file names but does not carry (milestone 35's last item): each becomes a font
+  // parameter, so the text set in it can be put in any family — a bundled one, an import, or
+  // whatever is installed. A file that carries its letters as glyph outlines (`chars`) draws
+  // them whatever the family says, so there is nothing to pick there.
+  const fonts: { name: string; target: LottieTarget }[] = [];
+  if (!Array.isArray(data.chars) && isRecord(data.fonts) && Array.isArray(data.fonts.list)) {
+    data.fonts.list.forEach((font, i) => {
+      if (!isRecord(font)) return;
+      const family = typeof font.fFamily === 'string' && font.fFamily.trim() ? font.fFamily.trim() : typeof font.fName === 'string' ? font.fName.trim() : '';
+      if (!family) return;
+      fonts.push({ name: family, target: { kind: 'font', path: ['fonts', 'list', i, 'fFamily'] } });
+    });
+  }
+
   texts.forEach((t, i) => {
     const id = `text${i + 1}`;
     const label: LottieNote = { id: 'lottie.param.text' };
@@ -392,8 +491,33 @@ export function lottieEditables(data: LottieData): LottieEditables {
     });
     bindings.push({ id, type: 'color', targets: c.targets, label, element, ...(description ? { description } : {}), ...(c.nameNote ? { nameNote: c.nameNote } : {}) });
   });
+  fonts.forEach((f, i) => {
+    const id = `font${i + 1}`;
+    const label: LottieNote = { id: 'lottie.param.font' };
+    const element: LottieNote = { id: 'lottie.element.fonts' };
+    const description: LottieNote = { id: 'lottie.param.font.description', values: { name: f.name } };
+    parameters.push({ id, type: 'font', label: SOURCE_TRANSLATOR(label.id), element: SOURCE_TRANSLATOR(element.id), description: SOURCE_TRANSLATOR(description.id, description.values), default: f.name });
+    bindings.push({ id, type: 'font', targets: [f.target], label, element, description });
+  });
   if (animatedTexts.length > 0) limits.push({ id: 'lottie.limit.animated-text', values: { layers: animatedTexts.join(', ') } });
   return { parameters, bindings, limits };
+}
+
+/** The Theme setting a dotLottie with themes gets: one of the looks the file carries, or the file as it is. */
+export function lottieThemeParameter(themes: readonly LottieTheme[], t: Translator = SOURCE_TRANSLATOR): TemplateParameter {
+  return {
+    id: LOTTIE_THEME_PARAM,
+    type: 'select',
+    label: t('lottie.theme'),
+    element: t('lottie.element.colors'),
+    description: t('lottie.theme.description'),
+    default: '',
+    options: [
+      { value: '', label: t('lottie.theme.none') },
+      // A theme's id is the file's own word, like a layer's name: shown as it is, tidied for reading.
+      ...themes.map((theme) => ({ value: theme.id, label: humanizeFileName(theme.id) })),
+    ],
+  };
 }
 
 /** The Fit setting every Lottie gets: how it sits in a frame of another shape or size, in a language. */
@@ -424,20 +548,43 @@ function setAt(root: unknown, path: LottiePath, value: unknown): void {
   if (o !== null && typeof o === 'object') (o as Record<string | number, unknown>)[path[path.length - 1]!] = value;
 }
 
+export interface ApplyLottieOptions {
+  /** The themes a dotLottie carries; `params.theme` picks one by id (milestone 35). */
+  themes?: readonly LottieTheme[];
+  /** Which animation of the archive this is, for theme rules scoped to some animations. */
+  animation?: string;
+  /**
+   * Each parameter's default. With a theme chosen, a parameter still at its
+   * default is left to the theme — writing the default back would undo the
+   * theme with the same color it replaced — and one a person changed wins.
+   */
+  defaults?: Record<string, unknown>;
+}
+
 /**
- * The document with parameter values written in: a deep copy, the original
- * untouched. Mirrors `applied` in the page script (src/core/lottie-page.ts):
- * change both or neither. Text uses Lottie's `\r` line breaks; a color's
- * alpha goes only where the file kept four components.
+ * The document with the chosen theme and the parameter values written in: a
+ * deep copy, the original untouched. The theme goes first — each rule is a
+ * slot's new value — and then the parameters over it. Mirrors `applied` in the
+ * page script (src/core/lottie-page.ts): change both or neither. Text uses
+ * Lottie's `\r` line breaks; a color's alpha goes only where the file kept
+ * four components; a font is a family name in the file's font list.
  */
-export function applyLottieParams(data: LottieData, bindings: readonly LottieBinding[], params: Record<string, unknown>): LottieData {
+export function applyLottieParams(data: LottieData, bindings: readonly LottieBinding[], params: Record<string, unknown>, options: ApplyLottieOptions = {}): LottieData {
   const copy = JSON.parse(JSON.stringify(data)) as LottieData;
+  const chosen = typeof params[LOTTIE_THEME_PARAM] === 'string' ? (options.themes ?? []).find((t) => t.id === params[LOTTIE_THEME_PARAM]) : undefined;
+  if (chosen) {
+    for (const rule of chosen.rules) {
+      if (rule.animations && options.animation !== undefined && !rule.animations.includes(options.animation)) continue;
+      setAt(copy, ['slots', rule.sid, 'p'], JSON.parse(JSON.stringify(rule.p)));
+    }
+  }
   for (const b of bindings) {
     const v = params[b.id];
     if (v === undefined || v === null) continue;
+    if (chosen && options.defaults && v === options.defaults[b.id]) continue;
     for (const t of b.targets) {
-      if (t.kind === 'text') {
-        setAt(copy, t.path, String(v).replace(/\r\n|\n/g, '\r'));
+      if (t.kind === 'text' || t.kind === 'font') {
+        setAt(copy, t.path, t.kind === 'font' ? String(v) : String(v).replace(/\r\n|\n/g, '\r'));
         continue;
       }
       const c = hexComponents(v);
@@ -610,6 +757,8 @@ export interface LottieManifestInput {
   id: string;
   name: string;
   format: LottieFormat;
+  /** The themes a dotLottie carries: a Theme parameter picks one (milestone 35). */
+  dotLottieThemes?: LottieTheme[];
   /** A built-in type the folders named, if any. */
   type?: string;
   themes?: string[];
@@ -719,13 +868,25 @@ export function lottieManifest(doc: LottieDocumentMeta, input: LottieManifestInp
     aspects: [own, ...ASPECT_IDS.filter((a) => a !== own)],
     alpha: true,
     entry: 'index.html',
-    parameters: [...input.editables.parameters, lottieFitParameter()],
+    parameters: [
+      ...input.editables.parameters,
+      ...(input.dotLottieThemes && input.dotLottieThemes.length > 0 ? [lottieThemeParameter(input.dotLottieThemes)] : []),
+      lottieFitParameter(),
+    ],
   };
   return validateManifest(raw);
 }
 
 /** Everything the library keeps about the file beside its manifest. */
-export function lottieInfo(doc: LottieDocumentMeta, path: string, format: LottieFormat, bindings: LottieBinding[], limits: LottieNote[], animations?: string[]): LottieInfo {
+export function lottieInfo(
+  doc: LottieDocumentMeta,
+  path: string,
+  format: LottieFormat,
+  bindings: LottieBinding[],
+  limits: LottieNote[],
+  animations?: string[],
+  options: { animation?: string; themes?: LottieTheme[] } = {},
+): LottieInfo {
   return {
     path,
     format,
@@ -737,6 +898,8 @@ export function lottieInfo(doc: LottieDocumentMeta, path: string, format: Lottie
     markers: doc.markers,
     limits,
     ...(animations && animations.length > 1 ? { animations } : {}),
+    ...(options.animation !== undefined && animations && animations.length > 1 ? { animation: options.animation } : {}),
+    ...(options.themes && options.themes.length > 0 ? { themes: options.themes } : {}),
     bindings,
   };
 }

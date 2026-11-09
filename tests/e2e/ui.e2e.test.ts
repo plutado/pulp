@@ -8807,6 +8807,32 @@ describe.skipIf(!electron)('inspector UI', () => {
       await until(async () => { const f = await frameOf(); return (await previewPixel(Math.round(0.5 * f.width), Math.round(0.6481 * f.height), 'custom.twin-built')).join() === '0,255,0,255'; }, 'the parameter recoloring its layer');
       await leaveClean();
     }, 240_000);
+
+    it('saves a Lottie animation as a template folder through the File menu, reopened on the stage (milestone 35)', async () => {
+      // A bundled starter animation; the menu offers the save only while a Lottie is shown.
+      await fire('#search', 'check draw', 'input');
+      await clickResult('Check draw');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the animation on the stage');
+      const enabled = async () => (await page.eval<{ items: { label?: string; enabled?: boolean }[] }[]>(`window.pulp.menuSections()`)).flatMap((sec) => sec.items).find((i) => i.label === 'Save Animation as Template…')?.enabled;
+      await until(async () => (await enabled()) === true, 'the menu offering the save');
+      const savedDir = join(userData, 'saved-templates', 'My Check');
+      await page.eval(`window.pulpMenuCommand('lottie.saveTemplate', ${JSON.stringify(savedDir)})`);
+      await until(
+        () => page.eval<boolean>(`(document.getElementById('preview').getAttribute('src') || '').startsWith('pulp-template://custom.my-check/')`),
+        'the saved template reopened on the stage',
+        30_000,
+      );
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'its preview playing');
+      // A folder of ordinary files: the manifest under its new id, the page, the player beside it.
+      const manifest = JSON.parse(await readFile(join(savedDir, 'template.json'), 'utf8')) as { id: string; name: string; entry: string };
+      expect(manifest).toMatchObject({ id: 'custom.my-check', name: 'My Check', entry: 'index.html' });
+      expect(existsSync(join(savedDir, 'player.js'))).toBe(true);
+      expect(await readFile(join(savedDir, 'index.html'), 'utf8')).toContain('<script src="player.js"></script>');
+      // And it is not a Lottie item any more: the menu's save is for the file-born kind alone.
+      await until(async () => (await enabled()) === false, 'the menu done with the saved copy');
+      await fire('#search', '', 'input');
+      await leaveClean();
+    }, 180_000);
   });
   describe("the editor panel's bridge (milestone 54, ADR 0025)", () => {
     it('answers the library and the collection on loopback, and nothing without the token', async () => {

@@ -108,6 +108,11 @@ export const mainProcess = {
   'dialog.save-canvas.name-field': 'Template name',
   'dialog.save-canvas.folder-not-empty': '{folder} already holds files; a template is saved into a folder of its own.',
   'dialog.save-canvas.write-failed': 'Could not write the template: {reason}',
+  // ---------------------------------------------------------------- saving a Lottie as a template (src/main/lottie-service.ts, milestone 35)
+  'dialog.save-lottie.no-item': 'That item is not a Lottie animation in the library.',
+  'dialog.save-lottie.title': 'Save the animation as a template folder',
+  'dialog.save-lottie.read-failed': 'Could not read the animation: {reason}',
+  'dialog.save-lottie.note.image': 'The picture “{name}” could not be copied; the template looks for it beside itself.',
   // ---------------------------------------------------------------- clip clean-up (src/main/cleanup-service.ts)
   'cleanup.timeout': 'ffmpeg did not finish in time',
   'cleanup.not-a-clip': 'That item is not a clip in the library, or its folder is offline.',

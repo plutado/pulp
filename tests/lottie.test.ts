@@ -72,26 +72,65 @@ describe('parseLottie', () => {
 });
 
 describe('readDotLottie', () => {
-  it('reads the first animation the manifest lists, names the rest, and keeps the images', () => {
+  it('reads every animation the manifest lists, each in full, and keeps the images (milestone 35)', () => {
     const zip = dotLottieFixture({ first: lottieFixture({ frames: 30 }), second: lottieFixture({ frames: 90 }) }, { 'img_0.png': Buffer.from('png') }, { author: 'Someone' });
     const read = readDotLottie(zip);
     expect(read.document.outPoint).toBe(30);
-    expect(read.animations).toEqual(['first', 'second']);
+    expect(read.animations.map((a) => a.id)).toEqual(['first', 'second']);
+    expect(read.animations[1]!.document.outPoint).toBe(90);
     expect(read.author).toBe('Someone');
     expect(read.images.get('img_0.png')?.toString()).toBe('png');
-    expect(said(read.limits)).toEqual(['the archive holds 2 animations; the first (first) is shown']);
+    expect(said(read.limits)).toEqual([]);
   });
 
   it('finds the animation without a manifest, and refuses an archive without one', () => {
     const zip = dotLottieFixture({ only: lottieFixture() });
     const stripped = readDotLottie(zip);
-    expect(stripped.animations).toEqual(['only']);
+    expect(stripped.animations.map((a) => a.id)).toEqual(['only']);
     expect(() => readDotLottie(Buffer.from('not a zip at all, really not'))).toThrow(/not a zip/);
+  });
+
+  it('skips an animation that cannot be read and names it, and reads the rest', () => {
+    const zip = dotLottieFixture({ good: lottieFixture(), bad: { not: 'a lottie' } });
+    const read = readDotLottie(zip);
+    expect(read.animations.map((a) => a.id)).toEqual(['good']);
+    expect(said(read.limits)).toEqual(['animation “bad” could not be read']);
+  });
+
+  it('reads themes in full: static values, keyframes, scoped rules and the older map form (milestone 35)', () => {
+    const zip = dotLottieFixture({ only: lottieFixture({ withSlots: true }) }, {}, {}, {
+      dark: { rules: [
+        { id: 'accent', type: 'Color', value: [0, 0, 1] },
+        { id: 'size', type: 'Scalar', keyframes: [{ t: 0, s: [10] }, { t: 30, s: [20] }] },
+        { id: 'elsewhere', type: 'Color', value: [1, 1, 1], animations: ['another'] },
+        { id: 'poster', type: 'Image', value: { id: 'image_0' } },
+      ] },
+      flat: { accent: { p: { a: 0, k: [0.5, 0.5, 0.5] } } },
+      broken: 'not json rules at all',
+    });
+    const read = readDotLottie(zip);
+    expect(read.themes.map((t) => t.id)).toEqual(['dark', 'flat']);
+    expect(read.themes[0]!.rules).toEqual([
+      { sid: 'accent', p: { a: 0, k: [0, 0, 1] } },
+      { sid: 'size', p: { a: 1, k: [{ t: 0, s: [10] }, { t: 30, s: [20] }] } },
+      { sid: 'elsewhere', p: { a: 0, k: [1, 1, 1] }, animations: ['another'] },
+    ]);
+    expect(read.themes[1]!.rules).toEqual([{ sid: 'accent', p: { a: 0, k: [0.5, 0.5, 0.5] } }]);
+    // The Image rule cannot become a slot property and is named; the unreadable theme too.
+    expect(said(read.limits)).toEqual(['theme “broken” could not be read', 'theme rules the player cannot apply are skipped (dark: poster)']);
+  });
+
+  it('flattens a Gradient rule the way Lottie writes gradient stops', () => {
+    const zip = dotLottieFixture({ only: lottieFixture() }, {}, {}, {
+      grade: { rules: [{ id: 'wash', type: 'Gradient', value: [{ color: [1, 0, 0, 1], offset: 0 }, { color: [0, 0, 1, 0.5], offset: 1 }] }] },
+    });
+    const read = readDotLottie(zip);
+    expect(read.themes[0]!.rules[0]!.p).toEqual({ p: 2, k: { a: 0, k: [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0.5] } });
   });
 });
 
 describe('what the file exposes', () => {
-  it('finds the text layer, each distinct color once, and the solid', () => {
+  it('finds the text layer, each distinct color once, the solid, and the font the file names but does not carry', () => {
     const { parameters, bindings, limits } = lottieEditables(lottieFixture());
     expect(limits).toEqual([]);
     expect(parameters.map((p) => [p.id, p.type, p.label])).toEqual([
@@ -99,7 +138,12 @@ describe('what the file exposes', () => {
       ['color1', 'color', 'Headline text color'],
       ['color2', 'color', 'Square fill'],
       ['color3', 'color', 'Corner solid'],
+      ['font1', 'font', 'Font'],
     ]);
+    // The font parameter (milestone 35's last item): any family may stand in, so it names no options.
+    expect(parameters.at(-1)).toMatchObject({ default: 'Arial', element: 'Fonts' });
+    expect((parameters.at(-1) as { options?: string[] }).options).toBeUndefined();
+    expect(bindings.find((b) => b.id === 'font1')!.targets).toEqual([{ kind: 'font', path: ['fonts', 'list', 0, 'fFamily'] }]);
     expect(parameters[0]).toMatchObject({ element: 'Headline', default: 'HELLO' });
     expect(parameters[1]).toMatchObject({ default: '#ffffff', element: 'Colors' });
     expect(parameters[2]).toMatchObject({ default: '#ff0000' });
@@ -149,6 +193,37 @@ describe('what the file exposes', () => {
     expect(layers[2]!.sc).toBe('#123456');
     // The original is untouched.
     expect(((doc.layers as Record<string, unknown>[])[2]!).sc).toBe('#0000ff');
+  });
+
+  it('a file that carries its letters as glyphs offers no font to pick', () => {
+    const doc = lottieFixture();
+    doc.chars = [{ ch: 'H', fFamily: 'Arial', data: {} }];
+    expect(lottieEditables(doc).parameters.some((p) => p.type === 'font')).toBe(false);
+  });
+
+  it('writes a chosen font into the file\'s font list, where every text set in it reads it', () => {
+    const doc = lottieFixture();
+    const { bindings } = lottieEditables(doc);
+    const applied = applyLottieParams(doc, bindings, { font1: 'Inter' });
+    expect(((applied.fonts as Record<string, unknown>).list as Record<string, unknown>[])[0]!.fFamily).toBe('Inter');
+    expect(((doc.fonts as Record<string, unknown>).list as Record<string, unknown>[])[0]!.fFamily).toBe('Arial');
+  });
+
+  it('applies a chosen theme to the slots, a changed parameter over it, and leaves defaults to the theme', () => {
+    const doc = lottieFixture({ withSlots: true });
+    const { parameters, bindings } = lottieEditables(doc);
+    const defaults = Object.fromEntries(parameters.map((q) => [q.id, q.default]));
+    const accent = parameters.find((q) => q.label === 'accent fill')!;
+    const themes = [{ id: 'dark', rules: [{ sid: 'accent', p: { a: 0, k: [0, 0, 1] } }] }];
+    const slotColor = (d: Record<string, unknown>): unknown => (((d.slots as Record<string, unknown>).accent as Record<string, unknown>).p as Record<string, unknown>).k;
+    // At its default, the color is the theme's; changed, the person's choice wins.
+    expect(slotColor(applyLottieParams(doc, bindings, { ...defaults, theme: 'dark' }, { themes, defaults }))).toEqual([0, 0, 1]);
+    expect(slotColor(applyLottieParams(doc, bindings, { ...defaults, theme: 'dark', [accent.id]: '#00ff00' }, { themes, defaults }))).toEqual([0, 1, 0]);
+    // No theme chosen: the file as it is, the parameters as ever.
+    expect(slotColor(applyLottieParams(doc, bindings, { ...defaults, theme: '' }, { themes, defaults }))).toEqual([1, 0, 0]);
+    // A rule scoped to another animation is left out.
+    const scoped = [{ id: 'dark', rules: [{ sid: 'accent', p: { a: 0, k: [0, 0, 1] }, animations: ['other'] }] }];
+    expect(slotColor(applyLottieParams(doc, bindings, { ...defaults, theme: 'dark' }, { themes: scoped, defaults, animation: 'this' }))).toEqual([1, 0, 0]);
   });
 
   it('round-trips colors', () => {
@@ -204,11 +279,23 @@ describe('the manifest', () => {
     expect(m.aspects[0]).toBe('9:16'); // 376 × 668 is within a hundredth of 9:16
     expect(m.aspects).toEqual(expect.arrayContaining(['16:9', '9:16', '1:1', '4:5']));
     expect(m.tags).toEqual(['lottie', 'titles']);
-    expect(m.parameters.map((p) => p.id)).toEqual(['text1', 'color1', 'color2', 'color3', 'fit']);
+    expect(m.parameters.map((p) => p.id)).toEqual(['text1', 'color1', 'color2', 'color3', 'font1', 'fit']);
     expect(m.parameters.at(-1)).toMatchObject({ type: 'select', default: 'fit' });
     expect(m.description).toContain('375 × 667, 50 frames at 25 fps');
     expect(m.description).toContain('Markers: intro, loop, end');
     expect(m.description).toContain('Not drawn: 3D layers and cameras are drawn flat.');
+  });
+
+  it('offers a dotLottie\'s themes as a Theme setting, the file as it is first', () => {
+    const themed = lottieManifest(doc, { id: itemId('lottie:/lib/b.lottie'), name: 'Badge', format: 'lottie', editables, limits: [], dotLottieThemes: [{ id: 'dark-mode', rules: [{ sid: 'accent', p: { a: 0, k: [0, 0, 1] } }] }] });
+    expect(themed.ok).toBe(true);
+    if (!themed.ok) return;
+    const theme = themed.manifest.parameters.find((q) => q.id === 'theme')!;
+    expect(theme).toMatchObject({ type: 'select', label: 'Theme', element: 'Colors', default: '' });
+    expect((theme as { options: { value: string; label: string }[] }).options).toEqual([
+      { value: '', label: 'As the file is' },
+      { value: 'dark-mode', label: 'Dark mode' },
+    ]);
   });
 
   it('maps types to categories, and a file with none is "other"', () => {
@@ -253,6 +340,19 @@ describe('the page', () => {
     // The text that would close the script is escaped on the way in.
     expect(html.split('</script>')).toHaveLength(4);
     expect(inlineJson({ s: '</script>\u2028' })).toBe('{"s":"\\u003c/script>\\u2028"}');
+  });
+
+  it('carries the themes, the defaults and the animation, and a saved template loads the player beside itself', () => {
+    const doc = lottieFixture();
+    const html = lottiePageHtml({
+      name: 'Badge', data: doc, bindings: [], width: 100, height: 100, fps: 30, totalFrames: 60,
+      themes: [{ id: 'dark', rules: [{ sid: 'accent', p: { a: 0, k: [0, 0, 1] } }] }],
+      animation: 'first', defaults: { color1: '#ffffff' }, playerSrc: 'player.js',
+    });
+    expect(html).toContain('<script src="player.js"></script>');
+    expect(html).toContain('"themes":[{"id":"dark"');
+    expect(html).toContain('"animation":"first"');
+    expect(html).toContain('"defaults":{"color1":"#ffffff"}');
   });
 });
 
@@ -309,6 +409,34 @@ describe('in the library', () => {
       // And a file gone is removed.
       await rm(join(root, 'icon.lottie'));
       expect((await store.scanRoots([root])).removed).toBe(1);
+    } finally {
+      store.close();
+    }
+  });
+
+  it('lists every animation of an archive as an item of its own, the first under the file\'s key (milestone 35)', async () => {
+    const file = join(root, 'stickers.lottie');
+    await writeFile(file, dotLottieFixture({ wave: lottieFixture({ frames: 30 }), clap: lottieFixture({ frames: 90 }) }));
+    const store = new LibraryStore(':memory:');
+    try {
+      store.setRoots([root]);
+      await store.scanRoots([root]);
+      const index = store.toIndex();
+      const byName = new Map(index.templates.map((t) => [t.manifest.name, t]));
+      expect([...byName.keys()].sort()).toEqual(['Stickers · Clap', 'Stickers · Wave']);
+      expect(byName.get('Stickers · Wave')!).toMatchObject({ lottie: { animation: 'wave' }, manifest: { duration: 1 } });
+      expect(byName.get('Stickers · Clap')!).toMatchObject({ lottie: { animation: 'clap' }, manifest: { duration: 3 } });
+      // The first keeps the file's own key and id, so nothing that named the item before changes.
+      expect(byName.get('Stickers · Wave')!.id).toBe(itemId(`lottie:${file}`));
+      expect(byName.get('Stickers · Clap')!.id).toBe(itemId(`lottie:${file}#clap`));
+      expect(new Set(index.templates.map((t) => t.manifest.id)).size).toBe(2);
+      // An unchanged rescan keeps both without re-reading the archive.
+      const again = await store.scanRoots([root]);
+      expect(again).toMatchObject({ loaded: 0, kept: 1, removed: 0 });
+      expect(store.toIndex().templates).toHaveLength(2);
+      // The file gone takes both with it.
+      await rm(file);
+      expect((await store.scanRoots([root])).removed).toBe(2);
     } finally {
       store.close();
     }

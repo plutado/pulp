@@ -23,7 +23,8 @@ import { mediaUrlFor } from '../../src/core/media-url';
 import { scanLibrary } from '../../src/core/library';
 import { SAMPLE_MEDIA, sampleAudioArgs, sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
-import { lottieManifestId } from '../../src/core/lottie';
+import { lottieEditables, lottieInfo, lottieManifest, lottieManifestId, parseLottie, prepareLottieData } from '../../src/core/lottie';
+import { LOTTIE_TEMPLATE_PLAYER, lottieTemplateFiles } from '../../src/core/lottie-template';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
 
 const ROOT = join(__dirname, '..', '..');
@@ -2738,5 +2739,100 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect(await pixels(first!, 56, 540)).toEqual([0, 255, 0, 255]);
       expect(await alphaAt(first!, 540, 100)).toBe(0);
     }, 180_000);
+
+    it('applies a dotLottie theme as a parameter, a changed color still winning over it (milestone 35)', async () => {
+      // A slotted square: the theme turns its red fill blue through the slot; color parameters at
+      // their defaults are left to the theme, and one the render changes wins over it.
+      const path = join(lib, 'themed.lottie');
+      await writeFile(path, dotLottieFixture(
+        { badge: lottieFixture({ fps: 10, frames: 10, withSlots: true }) },
+        {},
+        {},
+        { midnight: { rules: [{ id: 'accent', type: 'Color', value: [0, 0, 1] }] } },
+      ));
+      const id = lottieManifestId(itemId(`lottie:${path}`));
+      const themed = await render(id, 'png-sequence', 'lottie-theme', { extra: ['--library', lib, '--out-point', '0', '--param', 'theme=midnight'] });
+      expect(themed.code, themed.stderr).toBe(0);
+      expect(await pixels((await frameFiles('lottie-theme'))[0]!, 100, 540)).toEqual([0, 0, 255, 255]);
+      const edited = await render(id, 'png-sequence', 'lottie-theme-edit', { extra: ['--library', lib, '--out-point', '0', '--param', 'theme=midnight', '--param', 'color1=#00ff00'] });
+      expect(edited.code, edited.stderr).toBe(0);
+      expect(await pixels((await frameFiles('lottie-theme-edit'))[0]!, 100, 540)).toEqual([0, 255, 0, 255]);
+    }, 180_000);
+
+    it('renders each animation of a multi-animation archive as an item of its own (milestone 35)', async () => {
+      const path = join(lib, 'pair.lottie');
+      await writeFile(path, dotLottieFixture({
+        red: lottieFixture({ fps: 10, frames: 10 }),
+        green: lottieFixture({ fps: 10, frames: 10, fill: [0, 1, 0] }),
+      }));
+      // The first animation keeps the file's own id; the second is keyed by the file plus its name.
+      const second = lottieManifestId(itemId(`lottie:${path}#green`));
+      const result = await render(second, 'png-sequence', 'lottie-second', { extra: ['--library', lib, '--out-point', '0'] });
+      expect(result.code, result.stderr).toBe(0);
+      expect(await pixels((await frameFiles('lottie-second'))[0]!, 100, 540)).toEqual([0, 255, 0, 255]);
+      const first = await render(lottieManifestId(itemId(`lottie:${path}`)), 'png-sequence', 'lottie-first', { extra: ['--library', lib, '--out-point', '0'] });
+      expect(first.code, first.stderr).toBe(0);
+      expect(await pixels((await frameFiles('lottie-first'))[0]!, 100, 540)).toEqual([255, 0, 0, 255]);
+    }, 240_000);
+
+    it('draws text in the family a font parameter picks (milestone 35)', async () => {
+      // The fixture asks for Arial and does not carry it. Set in two bundled families of very
+      // different letterforms — a monospace and a handwritten script — the headline's ink must
+      // take different shapes, and each must differ from the fallback the bare file falls to:
+      // proof the picked family is what draws, whatever this machine has installed. Shapes, not
+      // widths: two faces at one size can span the same width and still share no letterform.
+      const headline = async (file: string) => {
+        const { stdout } = await runBoundedBuffer(ffmpeg, ffmpegArgs(['-v', 'error', '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-']), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+        // The headline's region only: y 60..300 at 120 px size; the square and solid sit lower.
+        const bits: boolean[] = [];
+        for (let y = 60; y < 300; y++) for (let x = 100; x < 800; x++) bits.push(stdout[(y * 1920 + x) * 4 + 3]! > 128);
+        return bits;
+      };
+      const ink = (bits: boolean[]) => bits.filter(Boolean).length;
+      const differs = (a: boolean[], b: boolean[]) => a.filter((bit, i) => bit !== b[i]).length;
+      for (const [name, param] of [['lottie-font-plain', []], ['lottie-font-mono', ['--param', 'font1=JetBrains Mono']], ['lottie-font-script', ['--param', 'font1=Caveat']]] as const) {
+        const run = await render(jsonId, 'png-sequence', name, { extra: ['--library', lib, '--out-point', '0', ...param] });
+        expect(run.code, run.stderr).toBe(0);
+      }
+      const plain = await headline((await frameFiles('lottie-font-plain'))[0]!);
+      const mono = await headline((await frameFiles('lottie-font-mono'))[0]!);
+      const script = await headline((await frameFiles('lottie-font-script'))[0]!);
+      expect(ink(plain), 'the headline is drawn').toBeGreaterThan(2000);
+      expect(ink(mono)).toBeGreaterThan(2000);
+      expect(ink(script)).toBeGreaterThan(2000);
+      // Each face shapes at least a third of some other's ink differently.
+      const floor = Math.min(ink(plain), ink(mono), ink(script)) / 3;
+      expect(differs(mono, script), 'mono and script are different faces').toBeGreaterThan(floor);
+      expect(differs(plain, mono), 'mono is not the fallback').toBeGreaterThan(floor);
+      expect(differs(plain, script), 'script is not the fallback').toBeGreaterThan(floor);
+    }, 240_000);
+
+    it('saves as an editable template folder that renders on its own (milestone 35)', async () => {
+      // The builder is pure, so the test writes the folder the way the save dialog's path does:
+      // the manifest, the generated page, and the player beside it — then renders it as a
+      // template, with no Lottie file behind it.
+      const doc = parseLottie(JSON.stringify(lottieFixture({ fps: 10, frames: 10 })));
+      const editables = lottieEditables(doc.data);
+      const made = lottieManifest(doc, { id: itemId('lottie:/x/box.json'), name: 'Box', format: 'json', editables, limits: [] });
+      expect(made.ok).toBe(true);
+      if (!made.ok) return;
+      const files = lottieTemplateFiles({
+        name: 'Saved Box',
+        manifest: made.manifest,
+        info: lottieInfo(doc, '/x/box.json', 'json', editables.bindings, []),
+        data: prepareLottieData(doc.data),
+      });
+      const folder = join(lib, 'Saved box template');
+      await mkdir(folder, { recursive: true });
+      await writeFile(join(folder, 'template.json'), files.manifest);
+      await writeFile(join(folder, 'index.html'), files.page);
+      await copyFile(join(ROOT, 'node_modules', 'lottie-web', 'build', 'player', 'lottie_light.min.js'), join(folder, LOTTIE_TEMPLATE_PLAYER));
+      const result = await render(files.templateId, 'png-sequence', 'lottie-saved', { extra: ['--library', lib, '--out-point', '0', '--param', 'color2=#00ffff'] });
+      expect(result.code, result.stderr).toBe(0);
+      const [first] = await frameFiles('lottie-saved');
+      // The same square, drawn by the saved folder, its parameters still live.
+      expect(await pixels(first!, 100, 540)).toEqual([0, 255, 255, 255]);
+      expect(await alphaAt(first!, 500, 540)).toBe(0);
+    }, 240_000);
   });
 });

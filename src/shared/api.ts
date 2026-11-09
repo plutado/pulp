@@ -449,6 +449,8 @@ export interface PulpApi {
    * The notes say what could not travel: a template never ships a library id.
    */
   saveCanvasTemplate(request: { layers: LayerValues; expose: ExposedParam[]; length: number; dir?: string }): Promise<SaveCanvasResult>;
+  /** A Lottie item saved as an editable template folder (milestone 35's last item); the dialog asks where unless `dir` says. */
+  saveLottieTemplate(request: { id: string; dir?: string }): Promise<SaveCanvasResult>;
   /** The panel asked for an item to be shown, or a collection card opened for editing (milestone 54's third item). */
   onPanelOpen(listener: (target: { kind: 'item'; id: string } | { kind: 'collection'; uid: string }) => void): () => void;
   speechStatus(request?: { model?: string }): Promise<SpeechStatus>;

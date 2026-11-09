@@ -149,7 +149,7 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
 export function lottieRows(info: LottieInfo): InfoRow[] {
   const rows: InfoRow[] = [{ label: tr('info.row.source'), value: lottieFormatLabel(info.format) }];
   if (info.width % 2 !== 0 || info.height % 2 !== 0) rows.push({ label: tr('info.row.own-size'), value: tr('info.value.own-size', { size: dimensionsLabel(info.width, info.height) }) });
-  if (info.animations && info.animations.length > 1) rows.push({ label: tr('info.row.animations'), value: tr('info.value.animations', { count: info.animations.length, first: info.animations[0]! }) });
+  if (info.animations && info.animations.length > 1) rows.push({ label: tr('info.row.animations'), value: tr('info.value.animations', { count: info.animations.length, name: info.animation ?? info.animations[0]! }) });
   if (info.markers.length > 0) {
     rows.push({
       label: tr('info.row.markers'),

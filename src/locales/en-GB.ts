@@ -126,7 +126,7 @@ export const enGB: Catalog = {
   'pack.export.canceled': 'Export cancelled.',
   'about.credits': 'Built on Electron, Chromium and open-source work under their own licences: Help → Acknowledgements.',
   // ---------------------------------------------------------------- what Pulp writes about a Lottie file (src/locales/en-US/library.ts)
-  'lottie.limit.themes': 'its themes are not read; colours are edited one by one',
+  'lottie.theme.description': 'One of the looks the file carries. A colour changed below wins over the theme.',
   'lottie.param.color.text': '{name} text colour',
   'lottie.element.colors': 'Colours',
   'lottie.fit.center': 'Its own size, centred',

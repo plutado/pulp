@@ -446,6 +446,16 @@ function inputFor(param: TemplateParameter): HTMLElement {
     }
     case 'select':
     case 'font': {
+      // A font parameter that names no fixed options takes any family, so it gets the full
+      // picker — the bundled families, imports, the template's own — the way a text layer does
+      // (milestone 35: a Lottie's fonts). One with options is a choice among them, a select.
+      if (param.type === 'font' && !param.options) {
+        const picker = familyPicker(String(value), (stack) => {
+          onChange(stack);
+          commitParams();
+        });
+        return picker;
+      }
       const options =
         param.type === 'select'
           ? param.options

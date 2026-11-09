@@ -51,6 +51,7 @@ export const menu = {
   'menu.project.new': 'New Project',
   'menu.canvas.new': 'New Blank Canvas',
   'menu.canvas.saveTemplate': 'Save as Template…',
+  'menu.lottie.saveTemplate': 'Save Animation as Template…',
   'menu.project.open': 'Open…',
   'menu.open-recent': 'Open Recent',
   'menu.project.save': 'Save',

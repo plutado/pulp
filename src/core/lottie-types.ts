@@ -22,10 +22,11 @@ export type LottiePath = (string | number)[];
 /**
  * One place a parameter writes to. `text` is a text document's string; `rgb`
  * and `rgba` are a static color's components in 0..1 (as many as the file
- * had); `hex` is a solid layer's `#rrggbb` string.
+ * had); `hex` is a solid layer's `#rrggbb` string; `font` is a family name in
+ * the file's font list, which every text set in that font draws with.
  */
 export interface LottieTarget {
-  kind: 'text' | 'rgb' | 'rgba' | 'hex';
+  kind: 'text' | 'rgb' | 'rgba' | 'hex' | 'font';
   path: LottiePath;
 }
 
@@ -42,7 +43,7 @@ export interface LottieNote {
 /** A parameter of the synthesized manifest and everywhere its value lands. */
 export interface LottieBinding {
   id: string;
-  type: 'text' | 'color';
+  type: 'text' | 'color' | 'font';
   targets: LottieTarget[];
   /** The parameter's label, its help and its card, where Pulp named them rather than the file. */
   label?: LottieNote;
@@ -51,6 +52,27 @@ export interface LottieBinding {
   /** A color's name when Pulp gave it ("Layer 3"), so its label can be said again in another language. */
   nameNote?: LottieNote;
 }
+
+/**
+ * One rule of a dotLottie theme: the property to put at `slots[sid].p` when
+ * the theme is chosen, already in Lottie's own animated-property shape.
+ * `animations` scopes a rule to some of the archive's animations; absent, it
+ * applies to all of them (the dotLottie theming format).
+ */
+export interface LottieThemeRule {
+  sid: string;
+  p: unknown;
+  animations?: string[];
+}
+
+/** A theme a dotLottie archive carries: a named set of slot values. */
+export interface LottieTheme {
+  id: string;
+  rules: LottieThemeRule[];
+}
+
+/** The parameter that picks one of a dotLottie's themes; empty means the file as it is. */
+export const LOTTIE_THEME_PARAM = 'theme';
 
 export interface LottieMarker {
   name: string;
@@ -74,8 +96,12 @@ export interface LottieInfo {
   markers: LottieMarker[];
   /** Features the player cannot draw, named rather than dropped silently. */
   limits: LottieNote[];
-  /** Every animation a `.lottie` holds, by id, when there is more than one; the first is the one shown. */
+  /** Every animation a `.lottie` holds, by id, when there is more than one; each is an item of its own (milestone 35). */
   animations?: string[];
+  /** Which of the archive's animations this entry shows, when it holds more than one. */
+  animation?: string;
+  /** The themes a dotLottie carries, read in full: a Theme parameter picks one (milestone 35). */
+  themes?: LottieTheme[];
   bindings: LottieBinding[];
 }
 

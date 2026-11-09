@@ -11,7 +11,7 @@ import { type TemplateManifest, MANIFEST_FILENAME, parseManifest } from './manif
 import type { TemplateSound } from './template-sound';
 import type { LibraryProblem, MediaKind, TemplateEntry } from './library-types';
 import { normalizeTag } from './tags';
-import type { LottieNote } from './lottie-types';
+import type { LottieNote, LottieTheme } from './lottie-types';
 import { humanizeFileName, lottieEditables, lottieExtras, lottieInfo, lottieLimits, lottieManifest, parseLottie, readDotLottie, sniffLottieJson, type LottieDocument } from './lottie';
 import type { LottieFormat } from './lottie-types';
 import { inferTemplateType, inferThemes } from './taxonomy';
@@ -236,13 +236,21 @@ export async function sniffLottieFile(path: string): Promise<boolean> {
   }
 }
 
+/** The key an archive's further animations are stored under: the file's key, then the animation's id (milestone 35). */
+export function lottieAnimationKey(fileKey: string, animationId: string): string {
+  return `${fileKey}#${animationId}`;
+}
+
 /**
- * Read a Lottie file — a `.json` or a `.lottie` archive — as a template entry:
- * the manifest made from the file, its editable text and colors as
- * parameters, its type and themes from its folders as a clip's would be.
- * Problems are returned, not thrown, as `loadTemplate` returns them.
+ * Read a Lottie file — a `.json` or a `.lottie` archive — as template entries:
+ * the manifest made from the file, its editable text, colors and fonts as
+ * parameters, its type and themes from its folders as a clip's would be. An
+ * archive holding several animations yields one entry per animation
+ * (milestone 35); the first keeps the file's own key, so nothing that named
+ * the item before changes. Problems are returned, not thrown, as
+ * `loadTemplate` returns them.
  */
-export async function loadLottie(path: string, root: string, folderSegments: readonly string[], builtInRoot?: string): Promise<TemplateEntry | LibraryProblem> {
+export async function loadLottie(path: string, root: string, folderSegments: readonly string[], builtInRoot?: string): Promise<TemplateEntry[] | LibraryProblem> {
   let info;
   try {
     info = await stat(path);
@@ -250,54 +258,68 @@ export async function loadLottie(path: string, root: string, folderSegments: rea
     return { path, message: tr('library.problem.file-unreadable', { reason: (err as Error).message }) };
   }
   const format: LottieFormat = extname(path).toLowerCase() === '.lottie' ? 'lottie' : 'json';
-  let document: LottieDocument;
-  let animations: string[] | undefined;
+  let documents: { id?: string; document: LottieDocument }[];
+  let animationIds: string[] | undefined;
+  let dotLottieThemes: LottieTheme[] = [];
   let author: string | undefined;
-  const limits: LottieNote[] = [];
+  const archiveLimits: LottieNote[] = [];
   try {
     if (format === 'lottie') {
       const archive = readDotLottie(await readFile(path));
-      document = archive.document;
-      animations = archive.animations;
+      documents = archive.animations;
+      animationIds = archive.animations.map((a) => a.id);
+      dotLottieThemes = archive.themes;
       author = archive.author;
-      limits.push(...archive.limits);
+      archiveLimits.push(...archive.limits);
     } else {
-      document = parseLottie(await readFile(path, 'utf8'));
+      documents = [{ document: parseLottie(await readFile(path, 'utf8')) }];
     }
   } catch (err) {
     return { path, message: tr('library.problem.lottie-unreadable', { reason: (err as Error).message }) };
   }
-  const extras = lottieExtras(document.data);
-  const editables = lottieEditables(document.data);
-  limits.push(...lottieLimits(document.data), ...editables.limits);
-  const key = itemKey('lottie', path, builtInRoot);
-  const id = itemId(key);
+  const fileKey = itemKey('lottie', path, builtInRoot);
   const type = inferTemplateType(folderSegments);
   const themes = inferThemes(folderSegments);
-  const result = lottieManifest(document, {
-    id,
-    name: humanizeFileName(basename(path)),
-    format,
-    ...(type ? { type } : {}),
-    themes,
-    tags: [...folderSegments],
-    ...(author ? { author } : {}),
-    extras,
-    editables,
-    limits,
-  });
-  if (!result.ok) return { path, message: tr('library.problem.lottie-invalid'), issues: result.errors };
-  return {
-    kind: 'template',
-    key,
-    id,
-    dir: dirname(path),
-    root,
-    size: info.size,
-    mtimeMs: info.mtimeMs,
-    manifest: result.manifest,
-    tags: unique([...result.manifest.tags, ...folderSegments]),
-    warnings: result.warnings,
-    lottie: lottieInfo(document, path, format, editables.bindings, limits, animations),
-  };
+  const fileName = humanizeFileName(basename(path));
+  const entries: TemplateEntry[] = [];
+  for (const [index, { id: animationId, document }] of documents.entries()) {
+    const extras = lottieExtras(document.data);
+    const editables = lottieEditables(document.data);
+    const limits = [...archiveLimits, ...lottieLimits(document.data), ...editables.limits];
+    const key = index === 0 ? fileKey : lottieAnimationKey(fileKey, animationId!);
+    const id = itemId(key);
+    // An archive of several is a set: each item is named by its animation, under the file's name.
+    const name = documents.length > 1 ? `${fileName} · ${humanizeFileName(animationId!)}` : fileName;
+    const result = lottieManifest(document, {
+      id,
+      name,
+      format,
+      ...(type ? { type } : {}),
+      themes,
+      tags: [...folderSegments],
+      ...(author ? { author } : {}),
+      extras,
+      editables,
+      limits,
+      ...(dotLottieThemes.length > 0 ? { dotLottieThemes } : {}),
+    });
+    if (!result.ok) return { path, message: tr('library.problem.lottie-invalid'), issues: result.errors };
+    entries.push({
+      kind: 'template',
+      key,
+      id,
+      dir: dirname(path),
+      root,
+      size: info.size,
+      mtimeMs: info.mtimeMs,
+      manifest: result.manifest,
+      tags: unique([...result.manifest.tags, ...folderSegments]),
+      warnings: result.warnings,
+      lottie: lottieInfo(document, path, format, editables.bindings, limits, animationIds, {
+        ...(animationId !== undefined ? { animation: animationId } : {}),
+        ...(dotLottieThemes.length > 0 ? { themes: dotLottieThemes } : {}),
+      }),
+    });
+  }
+  return entries;
 }

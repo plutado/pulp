@@ -21,8 +21,8 @@
 import { translator, SOURCE_LOCALE, type LocaleId, type Translator } from './i18n';
 import type { LibraryIndex, TemplateEntry } from './library-types';
 import type { TemplateManifest, TemplateParameter } from './manifest';
-import { humanizeFileName, lottieDescription, lottieFitParameter } from './lottie';
-import { LOTTIE_FIT_PARAM, type LottieInfo } from './lottie-types';
+import { humanizeFileName, lottieDescription, lottieFitParameter, lottieThemeParameter } from './lottie';
+import { LOTTIE_FIT_PARAM, LOTTIE_THEME_PARAM, type LottieInfo } from './lottie-types';
 import { de } from '../locales/library/de';
 import { zhCN } from '../locales/library/zh-CN';
 
@@ -69,6 +69,7 @@ export function localizeLottieManifest(manifest: TemplateManifest, info: LottieI
     description: lottieDescription(info, info.limits, t),
     parameters: manifest.parameters.map((p) => {
       if (p.id === LOTTIE_FIT_PARAM) return { ...lottieFitParameter(t), default: p.default } as TemplateParameter;
+      if (p.id === LOTTIE_THEME_PARAM && info.themes) return { ...lottieThemeParameter(info.themes, t), default: p.default } as TemplateParameter;
       const b = byId.get(p.id);
       if (!b) return p;
       const q = { ...p } as TemplateParameter & { description?: string; element?: string };

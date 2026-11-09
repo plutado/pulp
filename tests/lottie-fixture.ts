@@ -112,13 +112,29 @@ export function lottieFixture(options: LottieFixtureOptions = {}): Record<string
   return doc;
 }
 
-/** A `.lottie` archive holding the fixture (and any more animations), with a manifest and optional images. */
-export function dotLottieFixture(animations: Record<string, Record<string, unknown>>, images: Record<string, Buffer> = {}, manifestExtra: Record<string, unknown> = {}): Buffer {
+/** A `.lottie` archive holding the fixture (and any more animations), with a manifest, optional images and optional themes. */
+export function dotLottieFixture(
+  animations: Record<string, Record<string, unknown>>,
+  images: Record<string, Buffer> = {},
+  manifestExtra: Record<string, unknown> = {},
+  themes: Record<string, unknown> = {},
+): Buffer {
   const ids = Object.keys(animations);
+  const themeIds = Object.keys(themes);
   const entries = [
-    { name: 'manifest.json', data: Buffer.from(JSON.stringify({ version: '1.0', generator: 'pulp tests', animations: ids.map((id) => ({ id })), ...manifestExtra })) },
+    {
+      name: 'manifest.json',
+      data: Buffer.from(JSON.stringify({
+        version: '1.0',
+        generator: 'pulp tests',
+        animations: ids.map((id) => ({ id })),
+        ...(themeIds.length > 0 ? { themes: themeIds.map((id) => ({ id })) } : {}),
+        ...manifestExtra,
+      })),
+    },
     ...ids.map((id) => ({ name: `animations/${id}.json`, data: Buffer.from(JSON.stringify(animations[id])) })),
     ...Object.entries(images).map(([name, data]) => ({ name: `images/${name}`, data })),
+    ...themeIds.map((id) => ({ name: `themes/${id}.json`, data: Buffer.from(JSON.stringify(themes[id])) })),
   ];
   return writeZip(entries);
 }

@@ -75,6 +75,25 @@ async function saveCanvasAsTemplate(dirArg: string | null): Promise<void> {
   for (const note of result.notes) sayInTray(note);
   savedTemplateOpener(result.templateId);
 }
+
+/**
+ * The shown Lottie animation, saved as an editable template folder (milestone
+ * 35's last item): the main process asks where (or a test's argument says),
+ * writes the folder — the manifest, the generated page, the player, the
+ * pictures — and adds it to the library; a picture that could not travel is
+ * said in the tray. The new template is then shown, like a saved canvas.
+ */
+async function saveLottieAsTemplate(dirArg: string | null): Promise<void> {
+  const selected = selectedTemplate.value;
+  if (!selected?.lottie) return;
+  const result = await window.pulp.saveLottieTemplate({ id: selected.manifest.id, ...(dirArg ? { dir: dirArg } : {}) });
+  if (!result.ok) {
+    if (!result.cancelled) sayInTray(result.message);
+    return;
+  }
+  for (const note of result.notes) sayInTray(note);
+  savedTemplateOpener(result.templateId);
+}
 import { diagnosticsText } from '../core/log';
 import { performanceLines } from '../core/perf';
 import { windowPerformance } from './perf';
@@ -126,6 +145,7 @@ function run(command: MenuCommand, arg: string | null): void {
     // The blank canvas (milestone 55): the bundled template to compose on, shown as a click on it would.
     case 'canvas.new': openBlankCanvas(); return;
     case 'canvas.saveTemplate': void saveCanvasAsTemplate(arg); return;
+    case 'lottie.saveTemplate': void saveLottieAsTemplate(arg); return;
     case 'project.open': void openProjectFrom(null); return;
     case 'project.openRecent': if (arg) void openProjectFrom(arg); return;
     case 'project.save': void saveProject(); return;
@@ -259,6 +279,7 @@ function readState(recent: string[]): MenuState {
     ...currentLayerFacts(),
     keyframing: recording(),
     canSaveCanvas: selectedTemplate.value?.manifest.id === BLANK_CANVAS_ID,
+    canSaveLottie: selectedTemplate.value?.lottie !== undefined,
     recent,
   };
 }

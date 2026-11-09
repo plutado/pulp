@@ -32,6 +32,7 @@ export type MenuCommand =
   | 'project.new'
   | 'canvas.new'
   | 'canvas.saveTemplate'
+  | 'lottie.saveTemplate'
   | 'help.setup'
   | 'project.open'
   | 'project.openRecent'
@@ -188,6 +189,8 @@ export interface MenuState {
   keyframing: boolean;
   /** The blank canvas is on the stage, so what is composed on it can be saved as a template (milestone 55). */
   canSaveCanvas: boolean;
+  /** A Lottie animation is shown: it can be saved as an editable template folder (milestone 35). */
+  canSaveLottie: boolean;
   /** The selected layer plays a clip, so another can be chosen for it. */
   canReplaceClip: boolean;
   /** A layer is selected: there is something to copy, duplicate, time or reset. */
@@ -246,6 +249,7 @@ export const EMPTY_MENU_STATE: MenuState = {
   canExposeColor: false,
   keyframing: false,
   canSaveCanvas: false,
+  canSaveLottie: false,
   canReplaceClip: false,
   canEditLayer: false,
   canDeleteLayer: false,
@@ -529,6 +533,8 @@ export function buildMenu(options: MenuOptions): MenuSection[] {
       { command: 'canvas.new', label: t('menu.canvas.new'), accelerator: 'CmdOrCtrl+Shift+N' },
       // And its other end (milestone 55): what was composed on the canvas, saved in the open format.
       { command: 'canvas.saveTemplate', label: t('menu.canvas.saveTemplate'), enabledBy: 'canSaveCanvas' },
+      // And a Lottie animation saved as an editable template folder (milestone 35's last item).
+      { command: 'lottie.saveTemplate', label: t('menu.lottie.saveTemplate'), enabledBy: 'canSaveLottie' },
       { command: 'project.open', label: t('menu.project.open'), accelerator: 'CmdOrCtrl+O' },
       { label: t('menu.open-recent'), submenu: recentSubmenu(state.recent, t) },
       sep,

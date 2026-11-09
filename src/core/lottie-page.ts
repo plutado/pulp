@@ -10,7 +10,7 @@
  * Pure: a string in, a string out. The script is plain ES2017 like the bridge.
  */
 
-import type { LottieBinding } from './lottie-types';
+import type { LottieBinding, LottieTheme } from './lottie-types';
 import { LOTTIE_PLAYER_PATH } from './lottie-types';
 
 export interface LottiePageInput {
@@ -23,6 +23,14 @@ export interface LottiePageInput {
   fps: number;
   /** Frames the animation runs for: out point less in point. */
   totalFrames: number;
+  /** The themes a dotLottie carries, for the Theme parameter (milestone 35). */
+  themes?: readonly LottieTheme[];
+  /** Which animation of the archive this is, for theme rules scoped to some animations. */
+  animation?: string;
+  /** Each parameter's default: with a theme chosen, a value still at its default is left to the theme. */
+  defaults?: Record<string, unknown>;
+  /** Where the player script is: the reserved path for a library item, `player.js` beside a saved template folder. */
+  playerSrc?: string;
 }
 
 /**
@@ -48,14 +56,27 @@ export const LOTTIE_PAGE_SCRIPT = `(function () {
     var n = parseInt(m[1], 16);
     return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255, a: m[2] ? parseInt(m[2], 16) / 255 : 1, hex: '#' + m[1].toLowerCase() };
   }
-  /* Mirrors applyLottieParams in src/core/lottie.ts, the copy with unit tests: change both or neither. */
+  /* Mirrors applyLottieParams in src/core/lottie.ts, the copy with unit tests: change both or neither.
+     The chosen theme goes first — each rule a slot's new value — then the parameters over it; with a
+     theme on, a parameter still at its default is left to the theme, and one a person changed wins. */
   function applied(params) {
     var data = JSON.parse(cfg.json);
+    var chosen = null;
+    if (params && typeof params.theme === 'string' && cfg.themes) {
+      for (var i = 0; i < cfg.themes.length; i++) if (cfg.themes[i].id === params.theme) chosen = cfg.themes[i];
+    }
+    if (chosen) {
+      chosen.rules.forEach(function (rule) {
+        if (rule.animations && cfg.animation !== undefined && rule.animations.indexOf(cfg.animation) < 0) return;
+        setAt(data, ['slots', rule.sid, 'p'], JSON.parse(JSON.stringify(rule.p)));
+      });
+    }
     cfg.bindings.forEach(function (b) {
       var v = params ? params[b.id] : undefined;
       if (v === undefined || v === null) return;
+      if (chosen && cfg.defaults && v === cfg.defaults[b.id]) return;
       b.targets.forEach(function (t) {
-        if (t.kind === 'text') { setAt(data, t.path, String(v).replace(/\\r\\n|\\n/g, '\\r')); return; }
+        if (t.kind === 'text' || t.kind === 'font') { setAt(data, t.path, t.kind === 'font' ? String(v) : String(v).replace(/\\r\\n|\\n/g, '\\r')); return; }
         var c = hexComponents(v);
         if (!c) return;
         if (t.kind === 'hex') setAt(data, t.path, c.hex);
@@ -64,6 +85,19 @@ export const LOTTIE_PAGE_SCRIPT = `(function () {
       });
     });
     return data;
+  }
+  /* The families the document asks for, loaded before the player draws: SVG text starts a font
+     load by itself, but the first frame would be captured in the fallback. Bounded, as the
+     bridge's font wait is: a family that is nowhere must not stop the frame. */
+  function loadFonts(data) {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var list = data.fonts && Array.isArray(data.fonts.list) ? data.fonts.list : [];
+    var pending = [];
+    list.forEach(function (f) {
+      if (f && typeof f.fFamily === 'string' && f.fFamily) pending.push(document.fonts.load('16px "' + f.fFamily.replace(/"/g, '') + '"').then(null, function () { return null; }));
+    });
+    if (pending.length === 0) return Promise.resolve();
+    return Promise.race([Promise.all(pending), new Promise(function (resolve) { setTimeout(resolve, 3000); })]);
   }
   function place(fit, width, height) {
     if (fit === 'center') {
@@ -84,16 +118,17 @@ export const LOTTIE_PAGE_SCRIPT = `(function () {
     return new Promise(function (resolve, reject) {
       if (!window.lottie || typeof window.lottie.loadAnimation !== 'function') { reject(new Error('the Lottie player did not load')); return; }
       var settled = false;
+      var data = applied(params);
       var item = window.lottie.loadAnimation({
         container: container,
         renderer: 'svg',
         loop: false,
         autoplay: false,
-        animationData: applied(params),
+        animationData: data,
         rendererSettings: { preserveAspectRatio: fit === 'fill' ? 'xMidYMid slice' : 'xMidYMid meet', progressiveLoad: false, hideOnTransparent: true }
       });
       anim = item;
-      item.addEventListener('DOMLoaded', function () { if (!settled) { settled = true; resolve(item); } });
+      item.addEventListener('DOMLoaded', function () { if (!settled) { settled = true; loadFonts(data).then(function () { resolve(item); }); } });
       item.addEventListener('data_failed', function () { if (!settled) { settled = true; reject(new Error('the animation could not be read by the player')); } });
       item.addEventListener('error', function (e) {
         if (settled) return;
@@ -136,6 +171,9 @@ export function lottiePageHtml(input: LottiePageInput): string {
     height: input.height,
     fps: input.fps,
     totalFrames: input.totalFrames,
+    ...(input.themes && input.themes.length > 0 ? { themes: input.themes } : {}),
+    ...(input.animation !== undefined ? { animation: input.animation } : {}),
+    ...(input.defaults ? { defaults: input.defaults } : {}),
   });
   return [
     '<!doctype html>',
@@ -144,7 +182,7 @@ export function lottiePageHtml(input: LottiePageInput): string {
     '<style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent}',
     '#pulp-lottie{position:absolute;left:0;top:0;width:100%;height:100%}#pulp-lottie svg{display:block}</style>',
     '</head><body><div id="pulp-lottie"></div>',
-    `<script src="/${LOTTIE_PLAYER_PATH}"></script>`,
+    `<script src="${input.playerSrc ?? `/${LOTTIE_PLAYER_PATH}`}"></script>`,
     `<script>window.__pulpLottie = ${config};</script>`,
     `<script>${LOTTIE_PAGE_SCRIPT}</script>`,
     '</body></html>',

@@ -34,6 +34,7 @@ import { deletePreset, listPresets, savePreset } from './preset-service';
 import { openCollectionFile, readCollectionFile, renderCollection, saveCollectionTo } from './collection-service';
 import { panelStatus, setEditorPanel, setPanelCollection, setPanelWindow, startPanelBridgeIfEnabled, stopPanelBridge } from './panel-service';
 import { saveCanvasTemplate, type SaveCanvasRequest } from './canvas-service';
+import { saveLottieTemplate, type SaveLottieRequest } from './lottie-service';
 import {
   clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
   recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
@@ -420,6 +421,7 @@ function registerIpc(): void {
 
   // The canvas saved as a template folder (milestone 55): the window sends the composition.
   ipcMain.handle('canvas:save-template', (_event, request: SaveCanvasRequest) => saveCanvasTemplate(request ?? {} as SaveCanvasRequest));
+  ipcMain.handle('lottie:save-template', (_event, request: SaveLottieRequest) => saveLottieTemplate(request ?? {} as SaveLottieRequest));
   // Projects (milestone 27).
   ipcMain.handle('project:save', (_event, project: Project, path: unknown, name: unknown) =>
     saveProjectTo(project, typeof path === 'string' && path ? path : null, String(name ?? '')));

@@ -18,7 +18,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { DatabaseSync } from 'node:sqlite';
 import { MANIFEST_FILENAME } from './manifest';
 import type { LibraryEntry, LibraryIndex, LibraryProblem, MediaEntry, TemplateEntry } from './library-types';
-import { folderTags, itemId, itemKey, loadLottie, loadTemplate, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
+import { folderTags, itemId, itemKey, loadLottie, loadTemplate, lottieAnimationKey, mediaKindForPath, SKIP_DIRECTORIES, sniffLottieFile, type PackContext } from './library-scan';
 import { isLottieCandidate } from './lottie';
 import { groupSequences, sequenceFrameName, sequenceKeyName } from './media-sequence';
 import { groupClipSetLayers, groupClipSets, type ClipSetFiles } from './clip-set';
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS user_items (
 // 4: templates re-read so pack defaults apply; 5: re-read so manifests carry aspects;
 // 6: the bundled library is keyed by its path inside the app, so every bundled item has a new id.
 // 7: a Lottie's limits and Pulp's labels kept as messages, so they are said in the interface's language.
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export class LibraryStore {
   private readonly db: DatabaseSync;
@@ -787,6 +787,14 @@ export class LibraryStore {
               const stored = existing.get(key);
               if (stored && stored.size === info.size && stored.mtime_ms === info.mtimeMs) {
                 seen.add(key);
+                // An archive of several animations is several entries (milestone 35): the
+                // siblings' keys are the file's key plus each animation's id, kept with it.
+                try {
+                  const was = JSON.parse(stored.entry) as TemplateEntry;
+                  for (const id of was.lottie?.animations?.slice(1) ?? []) seen.add(lottieAnimationKey(key, id));
+                } catch {
+                  // An unreadable stored row is read again next scan; nothing to keep seen.
+                }
                 fileCount += 1;
                 stats.visited += 1;
                 stats.kept += 1;
@@ -802,9 +810,11 @@ export class LibraryStore {
               stats.visited += 1;
               stats.loaded += 1;
               const loaded = await loadLottie(full, rootPath, folderTags(rootPath, dir), this.builtInRoot);
-              if ('kind' in loaded) {
-                seen.add(key);
-                upserts.push({ key, kind: 'template', size: info.size, mtimeMs: info.mtimeMs, entry: loaded });
+              if (Array.isArray(loaded)) {
+                for (const one of loaded) {
+                  seen.add(one.key);
+                  upserts.push({ key: one.key, kind: 'template', size: info.size, mtimeMs: info.mtimeMs, entry: one });
+                }
               } else problems.push(loaded);
               continue;
             }
