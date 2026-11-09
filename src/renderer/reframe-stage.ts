@@ -10,7 +10,7 @@
 import { aspectOf } from '../core/aspect';
 import { cutReframe, cutWindows, reframeCentreAt, trackSourceAt, withReframeKeyAt } from '../core/cut-track';
 import { tr } from '../core/i18n';
-import { clampCentre, coverWindowSize } from '../core/reframe';
+import { clampCenter, coverWindowSize } from '../core/reframe';
 import { layerEditor } from './layer-edit';
 import { appState } from './store';
 
@@ -51,9 +51,9 @@ export function reframeStageDraw(seconds: number, frame: { width: number; height
   const under = reframedUnderPlayhead(seconds, frame);
   handle.hidden = !under;
   if (!under) return;
-  const centre = reframeCentreAt(under.keys, under.source);
-  handle.dataset.x = String(centre.x);
-  handle.dataset.y = String(centre.y);
+  const center = reframeCentreAt(under.keys, under.source);
+  handle.dataset.x = String(center.x);
+  handle.dataset.y = String(center.y);
   handle.dataset.cut = String(under.index);
 }
 
@@ -72,7 +72,7 @@ export function mountReframeStage(frameEl: HTMLElement, h: Host): void {
   handle.setAttribute('aria-label', tr('reframe.handle'));
   handle.hidden = true;
   frameEl.append(handle);
-  let drag: { pointerId: number; startX: number; startY: number; centre: { x: number; y: number }; under: NonNullable<ReturnType<typeof reframedUnderPlayhead>>; clip: { width: number; height: number } } | null = null;
+  let drag: { pointerId: number; startX: number; startY: number; center: { x: number; y: number }; under: NonNullable<ReturnType<typeof reframedUnderPlayhead>>; clip: { width: number; height: number } } | null = null;
   handle.addEventListener('pointerdown', (e) => {
     if (!host) return;
     const frame = host.frameSize();
@@ -81,7 +81,7 @@ export function mountReframeStage(frameEl: HTMLElement, h: Host): void {
     if (!under || !clip) return;
     e.preventDefault();
     e.stopPropagation();
-    drag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, centre: reframeCentreAt(under.keys, under.source), under, clip };
+    drag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, center: reframeCentreAt(under.keys, under.source), under, clip };
     try {
       handle!.setPointerCapture(e.pointerId);
     } catch {
@@ -97,21 +97,21 @@ export function mountReframeStage(frameEl: HTMLElement, h: Host): void {
     const window = coverWindowSize(frame, drag.clip);
     const dx = ((e.clientX - drag.startX) / Math.max(1, rect.width)) * window.w;
     const dy = ((e.clientY - drag.startY) / Math.max(1, rect.height)) * window.h;
-    return clampCentre({ x: drag.centre.x - dx, y: drag.centre.y - dy }, window);
+    return clampCenter({ x: drag.center.x - dx, y: drag.center.y - dy }, window);
   };
   handle.addEventListener('pointermove', (e) => {
-    const centre = moved(e);
-    if (!centre || !drag) return;
+    const center = moved(e);
+    if (!center || !drag) return;
     const editor = layerEditor();
     if (!editor) return;
     // Live, uncommitted: the stage follows the hand frame by frame.
-    editor.setTrack(withReframeKeyAt(drag.under.track, drag.under.index, drag.under.aspect, { at: drag.under.source, ...centre }, host!.fps()), false);
+    editor.setTrack(withReframeKeyAt(drag.under.track, drag.under.index, drag.under.aspect, { at: drag.under.source, ...center }, host!.fps()), false);
   });
   handle.addEventListener('pointerup', (e) => {
-    const centre = moved(e);
-    if (!centre || !drag) return;
+    const center = moved(e);
+    if (!center || !drag) return;
     const editor = layerEditor();
-    if (editor) editor.setTrack(withReframeKeyAt(drag.under.track, drag.under.index, drag.under.aspect, { at: drag.under.source, ...centre }, host!.fps()), true);
+    if (editor) editor.setTrack(withReframeKeyAt(drag.under.track, drag.under.index, drag.under.aspect, { at: drag.under.source, ...center }, host!.fps()), true);
     drag = null;
   });
 }

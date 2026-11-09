@@ -201,10 +201,10 @@ export function coverWindowSize(frame: Size, clip: Size): { w: number; h: number
 }
 
 /** A center held to where the window stays inside the picture. */
-export function clampCentre(centre: { x: number; y: number }, window: { w: number; h: number }): { x: number; y: number } {
+export function clampCenter(center: { x: number; y: number }, window: { w: number; h: number }): { x: number; y: number } {
   return {
-    x: Math.min(1 - window.w / 2, Math.max(window.w / 2, centre.x)),
-    y: Math.min(1 - window.h / 2, Math.max(window.h / 2, centre.y)),
+    x: Math.min(1 - window.w / 2, Math.max(window.w / 2, center.x)),
+    y: Math.min(1 - window.h / 2, Math.max(window.h / 2, center.y)),
   };
 }
 
@@ -213,9 +213,9 @@ export function clampCentre(centre: { x: number; y: number }, window: { w: numbe
  * center: the stage draws it with `drawImage`, and the render's crop takes the
  * same rectangle scaled. Mirrored by `reframeCropFilter`: change both or neither.
  */
-export function coverWindow(frame: Size, clip: Size, centre: { x: number; y: number }): { x: number; y: number; width: number; height: number } {
+export function coverWindow(frame: Size, clip: Size, center: { x: number; y: number }): { x: number; y: number; width: number; height: number } {
   const size = coverWindowSize(frame, clip);
-  const c = clampCentre(centre, size);
+  const c = clampCenter(center, size);
   return { x: (c.x - size.w / 2) * clip.width, y: (c.y - size.h / 2) * clip.height, width: size.w * clip.width, height: size.h * clip.height };
 }
 
@@ -254,11 +254,11 @@ export function steadyPath(path: SubjectPath, options: SteadyOptions): { x: numb
       averaged.push({ x: wx / total, y: wy / total });
     }
     // The crop follows with a dead zone: it stays until the subject has strayed, then moves to it.
-    let centre = clampCentre(averaged[0]!, window);
+    let center = clampCenter(averaged[0]!, window);
     for (const target of averaged) {
-      const want = clampCentre(target, window);
-      if (Math.abs(want.x - centre.x) > dead || Math.abs(want.y - centre.y) > dead) centre = want;
-      out.push(centre);
+      const want = clampCenter(target, window);
+      if (Math.abs(want.x - center.x) > dead || Math.abs(want.y - center.y) > dead) center = want;
+      out.push(center);
     }
   }
   return out;
@@ -330,20 +330,20 @@ export function reframeCropFilter(frame: Size, keys: readonly ReframeKey[], time
     const out = axis === 'x' ? 'ow' : 'oh';
     const points = keys.map((k) => ({ t: timelineAt(k.at), v: k[axis] }));
     // One key, or none that differ: a constant.
-    let centre: string;
-    if (points.length <= 1) centre = num(points[0]?.v ?? 0.5);
+    let center: string;
+    if (points.length <= 1) center = num(points[0]?.v ?? 0.5);
     else {
       // From the last key back: if(lt(t,T1), lerp(0,1), if(lt(t,T2), lerp(1,2), ... Vn))
-      centre = num(points[points.length - 1]!.v);
+      center = num(points[points.length - 1]!.v);
       for (let i = points.length - 2; i >= 0; i--) {
         const a = points[i]!;
         const b = points[i + 1]!;
         const span = Math.max(1e-6, b.t - a.t);
         const lerp = `${num(a.v)}+(${num(b.v - a.v)})*clip((t-${num(a.t)})/${num(span)},0,1)`;
-        centre = `if(lt(t,${num(b.t)}),${lerp},${centre})`;
+        center = `if(lt(t,${num(b.t)}),${lerp},${center})`;
       }
     }
-    return `clip((${centre})*${dim}-${out}/2,0,${dim}-${out})`;
+    return `clip((${center})*${dim}-${out}/2,0,${dim}-${out})`;
   };
   return `scale=${frame.width}:${frame.height}:force_original_aspect_ratio=increase,crop=${frame.width}:${frame.height}:'${expr('x')}':'${expr('y')}'`;
 }

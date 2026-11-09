@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { cutReframe, reframeCentreAt, sanitizeCutTrack, withCutReframe, withReframeKeyAt } from '../src/core/cut-track';
 import { buildRenderPlan } from '../src/core/render-plan';
 import {
-  centredReframe, clampCentre, coverWindow, coverWindowSize, findSubject, frameDifference, reframeCropFilter, reframeKeysFrom, steadyPath, subjectPath,
+  centredReframe, clampCenter, coverWindow, coverWindowSize, findSubject, frameDifference, reframeCropFilter, reframeKeysFrom, steadyPath, subjectPath,
 } from '../src/core/reframe';
 import { rawManifest } from './fixtures';
 import { validateManifest } from '../src/core/manifest';
@@ -75,8 +75,8 @@ describe('a steady crop', () => {
     const w = coverWindowSize(frame, clip);
     expect(w.h).toBeCloseTo(1, 6);
     expect(w.w).toBeCloseTo(0.3164, 3); // (1080/1920) / (1920/1080)
-    expect(clampCentre({ x: 0, y: 0.5 }, w).x).toBeCloseTo(w.w / 2, 6);
-    expect(clampCentre({ x: 1, y: 0.5 }, w).x).toBeCloseTo(1 - w.w / 2, 6);
+    expect(clampCenter({ x: 0, y: 0.5 }, w).x).toBeCloseTo(w.w / 2, 6);
+    expect(clampCenter({ x: 1, y: 0.5 }, w).x).toBeCloseTo(1 - w.w / 2, 6);
     const win = coverWindow(frame, clip, { x: 0.5, y: 0.5 });
     expect(win).toMatchObject({ y: 0, height: 1080 });
     expect(win.x + win.width / 2).toBeCloseTo(960, 3);

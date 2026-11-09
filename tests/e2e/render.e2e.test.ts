@@ -869,7 +869,7 @@ describe.skipIf(!available)('end-to-end render', () => {
           last = Math.max(last, y);
         }
       }
-      return { total, first, last, centre: total === 0 ? -1 : weighted / total };
+      return { total, first, last, center: total === 0 ? -1 : weighted / total };
     };
 
     const one = ['--fps', '25', '--size', `${width}x${height}`, '--in-point', '75', '--out-point', '75'];
@@ -901,9 +901,9 @@ describe.skipIf(!available)('end-to-end render', () => {
     // middle of one: only the offset does, which is the thing being tested. Every comparison here
     // is either of that middle, or of a reach that a wider blur would only make truer.
     const middle = inkCentre(plain, rows);
-    expect(down.centre, 'a shadow pointed down has its middle below the title').toBeGreaterThan(middle);
-    expect(up.centre, 'and one pointed up has its middle above').toBeLessThan(middle);
-    expect(down.centre - up.centre, 'the two land twice the offset apart').toBeGreaterThan(6);
+    expect(down.center, 'a shadow pointed down has its middle below the title').toBeGreaterThan(middle);
+    expect(up.center, 'and one pointed up has its middle above').toBeLessThan(middle);
+    expect(down.center - up.center, 'the two land twice the offset apart').toBeGreaterThan(6);
     // And each reaches past the title the way it is pointed.
     expect(down.last, 'a shadow falling down reaches below the title\'s ink').toBeGreaterThan(rows.bottom);
     expect(up.first, 'and one falling up reaches above it').toBeLessThan(rows.top);
@@ -2378,7 +2378,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const common = ['--library', FIXTURES, '--library', lib];
     const plate = (value: Record<string, unknown>) => ['--param', `plate=${JSON.stringify({ id: codedId, ...value })}`];
     /** The pixel at the center of the slot's box, where the square clip sits, on frame `k` of a render. */
-    const centre = (name: string, k: number) => pixels(join(out, `${name}_${String(k).padStart(5, '0')}.png`), 160, 90);
+    const center = (name: string, k: number) => pixels(join(out, `${name}_${String(k).padStart(5, '0')}.png`), 160, 90);
     /** Which clip frame a pixel's red says it is. */
     const clipFrame = (px: number[]) => Math.round(px[0]! / 8);
 
@@ -2386,7 +2386,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     const whole = await render('pulp.test.media-slot', 'png-sequence', 'slot-loop', { extra: [...common, ...plate({})] });
     expect(whole.code, whole.stderr).toBe(0);
     for (const [k, want] of [[0, 0], [5, 5], [29, 29], [30, 0], [47, 17]] as const) {
-      const px = await centre('slot-loop', k);
+      const px = await center('slot-loop', k);
       expect(px[3], `frame ${k} is drawn`).toBe(255);
       expect(clipFrame(px), `frame ${k} shows clip frame ${want}`).toBe(want);
     }
@@ -2397,24 +2397,24 @@ describe.skipIf(!available)('end-to-end render', () => {
     const trimmed = await render('pulp.test.media-slot', 'png-sequence', 'slot-trim', { extra: [...common, ...plate({ inPoint: 10, outPoint: 19 })] });
     expect(trimmed.code, trimmed.stderr).toBe(0);
     for (const [k, want] of [[0, 10], [9, 19], [10, 10], [25, 15]] as const) {
-      expect(clipFrame(await centre('slot-trim', k)), `frame ${k} shows clip frame ${want}`).toBe(want);
+      expect(clipFrame(await center('slot-trim', k)), `frame ${k} shows clip frame ${want}`).toBe(want);
     }
 
     // Played once, the same window ends where it ends, and the slot draws nothing after it.
     const once = await render('pulp.test.media-slot', 'png-sequence', 'slot-once', { extra: [...common, ...plate({ inPoint: 10, outPoint: 19, ending: 'once' })] });
     expect(once.code, once.stderr).toBe(0);
-    expect(clipFrame(await centre('slot-once', 9))).toBe(19);
-    expect((await centre('slot-once', 10))[3], 'transparent once the clip has played out').toBe(0);
-    expect((await centre('slot-once', 40))[3]).toBe(0);
+    expect(clipFrame(await center('slot-once', 9))).toBe(19);
+    expect((await center('slot-once', 10))[3], 'transparent once the clip has played out').toBe(0);
+    expect((await center('slot-once', 40))[3]).toBe(0);
 
     // A start delay holds the clip back half a second: nothing before, its first frame on the dot.
     const delayed = await render('pulp.test.media-slot', 'png-sequence', 'slot-delay', { extra: [...common, ...plate({ delay: 0.5 })] });
     expect(delayed.code, delayed.stderr).toBe(0);
-    expect((await centre('slot-delay', 14))[3], 'nothing before the delay').toBe(0);
-    const first = await centre('slot-delay', 15);
+    expect((await center('slot-delay', 14))[3], 'nothing before the delay').toBe(0);
+    const first = await center('slot-delay', 15);
     expect(first[3]).toBe(255);
     expect(clipFrame(first), 'the first clip frame the moment it starts').toBe(0);
-    expect(clipFrame(await centre('slot-delay', 25))).toBe(10);
+    expect(clipFrame(await center('slot-delay', 25))).toBe(10);
 
     // A clip the library cannot answer for stops the render by the slot's name rather than going blank.
     const missing = await render('pulp.test.media-slot', 'png-sequence', 'slot-missing', { extra: [...common, '--param', 'plate={"id":"not-a-real-id"}'] });

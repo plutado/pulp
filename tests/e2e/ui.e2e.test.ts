@@ -2692,11 +2692,11 @@ describe.skipIf(!electron)('inspector UI', () => {
           `(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '1920 / 1080').split('/').map(Number); return { width: w, height: h }; })()`,
         );
         await until(async () => {
-          const centre = await placedCentre().catch(() => null);
-          return centre !== null && Math.abs(centre.x - frame.width * 0.25) < frame.width * 0.06;
+          const center = await placedCentre().catch(() => null);
+          return center !== null && Math.abs(center.x - frame.width * 0.25) < frame.width * 0.06;
         }, 'the dropped layer sitting where it was dropped');
-        const centre = (await placedCentre())!;
-        expect(centre.y, 'and at the height it was dropped at').toBeCloseTo(frame.height * 0.33, -2);
+        const center = (await placedCentre())!;
+        expect(center.y, 'and at the height it was dropped at').toBeCloseTo(frame.height * 0.33, -2);
 
         // Dropping another still on that layer's card replaces its picture rather than adding a layer.
         const markId = await onResult<string>('mark', '(li) => li.dataset.id');
@@ -3335,9 +3335,9 @@ describe.skipIf(!electron)('inspector UI', () => {
 
       const rightClickLayer = async (id: string) => {
         await until(async () => {
-          const centre = await inkCentre(id).catch(() => null);
-          if (!centre) return false;
-          await rightClick(centre.x, centre.y);
+          const center = await inkCentre(id).catch(() => null);
+          if (!center) return false;
+          await rightClick(center.x, center.y);
           return page.eval<boolean>(`!!document.querySelector('#params .param-card.stage-selected[data-layer="${id}"]')`);
         }, `the right-click menu on ${id}`);
       };
@@ -3677,8 +3677,8 @@ describe.skipIf(!electron)('inspector UI', () => {
         // The Parameters tab comes forward on the new layer, ready to be typed over.
         expect(await page.eval<boolean>(`document.getElementById('app').classList.contains('inspector-open')`)).toBe(true);
         await until(async () => {
-          const centre = await inkCentre(added).catch(() => null);
-          return centre !== null && Math.abs(centre.x - frame.width * 0.25) < frame.width * 0.08 && Math.abs(centre.y - frame.height * 0.33) < frame.height * 0.08;
+          const center = await inkCentre(added).catch(() => null);
+          return center !== null && Math.abs(center.x - frame.width * 0.25) < frame.width * 0.08 && Math.abs(center.y - frame.height * 0.33) < frame.height * 0.08;
         }, 'the line sitting where it was asked for');
       }, 120_000);
     });
@@ -5368,10 +5368,10 @@ describe.skipIf(!electron)('inspector UI', () => {
 
         // The main window takes the room: the results fill the center, and the transport row is its
         // buttons line, with the toggle for a stage that is not here gone.
-        const centre = (await boxIn(page, '.center'))!;
+        const center = (await boxIn(page, '.center'))!;
         const results = (await boxIn(page, '#region-results'))!;
-        expect(results.top, 'the results start where the stage was').toBeLessThanOrEqual(centre.top + 1);
-        expect(results.bottom).toBeGreaterThanOrEqual(centre.bottom - 1);
+        expect(results.top, 'the results start where the stage was').toBeLessThanOrEqual(center.top + 1);
+        expect(results.bottom).toBeGreaterThanOrEqual(center.bottom - 1);
         expect((await boxIn(page, '#region-transport'))!.height, 'the row is one line').toBeLessThan(60);
         expect(await page.eval<string>(`getComputedStyle(document.getElementById('stage-toggle')).display`)).toBe('none');
 
