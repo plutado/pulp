@@ -90,7 +90,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 73. Keyboard shortcuts you can change (post-1.0) | 6-10 h |
 | 74. A high-contrast appearance (post-1.0) | 4-6 h |
 | 75. Display names for library folders (post-1.0) | 2-4 h |
-| 76. Motion tracking (post-1.0) | 20-35 h |
+| 76. Motion tracking (post-1.0, **done**) | 20-35 h |
 | 77. Auto-reframe for vertical video (post-1.0) | 15-25 h |
 | 78. Stabilize shaky clips (post-1.0) | 6-10 h |
 | 79. Spanish and French (post-1.0) | 30-52 h |

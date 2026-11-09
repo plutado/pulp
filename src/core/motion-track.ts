@@ -279,8 +279,8 @@ function subpixel(before: number, at: number, after: number, noise: number): num
  * last frame and back to the first. Returns one point per frame, in frame
  * order, the start frame's at the picked place with full confidence.
  *
- * Positions are continuous, pixel-centre coordinates: a pixel at column i
- * spans i..i+1 and is centred at i + 0.5, which is what a point picked on the
+ * Positions are continuous, pixel-center coordinates: a pixel at column i
+ * spans i..i+1 and is centerd at i + 0.5, which is what a point picked on the
  * picture and a shape drawn by an expression both mean.
  */
 export function trackPatch(frames: GrayFrames, start: TrackStart, options: TrackOptions): TrackedPoint[] {
@@ -295,7 +295,7 @@ export function trackPatch(frames: GrayFrames, start: TrackStart, options: Track
   const out: TrackedPoint[] = new Array<TrackedPoint>(count);
   out[begin] = { index: begin, x: start.x, y: start.y, c: 1 };
   const half = { x: Math.floor(w / 2), y: Math.floor(h / 2) };
-  // The patch about a continuous point: the pixel under it is its centre pixel.
+  // The patch about a continuous point: the pixel under it is its center pixel.
   const originOf = (px: number, py: number): { x: number; y: number } => ({ x: Math.floor(px) - half.x, y: Math.floor(py) - half.y });
   const noise = w * h * channels * PLATEAU_LEVELS * PLATEAU_LEVELS;
 
@@ -335,7 +335,7 @@ export function trackPatch(frames: GrayFrames, start: TrackStart, options: Track
       };
       // A patch inside a flat shape matches a plateau of places within compression noise of the
       // best. Its extent is walked along each axis from the best match — a stray inclusion off
-      // the axis cannot move it — and its middle is where the shape itself is centred.
+      // the axis cannot move it — and its middle is where the shape itself is centerd.
       const extent = (from: number, step2: (k: number) => number): [number, number] => {
         let lo = from;
         let hi = from;
