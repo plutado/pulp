@@ -21,6 +21,7 @@
  * computes with these and never keeps a second answer of its own.
  */
 
+import { ASPECT_IDS } from './aspect';
 import type { LayerSpan } from './layer-time';
 import { EMPTY_SOUND, type SoundValue } from './sound-layer';
 
@@ -124,6 +125,98 @@ export interface Cut {
    * back in the library (`healedTrack`).
    */
   path?: string;
+  /**
+   * How the picture is reframed into a frame of another shape (milestone 77),
+   * by aspect: the crop's center over the clip's time, as keyframes. Absent for
+   * a shape, the picture is letterboxed into it as ever; present, it fills the
+   * frame and the crop follows these — the subject, found on the machine, or
+   * wherever a hand moved it.
+   */
+  reframe?: Record<string, ReframeKey[]>;
+}
+
+/** One moment of a reframe: the clip's second, and the crop's center as fractions of the clip's picture. */
+export interface ReframeKey {
+  at: number;
+  x: number;
+  y: number;
+}
+
+export const REFRAME_LIMITS = { keys: 240 } as const;
+
+/** Reframe keys in order, in range, one per moment, or undefined for nothing usable. */
+export function sanitizeReframeKeys(raw: unknown): ReframeKey[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const keys: ReframeKey[] = [];
+  for (const k of raw) {
+    if (typeof k !== 'object' || k === null) continue;
+    const r = k as Record<string, unknown>;
+    if (typeof r.at !== 'number' || !Number.isFinite(r.at) || r.at < 0) continue;
+    const frac = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(1, Math.max(0, v)) * 10000) / 10000 : null);
+    const x = frac(r.x);
+    const y = frac(r.y);
+    if (x === null || y === null) continue;
+    keys.push({ at: ms(r.at), x, y });
+  }
+  keys.sort((a, b) => a.at - b.at);
+  const out: ReframeKey[] = [];
+  for (const k of keys) {
+    if (out.length > 0 && Math.abs(out[out.length - 1]!.at - k.at) < 1e-6) out[out.length - 1] = k;
+    else out.push(k);
+  }
+  return out.length > 0 ? out.slice(0, REFRAME_LIMITS.keys) : undefined;
+}
+
+/** The crop's center at a clip second: the nearest keys lerped, the first and last held past the ends. */
+export function reframeCentreAt(keys: readonly ReframeKey[], at: number): { x: number; y: number } {
+  if (keys.length === 0) return { x: 0.5, y: 0.5 };
+  if (at <= keys[0]!.at) return { x: keys[0]!.x, y: keys[0]!.y };
+  const last = keys[keys.length - 1]!;
+  if (at >= last.at) return { x: last.x, y: last.y };
+  for (let i = 1; i < keys.length; i++) {
+    if (keys[i]!.at >= at) {
+      const a = keys[i - 1]!;
+      const b = keys[i]!;
+      const f = (at - a.at) / Math.max(1e-6, b.at - a.at);
+      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+    }
+  }
+  return { x: last.x, y: last.y };
+}
+
+/** The reframe keys a cut holds for a frame's shape, if any. */
+export function cutReframe(cut: Pick<Cut, 'reframe'>, aspect: string): ReframeKey[] | undefined {
+  const keys = cut.reframe?.[aspect];
+  return keys && keys.length > 0 ? keys : undefined;
+}
+
+/** The track with one cut's reframe for a shape replaced; null takes it off, and an empty record goes with it. */
+export function withCutReframe(track: CutTrack, index: number, aspect: string, keys: readonly ReframeKey[] | null): CutTrack {
+  const cut = track.cuts[index];
+  if (!cut) return track;
+  const reframe: Record<string, ReframeKey[]> = { ...cut.reframe };
+  const clean = keys ? sanitizeReframeKeys(keys) : undefined;
+  if (clean) reframe[aspect] = clean;
+  else delete reframe[aspect];
+  const next: Cut = { ...cut };
+  if (Object.keys(reframe).length > 0) next.reframe = reframe;
+  else delete next.reframe;
+  const cuts = [...track.cuts];
+  cuts[index] = next;
+  return { cuts };
+}
+
+/**
+ * The track with a reframe key set at a clip second for one cut and shape: the
+ * hand moving the crop at the playhead (milestone 77). A key within a frame of
+ * the moment is replaced rather than doubled.
+ */
+export function withReframeKeyAt(track: CutTrack, index: number, aspect: string, key: ReframeKey, fps: number): CutTrack {
+  const cut = track.cuts[index];
+  if (!cut) return track;
+  const tolerance = 0.5 / Math.max(1, fps);
+  const kept = (cutReframe(cut, aspect) ?? []).filter((k) => Math.abs(k.at - key.at) > tolerance);
+  return withCutReframe(track, index, aspect, [...kept, key]);
 }
 
 /** The track: its cuts in timeline order. An object, so a transition on a cut has a home to come. */
@@ -624,6 +717,16 @@ export function sanitizeCutTrack(input: unknown): CutTrack | null {
       }
     }
     if (typeof r.path === 'string' && r.path.trim() !== '') cut.path = r.path.trim();
+    // The reframes by shape (milestone 77): only shapes the frames come in, each a usable list of keys.
+    if (typeof r.reframe === 'object' && r.reframe !== null) {
+      const reframe: Record<string, ReframeKey[]> = {};
+      for (const [aspect, keys] of Object.entries(r.reframe as Record<string, unknown>)) {
+        if (!ASPECT_IDS.includes(aspect)) continue;
+        const clean = sanitizeReframeKeys(keys);
+        if (clean) reframe[aspect] = clean;
+      }
+      if (Object.keys(reframe).length > 0) cut.reframe = reframe;
+    }
     const sp = r.speed as Record<string, unknown> | undefined;
     if (typeof sp === 'object' && sp !== null && typeof sp.rate === 'number' && Number.isFinite(sp.rate)) {
       const rate = Math.round(clampRate(sp.rate) * 1000) / 1000;

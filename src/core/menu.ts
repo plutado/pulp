@@ -106,6 +106,8 @@ export type MenuCommand =
   | 'cut.silences'
   | 'cut.export'
   | 'cut.delete'
+  // Reframing a cut for the frame's shape (milestone 77): follow the subject, keep the middle, or letterbox as before.
+  | 'cut.reframe'
   | 'search.focus'
   | 'browse.filter'
   | 'view.browse'

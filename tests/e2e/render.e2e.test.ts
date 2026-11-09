@@ -26,7 +26,8 @@ import { ffmpegArgs, runBounded, runBoundedBuffer } from './process';
 import { lottieEditables, lottieInfo, lottieManifest, lottieManifestId, parseLottie, prepareLottieData } from '../../src/core/lottie';
 import { LOTTIE_TEMPLATE_PLAYER, lottieTemplateFiles } from '../../src/core/lottie-template';
 import { IDENTITY_KEY } from '../../src/core/layer-keys';
-import type { MotionTrack } from '../../src/core/motion-track';
+import { splitGrayFrames, TRACK_CHANNELS, trackFramesArgs, trackProxySize, type MotionTrack } from '../../src/core/motion-track';
+import { reframeKeysFrom, steadyPath, subjectPath } from '../../src/core/reframe';
 import { pinKeys } from '../../src/core/track-pin';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
 
@@ -2600,6 +2601,52 @@ describe.skipIf(!available)('end-to-end render', () => {
     }
     // And a frame the shape has left: where it was on frame 0 is red or green by frame 29, not blue.
     expect((await pixels(join(out, 'pinned_00029.png'), Math.round(truth(0) * 320), 88))[2]).toBeLessThan(80);
+  }, 240_000);
+
+  it('renders a reframed cut at 9:16 with the subject kept in frame across a hard cut (milestone 77)', async () => {
+    // The same walker the UI suite follows: a white square right over gray, then a hard cut to a
+    // dark ground where it comes down the left. The keys are found here as the app finds them —
+    // the frames read at the tracker's proxy, the subject found and the crop steadied in core — and
+    // the render fills a tall frame along them: the square is in every frame checked, both shots.
+    const lib = join(out, 'reframe-library');
+    await mkdir(lib, { recursive: true });
+    const clip = join(lib, 'walker.mp4');
+    const built = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y',
+      '-f', 'lavfi', '-i', 'color=c=0x6e6e6e:s=320x180:d=2:r=10',
+      '-f', 'lavfi', '-i', 'color=c=0x1e1e1e:s=320x180:d=2:r=10',
+      '-f', 'lavfi', '-i', 'color=c=white:s=20x20:d=4:r=10',
+      '-filter_complex', "[0][1]concat=n=2:v=1:a=0[g];[g][2]overlay=x='if(lt(t,2),30+120*t,50)':y='if(lt(t,2),80,20+30*(t-2))':shortest=1",
+      '-c:v', 'mpeg4', '-qscale:v', '2', clip,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const clipId = itemId(`media:${clip}`);
+    const proxy = trackProxySize({ width: 320, height: 180 });
+    const read = await runBoundedBuffer(ffmpeg, trackFramesArgs(clip, 0, 4.1, proxy), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+    expect(read.code, read.stderr).toBe(0);
+    const frames = splitGrayFrames(new Uint8Array(read.stdout.buffer, read.stdout.byteOffset, read.stdout.byteLength), proxy.width, proxy.height, TRACK_CHANNELS);
+    const path = subjectPath(frames);
+    expect(path.shots.length, 'two shots found').toBe(2);
+    const keys = reframeKeysFrom(steadyPath(path, { frame: { width: 180, height: 320 }, clip: { width: 320, height: 180 }, window: 5 }), path.shots, 0, 10);
+    // The tall fixture draws nothing of its own, so the track is the whole picture: 180 × 320 at
+    // 10 fps for four seconds, the shape the keys were found for.
+    const track = { cuts: [{ id: clipId, from: 0, to: 4, reframe: { '9:16': keys } }] };
+    const result = await render('pulp.test.reframe-tall', 'png-sequence', 'reframed', {
+      extra: ['--library', FIXTURES, '--library', lib, '--out-point', '39', '--param', `@track=${JSON.stringify(track)}`],
+    });
+    expect(result.code, result.stderr).toBe(0);
+    const [first] = (await readdir(out)).filter((f) => f.startsWith('reframed_')).sort();
+    expect(await probe(join(out, first!))).toMatchObject({ width: 180, height: 320 });
+    // The square somewhere in each frame's picture: a column of pixels near white, in both shots.
+    const hasSquare = async (frame: number): Promise<boolean> => {
+      const file = join(out, `reframed_${String(frame).padStart(5, '0')}.png`);
+      for (let y = 20; y < 300; y += 4) {
+        const row = await pixels(file, 0, y, 180);
+        for (let x = 0; x < 180; x++) if (row[x * 4]! > 200 && row[x * 4 + 1]! > 200 && row[x * 4 + 2]! > 200) return true;
+      }
+      return false;
+    };
+    for (const frame of [0, 10, 19, 25, 35]) expect(await hasSquare(frame), `frame ${frame}: the subject in the tall frame`).toBe(true);
   }, 240_000);
 
   describe('Lottie animations', () => {

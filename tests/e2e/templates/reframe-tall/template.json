@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.reframe-tall",
+  "name": "Test Reframe Tall",
+  "description": "A tall, transparent frame that draws nothing of its own, so the cut track under it is the whole picture (milestone 77).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 4,
+  "fps": 10,
+  "width": 180,
+  "height": 320,
+  "alpha": true,
+  "parameters": []
+}

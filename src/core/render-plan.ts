@@ -28,12 +28,13 @@
  */
 
 import { AspectError, resolveRenderSize } from './aspect';
-import { cutRates, cutSeconds, type CutSpeed } from './cut-track';
+import { cutRates, cutSeconds, type CutSpeed, cutTimelineTime, type ReframeKey } from './cut-track';
 import { resolveLength, type TemplateStructure } from './timing';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 import { isCubeFile, lutFilter } from './clip-clean';
 import { tr } from './i18n';
+import { reframeCropFilter } from './reframe';
 
 export { fpsToRational } from './timecode';
 
@@ -478,6 +479,8 @@ export interface RenderPlanInput {
       hold?: number;
       /** The transition into the next cut, already clamped by the caller (transitionAt). A wipe rides in `wipes`. */
       transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string };
+      /** The crop's path for the output's shape (milestone 77): present, the picture fills the frame and follows it. */
+      reframe?: ReframeKey[];
     }[];
     /** Bundled wipes over the joins, captured by the caller as numbered RGBA frames at the output's own rate. */
     wipes?: { pattern: string; at: number; seconds: number }[];
@@ -670,7 +673,13 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
       // to the timeline and brings them to the output's constant rate — by repeating or dropping
       // frames, or by interpolating them where smooth slow motion is asked for — so the scale,
       // the pad and the joins after it see an ordinary constant-rate stream of the cut's length.
-      const steps = [...cutSpeedSteps(cut, timing.fps), `scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
+      // Letterboxed into the frame — or, reframed for this shape (milestone 77), filling it with the
+      // crop following its keys in the cut's own time on the timeline, which is what `t` is here
+      // after the speed steps.
+      const framing = cut.reframe && cut.reframe.length > 0
+        ? [reframeCropFilter({ width, height }, cut.reframe, (clipSeconds) => cutTimelineTime(cut, clipSeconds))]
+        : [`scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`];
+      const steps = [...cutSpeedSteps(cut, timing.fps), ...framing, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
       const seconds = Math.max(0.001, cutSeconds(cut));
       const into = i > 0 ? track.cuts[i - 1]!.transition : undefined;
       if (into?.type === 'dip') steps.push(`fade=t=in:st=0:d=${sec(into.seconds / 2)}:color=${hexToFfmpegColor(into.color ?? '#000000')}`);

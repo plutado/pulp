@@ -25,7 +25,7 @@ import { once } from 'node:events';
 import { access, mkdir, mkdtemp, rm, writeFile, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { templateDefaultSize, type Size } from '../core/aspect';
+import { templateDefaultSize, type Size , aspectOf } from '../core/aspect';
 import { chosenImageIds, imageGrantKey, imageGrantRequests, imageRequests, imageSlots, MAX_IMAGE_FILE_BYTES } from '../core/image-slot';
 import { mediaSlotChoices, mediaSlotDrawnHeight, mediaSlots } from '../core/media-slot';
 import { blockStates, layerClipChoices, layerImageChoices, layerImageIds, layerSoundChoices, layerTexts, type BlockState } from '../core/layer-layout';
@@ -48,7 +48,7 @@ import { resolveSoundSource, resolveTemplateSoundFile } from './sound-grant';
 import { resolveTemplateSoundChoice, templateSoundValue, wipeSoundValue } from '../core/template-sound';
 import { finishedFileWarnings } from './platform-check';
 import { platformPreset } from '../core/platform-presets';
-import { healedTrack, trackAudio, transitionAt } from '../core/cut-track';
+import { cutReframe, healedTrack, trackAudio, transitionAt } from '../core/cut-track';
 import { captionsIn, lengthIn, resolveParams, soundIn, splitLayers, trackIn } from '../core/params';
 import { captionFrame } from '../core/captions';
 import { captionBandFor } from '../core/player';
@@ -259,6 +259,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       const wipeDirs: string[] = [];
       const wipes = await captureTrackWipes(trackWipes, { width: plan.width, height: plan.height }, plan.fps, wipeDirs, warnings);
       cleanupDirs.push(...wipeDirs);
+      // A cut reframed for the output's shape (milestone 77) fills the frame along its keys; the
+      // shape is the plan's, which the first plan answered.
+      const outputAspect = aspectOf(plan.width, plan.height);
+      trackCuts.forEach((entry, index) => {
+        const keys = track ? cutReframe(track.cuts[index]!, outputAspect) : undefined;
+        if (keys) entry.reframe = keys;
+      });
       plan = buildRenderPlan({
         manifest,
         presetId: job.presetId,

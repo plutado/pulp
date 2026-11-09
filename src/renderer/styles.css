@@ -337,6 +337,12 @@ input[type="checkbox"] { width: auto; }
 .track-path .track-lost { fill: var(--danger); stroke: var(--ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .track-path .track-handle { fill: var(--accent); stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: auto; cursor: grab; }
 .track-path .track-handle:focus-visible { outline: none; stroke: var(--text); stroke-width: 3; }
+/* The reframe's handle (milestone 77): at the frame's middle while a reframed cut plays; dragging it pans the crop. */
+.reframe-handle { position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; z-index: 4; border-radius: 50%;
+  border: 2px solid var(--ink); background: color-mix(in srgb, var(--accent) 70%, transparent); cursor: grab; padding: 0; }
+.reframe-handle::before { content: ''; position: absolute; inset: 9px; border: 1.5px solid var(--ink); border-radius: 2px; }
+.reframe-handle[hidden] { display: none; }
+.reframe-handle:active { cursor: grabbing; }
 .stage-handle { position: absolute; width: 10px; height: 10px; background: var(--accent); border: 1px solid var(--ink); pointer-events: auto; }
 .stage-handle.nw { left: -5px; top: -5px; cursor: nwse-resize; }
 .stage-handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }

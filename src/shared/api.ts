@@ -38,6 +38,8 @@ export type SaveCanvasResult =
   | { ok: false; cancelled?: boolean; message: string };
 import type { ImageGrantRequest } from '../core/image-slot';
 import type { TrackSample } from '../core/motion-track';
+import type { ReframeKey } from '../core/cut-track';
+export type ReframeResult = { ok: true; keys: ReframeKey[]; shots: number; faces: number; frames: number } | { ok: false; message: string };
 export type TrackMotionResult =
   | { ok: true; samples: TrackSample[]; fps: number; from: number; to: number; size: { w: number; h: number }; kind: 'point' | 'box'; frames: number }
   | { ok: false; message: string };
@@ -477,6 +479,12 @@ export interface PulpApi {
    * clip's own seconds and picture fractions, with how surely each frame matched.
    */
   trackMotion(request: { clip: string; from: number; to: number; at: number; x: number; y: number; kind: 'point' | 'box'; size?: { w: number; h: number }; forward?: boolean; backward?: boolean }): Promise<TrackMotionResult>;
+  /**
+   * The crop path that keeps a cut's subject in a frame of another shape (milestone 77): the clip
+   * by library id, its window, and the frame's size; the keys come back in the clip's own seconds
+   * and picture fractions, with how many shots and how many frames with a face were found.
+   */
+  reframeCut(request: { clip: string; from: number; to: number; frame: { width: number; height: number } }): Promise<ReframeResult>;
   /** Record that an item was selected or rendered now. */
   markItemUsed(id: string): Promise<void>;
   /** Opens a folder picker; resolves to the updated index, or null if canceled. */

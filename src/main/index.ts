@@ -36,6 +36,7 @@ import { panelStatus, setEditorPanel, setPanelCollection, setPanelWindow, startP
 import { saveCanvasTemplate, type SaveCanvasRequest } from './canvas-service';
 import { saveLottieTemplate, type SaveLottieRequest } from './lottie-service';
 import { trackMotion, type TrackMotionRequest } from './track-service';
+import { reframeCut, type ReframeRequest } from './reframe-service';
 import {
   clearRecovery, forgetProject, missingLibraryFolders, openProjectDialog, readProjectFile, readRecovery,
   recentProjects, recentProjectsDetailed, relinkProjectItem, relinkRecentProject, saveProjectTo, setProjectPinned, writeRecovery,
@@ -644,6 +645,8 @@ function registerIpc(): void {
   ipcMain.handle('track:silences', (_event, request: unknown) => trackSilences(request));
   // Motion tracking (milestone 76): a point or a box on a clip, followed on this machine.
   ipcMain.handle('track:motion', (_event, request: unknown) => trackMotion((request ?? {}) as TrackMotionRequest));
+  // Auto-reframe (milestone 77): a cut's crop path for a frame's shape, the subject found on this machine.
+  ipcMain.handle('track:reframe', (_event, request: unknown) => reframeCut((request ?? {}) as ReframeRequest));
   // The edit exported for an editing app (milestone 49): FCPXML, an EDL and the graphics with alpha.
   ipcMain.handle('track:export-edit', (_event, request: unknown) => exportEdit(request));
   // Transcription on this machine (milestone 50): what is here, the model fetched once the person

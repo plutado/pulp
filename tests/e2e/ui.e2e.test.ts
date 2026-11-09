@@ -503,6 +503,17 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-f', 'lavfi', '-i', 'color=c=green:s=64x36:d=2:r=10',
           '-filter_complex', '[0][1][2]concat=n=3:v=1:a=0', '-c:v', 'mpeg4', '-qscale:v', '2', '-g', '5', join(mediaDir, 'yearbook.mp4'),
         ]), { timeoutMs: 60_000 });
+        // Wide footage with a subject to follow (milestone 77): a white square walking right over
+        // a gray ground for two seconds, then a hard cut to a dark ground where it comes down the
+        // left — two shots, so the crop must start again at the cut. mpeg4 and sorted last, as above.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y',
+          '-f', 'lavfi', '-i', 'color=c=0x6e6e6e:s=320x180:d=2:r=10',
+          '-f', 'lavfi', '-i', 'color=c=0x1e1e1e:s=320x180:d=2:r=10',
+          '-f', 'lavfi', '-i', 'color=c=white:s=20x20:d=4:r=10',
+          '-filter_complex', "[0][1]concat=n=2:v=1:a=0[g];[g][2]overlay=x='if(lt(t,2),30+120*t,50)':y='if(lt(t,2),80,20+30*(t-2))':shortest=1",
+          '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-walker.mp4'),
+        ]), { timeoutMs: 60_000 });
         // A shaky take (milestone 78): a 320 × 180 window over allrgb's static texture, jittering
         // by sinusoids — camera shake over a scene that does not itself move, so steadiness can be
         // measured as the frame-to-frame difference. mpeg4 and sorted last, like the fixtures above.
@@ -1866,6 +1877,104 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(refixed.keys!.length).toBeGreaterThanOrEqual(3);
       } finally {
         await page.eval(`(() => { const e = window.pulpLayerEditor(); e.setTracks(null, true); e.setTrack(null, true); })()`);
+        await restoreLayers();
+      }
+    }, 240_000);
+
+    it('reframes a wide cut for a tall frame: the subject found and kept in the crop across a hard cut, drawn on the stage, and moved by hand (milestone 77)', async () => {
+      await clickResult('Title Card');
+      await openTab('output');
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(() => page.eval<{ width: number; height: number }>(`(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '16 / 9').split('/').map(Number); return { width: w, height: h }; })()`).then((f) => f.height > f.width), 'the tall frame');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const walkerId = await onResult<string>('zz-walker', '(li) => li.dataset.id');
+      const dropOnStage = (id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = document.getElementById('preview-frame');
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      const count = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      type Key = { at: number; x: number; y: number };
+      const keys = () => page.eval<Key[] | null>(`(() => { const t = window.pulpLayerEditor().track(); const k = t && t.cuts[0] && t.cuts[0].reframe && t.cuts[0].reframe['9:16']; return k || null; })()`);
+      const scrub = async (frame: number) => {
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '${frame}'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === frame), `the playhead on frame ${frame}`);
+      };
+      // Where the lavfi expression put the square's center, in fractions of the 320 × 180 clip.
+      const subject = (t: number) => (t < 2 ? { x: (30 + 120 * t + 10) / 320, y: 90 / 180 } : { x: 60 / 320, y: (20 + 30 * (t - 2) + 10) / 180 });
+      // A 9:16 frame over a 16:9 picture takes (9/16)/(16/9) of its width, all of its height.
+      const windowW = (9 / 16) / (16 / 9);
+      const centreAt = (list: Key[], at: number) => {
+        if (at <= list[0]!.at) return list[0]!;
+        const last = list[list.length - 1]!;
+        if (at >= last.at) return last;
+        for (let i = 1; i < list.length; i++) if (list[i]!.at >= at) { const a = list[i - 1]!, b = list[i]!; const f = (at - a.at) / Math.max(1e-6, b.at - a.at); return { at, x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }; }
+        return last;
+      };
+      try {
+        await dropOnStage(walkerId!);
+        await until(async () => (await count()) === 1, 'the clip on the cut track');
+        // From the cut's menu: Reframe for 9:16 → Follow the Subject, found through the real frames.
+        await page.eval(`document.querySelector('#cut-track .cut .cut-body').dispatchEvent(new MouseEvent('contextmenu', { clientX: 320, clientY: 320, bubbles: true, cancelable: true }))`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu > button')].some((b) => b.textContent === 'Reframe for 9:16')`), 'the Reframe submenu offered');
+        await page.eval(`[...document.querySelectorAll('.context-menu > button')].find((b) => b.textContent === 'Reframe for 9:16').click()`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="follow"]')`), 'the submenu open');
+        await page.eval(`document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="follow"]').click()`);
+        await until(async () => ((await keys())?.length ?? 0) >= 3, 'the reframe keys on the cut', 90_000);
+        const found = (await keys())!;
+        // The subject stays inside the crop at every frame of both shots: its center within the
+        // window about the crop's center, with its own half-width to spare.
+        for (let i = 0; i < 40; i++) {
+          const t = i / 10;
+          const c = centreAt(found, t);
+          const s = subject(t);
+          expect(Math.abs(c.x - s.x), `frame ${i}: the subject inside the crop`).toBeLessThan(windowW / 2 - 10 / 320);
+        }
+        // And it starts again at the cut: the crop is on the right just before it and on the left just after.
+        expect(centreAt(found, 1.9).x).toBeGreaterThan(0.5);
+        expect(centreAt(found, 2.1).x).toBeLessThan(0.4);
+
+        // The stage draws the crop: at frame 45 (1.5 s, the square at x 220 of 320) the frame's
+        // middle column shows the white square where a letterbox would have shown the pad.
+        await scrub(45);
+        await until(() => page.eval<boolean>(`(() => { const c = document.getElementById('track-picture'); if (!c || c.hidden) return false; const d = c.getContext('2d').getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data; return d[0] > 200 && d[1] > 200 && d[2] > 200; })()`), 'the subject at the frame\'s middle on the stage', 30_000);
+        // The handle stands for the crop's center there.
+        const shown = await page.eval<{ shown: boolean; x: number } | null>(`window.pulpReframe()`);
+        expect(shown?.shown).toBe(true);
+        expect(Math.abs(shown!.x - subject(1.5).x)).toBeLessThan(0.08);
+
+        // Moved by hand: a drag of a tenth of the frame to the left pans the crop right by a tenth
+        // of the window, written as a key at this frame's clip second.
+        const before = (await keys())!.length;
+        await page.eval(`(() => {
+          const h = document.getElementById('reframe-handle');
+          const r = document.getElementById('preview-frame').getBoundingClientRect();
+          const hb = h.getBoundingClientRect();
+          const from = { clientX: hb.left + hb.width / 2, clientY: hb.top + hb.height / 2, pointerId: 5, button: 0, bubbles: true };
+          const to = { clientX: from.clientX - r.width * 0.1, clientY: from.clientY, pointerId: 5, button: 0, bubbles: true };
+          h.dispatchEvent(new PointerEvent('pointerdown', from));
+          h.dispatchEvent(new PointerEvent('pointermove', to));
+          h.dispatchEvent(new PointerEvent('pointerup', to));
+        })()`);
+        await until(async () => { const k = await keys(); return !!k && k.some((key) => Math.abs(key.at - 1.5) < 0.06); }, 'a key written at the playhead');
+        const moved = (await keys())!;
+        expect(moved.length).toBeGreaterThanOrEqual(before);
+        const written = moved.find((k) => Math.abs(k.at - 1.5) < 0.06)!;
+        expect(written.x - centreAt(found, 1.5).x).toBeCloseTo(0.1 * windowW, 2);
+      } finally {
+        await page.eval(`(() => { const e = window.pulpLayerEditor(); e.setTrack(null, true); })()`);
+        await openTab('output');
+        await fire('#opt-aspect', '16:9', 'change');
+        await openTab('parameters');
         await restoreLayers();
       }
     }, 240_000);

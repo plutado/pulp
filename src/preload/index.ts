@@ -193,6 +193,7 @@ const api: PulpApi = {
   fetchSpeechModel: (request) => ipcRenderer.invoke('speech:fetch-model', request),
   transcribe: (request) => ipcRenderer.invoke('speech:transcribe', request),
   trackMotion: (request) => ipcRenderer.invoke('track:motion', request),
+  reframeCut: (request) => ipcRenderer.invoke('track:reframe', request),
   onSpeechProgress: (listener) => {
     const handler = (_event: unknown, progress: Parameters<typeof listener>[0]) => listener(progress);
     ipcRenderer.on('speech:progress', handler);

@@ -113,6 +113,12 @@ export const mainProcess = {
   'dialog.save-lottie.title': 'Save the animation as a template folder',
   'dialog.save-lottie.read-failed': 'Could not read the animation: {reason}',
   'dialog.save-lottie.note.image': 'The picture “{name}” could not be copied; the template looks for it beside itself.',
+  // ---------------------------------------------------------------- auto-reframe (src/main/reframe-service.ts, milestone 77)
+  'reframe.error.no-clip': 'That clip is not a video in the library, or its folder is offline.',
+  'reframe.error.unmeasured': 'The clip has not been measured yet; open it once and try again.',
+  'reframe.error.no-ffmpeg': 'FFmpeg was not found, so the clip\'s frames cannot be read.',
+  'reframe.error.window': 'The cut is too short to reframe.',
+  'reframe.error.timeout': 'Reframing did not finish in time.',
   // ---------------------------------------------------------------- motion tracking (src/main/track-service.ts, milestone 76)
   'track.error.no-clip': 'That clip is not a video in the library, or its folder is offline.',
   'track.error.unmeasured': 'The clip has not been measured yet; open it once and try again.',

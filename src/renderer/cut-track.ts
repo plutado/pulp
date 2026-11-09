@@ -24,7 +24,7 @@ import {
   cutIndexAt, cutRates, cutSeconds, cutFromClip, cutWindows, DEFAULT_HOLD_SECONDS, DEFAULT_TRANSITION_SECONDS, snapTime, splitAt, trackAudio,
   trackDuration, transitionAt, withCutHold, withCutInserted, withCutMoved, withCutRemoved, withCutSound, withCutSpeed, withCutTransition,
   withCutWindow, withFreezeAt, withSilencesCut, type Cut, type CutSound, type CutSpeed, type CutTransition, type CutTrack,
-} from '../core/cut-track';
+ cutReframe, withCutReframe } from '../core/cut-track';
 import type { MenuCommand, MenuItemSpec } from '../core/menu';
 import { openContextMenu } from './context-menu';
 import { layerBarPeaks } from '../core/layer-audio';
@@ -35,7 +35,9 @@ import type { MediaEntry } from '../core/library-types';
 import { resolveLength } from '../core/timing';
 import { layerEditor } from './layer-edit';
 import { bindAttr, bindText, t, whenLocaleChanges } from './i18n';
-import { appState, playheadSeconds, selectedTemplate, trim } from './store';
+import { appState, frameSize, playheadSeconds, selectedTemplate, trim } from './store';
+import { aspectOf } from '../core/aspect';
+import { centredReframe } from '../core/reframe';
 
 /** The elements of one cut, kept across updates so a drag keeps its pointer. */
 interface CutEl {
@@ -536,11 +538,21 @@ function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
   ];
   const hold: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.hold', label: t('cut-track.menu.hold.seconds', { seconds: v }), arg: String(v), type: 'radio', checked: cut.hold === v }));
   const freeze: MenuItemSpec[] = HOLDS.map((v) => ({ command: 'cut.freeze', label: t('cut-track.menu.freeze.seconds', { seconds: v }), arg: String(v) }));
+  // Reframing for the frame's shape (milestone 77): the subject followed, the middle kept, or the
+  // picture letterboxed as before. Named for the shape on the stage, which is the one it changes.
+  const aspect = stageAspect();
+  const keys = cutReframe(cut, aspect);
+  const reframe: MenuItemSpec[] = [
+    { command: 'cut.reframe', label: t('cut-track.menu.reframe.follow'), arg: 'follow', type: 'radio', checked: (keys?.length ?? 0) > 1 },
+    { command: 'cut.reframe', label: t('cut-track.menu.reframe.center'), arg: 'center', type: 'radio', checked: keys?.length === 1 },
+    { command: 'cut.reframe', label: t('cut-track.menu.reframe.off'), arg: 'off', type: 'radio', checked: !keys },
+  ];
   return [
     ...(last ? [] : [{ label: t('cut-track.menu.transition'), submenu: transition } satisfies MenuItemSpec]),
     { label: t('cut-track.menu.sound'), submenu: sound },
     ...(cut.hold !== undefined ? [{ label: t('cut-track.menu.hold'), submenu: hold } satisfies MenuItemSpec] : [{ label: t('cut-track.menu.speed'), submenu: speed } satisfies MenuItemSpec]),
     { label: t('cut-track.menu.freeze'), submenu: freeze },
+    { label: t('cut-track.menu.reframe', { aspect }), submenu: reframe },
     { type: 'separator' },
     { command: 'cut.silences', label: t('cut-track.menu.silences') },
     { command: 'cut.export', label: t('cut-track.menu.export') },
@@ -577,6 +589,31 @@ function runCutCommand(command: string, arg: string | null, index: number): void
   }
   if (command === 'cut.silences') {
     openSilenceDialog();
+    return;
+  }
+  if (command === 'cut.reframe') {
+    const aspect = stageAspect();
+    if (arg === 'off') {
+      setTrack(withCutReframe(track, index, aspect, null), true);
+      return;
+    }
+    if (arg === 'center') {
+      setTrack(withCutReframe(track, index, aspect, centredReframe(cut.from)), true);
+      return;
+    }
+    // Follow the subject: found on this machine, from the cut's own window of the clip.
+    const frame = frameSize.value ?? { width: 1080, height: 1920 };
+    say(t('cut-track.reframe.finding'));
+    void window.pulp.reframeCut({ clip: cut.id, from: cut.from, to: cut.to, frame }).then((result) => {
+      if (!result.ok) {
+        say(t('cut-track.reframe.failed', { reason: result.message }));
+        return;
+      }
+      const now = layerEditor()?.track();
+      if (!now || now.cuts[index]?.id !== cut.id) return;
+      setTrack(withCutReframe(now, index, aspect, result.keys), true);
+      say(t(result.faces > 0 ? 'cut-track.reframe.done-faces' : 'cut-track.reframe.done', { shots: result.shots, keys: result.keys.length }));
+    });
     return;
   }
   if (command === 'cut.export') {
@@ -817,4 +854,10 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
     void waveforms.value;
     paintWaves();
   });
+}
+
+/** The shape the stage shows the picture at, which is the shape a reframe is for. */
+function stageAspect(): string {
+  const size = frameSize.value ?? { width: 1920, height: 1080 };
+  return aspectOf(size.width, size.height);
 }

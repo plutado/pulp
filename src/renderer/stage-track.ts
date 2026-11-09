@@ -22,9 +22,11 @@
  * 30-second one did, and a ten-minute shot previews at all, where a whole
  * window of it was more than a window may hold.
  */
-import { cutSourceTime, cutWindows, transitionAt, trackSourceAt, type CutTrack } from '../core/cut-track';
+import { cutSourceTime, cutWindows, transitionAt, trackSourceAt, type CutTrack , cutReframe, reframeCentreAt } from '../core/cut-track';
 import { tileHolds, tileKey, tilesWanted, TRACK_HELD_FRAMES_BUDGET, type Tile } from '../core/track-window';
 import { clipProxySize } from '../core/video-layer';
+import { aspectOf } from '../core/aspect';
+import { coverWindow } from '../core/reframe';
 
 interface CutFrames {
   imgs: HTMLImageElement[];
@@ -222,11 +224,19 @@ function drawCut(index: number, seconds: number, alpha: number): void {
   const frameIndex = Math.min(frames.imgs.length - 1, Math.max(0, Math.floor(source * frames.fps) - frames.first));
   const img = frames.imgs[frameIndex]!;
   if (!img.complete || img.naturalWidth === 0) return;
-  const scale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
-  const w = img.naturalWidth * scale;
-  const h = img.naturalHeight * scale;
   ctx.globalAlpha = Math.min(1, Math.max(0, alpha));
-  ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+  // Reframed for this shape (milestone 77): the picture fills the frame and the window follows the
+  // cut's keys, by the same arithmetic the render's crop uses. Else letterboxed, as ever.
+  const keys = cutReframe(cut, aspectOf(canvas.width, canvas.height));
+  if (keys) {
+    const window = coverWindow({ width: canvas.width, height: canvas.height }, { width: img.naturalWidth, height: img.naturalHeight }, reframeCentreAt(keys, source));
+    ctx.drawImage(img, window.x, window.y, window.width, window.height, 0, 0, canvas.width, canvas.height);
+  } else {
+    const scale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+  }
   ctx.globalAlpha = 1;
 }
 

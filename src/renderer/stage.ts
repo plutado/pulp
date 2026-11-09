@@ -36,6 +36,7 @@ import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
 import { mountOverlayTrack, overlayTrackUpdate } from './overlay-track';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
 import { motionTracksDebug, motionTracksDraw, mountMotionTracks } from './motion-track';
+import { mountReframeStage, reframeStageDebug, reframeStageDraw } from './reframe-stage';
 import { captionsPreviewDraw, captionsPreviewSync, mountCaptionsPreview } from './stage-captions';
 import { registerPlayerSetter } from './settings';
 import type { CaptionsValue } from '../core/captions';
@@ -546,6 +547,8 @@ function postFrame(frame: number): void {
   trackPictureDraw(frame / Math.max(1, previewFps()), previewSize());
   // The motion tracks of the clip under the playhead, over the picture (milestone 76).
   motionTracksDraw(frame / Math.max(1, previewFps()), previewSize());
+  // And the reframe's handle, while a reframed cut plays (milestone 77).
+  reframeStageDraw(frame / Math.max(1, previewFps()), previewSize());
   // The captions ride over the graphic, on the project's own clock (milestone 50).
   captionsPreviewDraw(frame / Math.max(1, previewFps()), previewSize());
   updateTimecode(frame);
@@ -1320,6 +1323,7 @@ export function initStage(): void {
   (window as unknown as { pulpLayerEditor?: typeof layerEditor }).pulpLayerEditor = layerEditor;
   (window as unknown as { pulpTrackPicture?: typeof trackPictureDebug }).pulpTrackPicture = trackPictureDebug;
   (window as unknown as { pulpMotionTracks?: typeof motionTracksDebug }).pulpMotionTracks = motionTracksDebug;
+  (window as unknown as { pulpReframe?: typeof reframeStageDebug }).pulpReframe = reframeStageDebug;
   initLoudness();
   // The picture's box changes with the window, the stage split, the browse panel and the
   // aspect: the splits resize the center column, the rest resize the picture itself, so
@@ -1370,6 +1374,11 @@ export function initStage(): void {
     frameSize: () => previewSize(),
     playheadSeconds: () => s.frame / Math.max(1, previewFps()),
     note: (text) => showNoteText(text),
+  });
+  mountReframeStage(els.previewFrame, {
+    frameSize: () => previewSize(),
+    playheadSeconds: () => s.frame / Math.max(1, previewFps()),
+    fps: () => Math.max(1, previewFps()),
   });
   mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
     showNoteText(text);
