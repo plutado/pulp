@@ -150,7 +150,7 @@ The person's own text is a **layer**, and a template makes room for layers by de
 ]
 ```
 
-The box is a fraction of the frame, one per aspect with a `default`; on a tall frame the strap moves up and widens. Sizes are fractions of the short side, as everything is. `Inter` is one of ten bundled families every template page has (`docs/font-credits.md`); your own drawing code that sets `ctx.font` to one must ask for it first, `document.fonts.load('700 48px Inter')`, or the first frames fall back.
+The box is a fraction of the frame, one per aspect with a `default`; on a tall frame the strap moves up and widens. Sizes are fractions of the short side, as everything is. `Inter` is one of nineteen bundled families every template page has (`docs/font-credits.md`); your own drawing code that sets `ctx.font` to one must ask for it first, `document.fonts.load('700 48px Inter')`, or the first frames fall back.
 
 The page draws the block with two helpers Pulp provides:
 
