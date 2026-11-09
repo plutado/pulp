@@ -42,12 +42,19 @@ export type Catalog = Partial<Record<MessageId, Message>>;
  * Settings offers it under a heading that says so, with `previewLabel` — "preview" in its own
  * language — and the system's language never comes to it, so nobody is put into an unchecked
  * translation they did not choose. A speaker's check is what turns `preview` off; docs/translating.md.
+ *
+ * A `pseudo` locale (milestone 70) is a tool, not a language: English (mirrored) is US English
+ * declared right to left, so the mirrored window can be looked at and tested before any
+ * right-to-left language is translated. Settings never offers it and the system never comes to it;
+ * it is reached by `window.pulp.setLanguage('en-XB')` or by `"language": "en-XB"` in settings.json.
+ * (XB is the private-use region pseudo-locales conventionally take.)
  */
 export const LOCALES = [
-  { id: 'en-US', label: 'English (US)', dir: 'ltr', variant: false, preview: false, previewLabel: '' }, // i18n-exempt(content): a language's own name for itself
-  { id: 'en-GB', label: 'English (UK)', dir: 'ltr', variant: true, preview: false, previewLabel: '' }, // i18n-exempt(content): a language's own name for itself
-  { id: 'de', label: 'Deutsch', dir: 'ltr', variant: false, preview: true, previewLabel: 'Deutsch (Vorschau)' }, // i18n-exempt(content): a language's own name for itself
-  { id: 'zh-CN', label: '中文（简体）', dir: 'ltr', variant: false, preview: true, previewLabel: '中文（简体）（预览）' }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-US', label: 'English (US)', dir: 'ltr', variant: false, preview: false, previewLabel: '', pseudo: false }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-GB', label: 'English (UK)', dir: 'ltr', variant: true, preview: false, previewLabel: '', pseudo: false }, // i18n-exempt(content): a language's own name for itself
+  { id: 'de', label: 'Deutsch', dir: 'ltr', variant: false, preview: true, previewLabel: 'Deutsch (Vorschau)', pseudo: false }, // i18n-exempt(content): a language's own name for itself
+  { id: 'zh-CN', label: '中文（简体）', dir: 'ltr', variant: false, preview: true, previewLabel: '中文（简体）（预览）', pseudo: false }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-XB', label: 'English (mirrored)', dir: 'rtl', variant: true, preview: false, previewLabel: '', pseudo: true }, // i18n-exempt(content): a developer's tool, named as the language it mirrors
 ] as const;
 
 /** The catalog a locale brings, before the source fills in what it does not say: for checking one. */
@@ -60,7 +67,7 @@ export type LocaleId = (typeof LOCALES)[number]['id'];
 /** The source: what every other catalog falls back to, and the one used when nothing else matches. */
 export const SOURCE_LOCALE: LocaleId = 'en-US';
 
-const CATALOGS: Record<LocaleId, Catalog> = { 'en-US': enUS, 'en-GB': enGB, de, 'zh-CN': zhCN };
+const CATALOGS: Record<LocaleId, Catalog> = { 'en-US': enUS, 'en-GB': enGB, de, 'zh-CN': zhCN, 'en-XB': {} };
 
 /** What Settings → Language holds: the system's language, or one chosen. */
 export type LanguageChoice = 'system' | LocaleId;

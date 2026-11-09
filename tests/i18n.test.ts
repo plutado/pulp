@@ -11,7 +11,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  catalogFor, formatMessage, LOCALES, ownCatalog, placeholdersOf, resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translate, translator, type Catalog,
+  catalogFor, directionOf, formatMessage, LOCALES, ownCatalog, placeholdersOf, resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translate, translator, type Catalog,
 } from '../src/core/i18n';
 import { enUS } from '../src/locales/en-US';
 import { EXEMPT_REASONS, findWords } from './i18n-scan';
@@ -54,7 +54,7 @@ describe('choosing a language', () => {
 
 describe('Chinese and German (milestone 68)', () => {
   it('lists every language in its own language and script, the two not yet checked by a speaker as previews', () => {
-    expect(LOCALES.map((l) => l.label)).toEqual(['English (US)', 'English (UK)', 'Deutsch', '中文（简体）']);
+    expect(LOCALES.filter((l) => !l.pseudo).map((l) => l.label)).toEqual(['English (US)', 'English (UK)', 'Deutsch', '中文（简体）']);
     expect(LOCALES.filter((l) => l.preview).map((l) => [l.id, l.previewLabel])).toEqual([['de', 'Deutsch (Vorschau)'], ['zh-CN', '中文（简体）（预览）']]);
     for (const l of LOCALES) expect(l.variant && l.preview, `${l.id}: a variant is never a preview`).toBe(false);
   });
@@ -116,6 +116,28 @@ describe('Chinese and German (milestone 68)', () => {
     }
     // A handful may say it another way where the sentence asks for it; the glossary holds the rest.
     expect(off.length, off.join('\n')).toBeLessThanOrEqual(Math.ceil(Object.keys(enUS).length * 0.01));
+  });
+});
+
+describe('right to left (milestone 70)', () => {
+  it('every language says which way it is written, and the ones translated so far read left to right', () => {
+    for (const l of LOCALES) expect(['ltr', 'rtl']).toContain(l.dir);
+    for (const l of LOCALES.filter((x) => !x.pseudo)) expect(directionOf(l.id), l.id).toBe('ltr');
+  });
+
+  it('English (mirrored) is a tool: US English read right to left, a variant with nothing of its own, never offered and never the system\'s', () => {
+    const mirrored = LOCALES.find((l) => l.pseudo)!;
+    expect(mirrored.id).toBe('en-XB');
+    expect(mirrored.variant).toBe(true);
+    expect(mirrored.preview).toBe(false);
+    expect(directionOf('en-XB')).toBe('rtl');
+    expect(ownCatalog('en-XB')).toEqual({});
+    expect(catalogFor('en-XB')).toEqual(enUS);
+    // Reached by choosing it, as settings.json or a test does; the system's languages never come to it.
+    expect(sanitizeLanguage('en-XB')).toBe('en-XB');
+    expect(resolveLocale('en-XB', ['en-US'])).toBe('en-XB');
+    for (const tags of [['en-XB'], ['ar'], ['he-IL', 'en-US'], ['fa']]) expect(resolveLocale('system', tags, { previews: true }), tags.join()).not.toBe('en-XB');
+    expect(LOCALES.filter((l) => l.pseudo)).toHaveLength(1);
   });
 });
 

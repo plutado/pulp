@@ -46,6 +46,7 @@ import { runLibraryAdd } from './library-add';
 import { rovingTarget } from '../core/roving';
 import { isPolished } from '../core/polished';
 import { bindText, t } from './i18n';
+import { isRtl } from './direction';
 
 /**
  * The id the listbox points `aria-activedescendant` at, so a screen reader
@@ -279,6 +280,7 @@ function onKeyDown(event: KeyboardEvent, actions: ResultsActions, container: HTM
     columns,
     // A page is the rows a screenful holds, and at least one.
     page: Math.max(1, Math.floor(viewport.value.height / Math.max(1, rowHeight))),
+    rtl: isRtl(container),
   });
   if (target === null) return;
   event.preventDefault();

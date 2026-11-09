@@ -83,7 +83,8 @@
       <section id="region-stage" class="stage" data-i18n-attr="aria-label:ui.region-stage.aria-label">
         <div class="preview-wrap">
           <p class="preview-no-room" role="status" data-i18n="ui.region-stage.no-room-for-the-preview"></p>
-          <div id="preview-frame" class="preview checker">
+          <!-- The picture and what is drawn over it are in the frame's own coordinates, never mirrored (milestone 70). -->
+          <div id="preview-frame" class="preview checker" dir="ltr">
             <canvas id="track-picture" class="media track-picture" aria-hidden="true" hidden></canvas>
             <iframe id="preview" sandbox="allow-scripts allow-same-origin" data-i18n-attr="title:ui.preview.title"></iframe>
             <iframe id="captions-preview" class="captions-preview" sandbox="allow-scripts allow-same-origin" aria-hidden="true" hidden data-i18n-attr="title:ui.captions-preview.title"></iframe>
@@ -374,9 +375,12 @@
       </div>
     </div>
 
-    <section id="region-transport" class="transport-row" data-i18n-attr="aria-label:ui.region-transport.aria-label">
+    <!-- The transport row reads left to right in every language, as a player's controls do: time runs
+         rightward on the scrub bar and the lanes, and the playback buttons keep their order. The scrub
+         line and the lanes carry the pin themselves, since the stage's own window takes them (milestone 70). -->
+    <section id="region-transport" class="transport-row" dir="ltr" data-i18n-attr="aria-label:ui.region-transport.aria-label">
       <div id="split-transport" class="splitter h" role="separator" tabindex="0" aria-orientation="horizontal" data-i18n-attr="aria-label:ui.split-transport.aria-label"></div>
-      <div id="scrub-line" class="scrub-line">
+      <div id="scrub-line" class="scrub-line" dir="ltr">
         <span class="scrub-wrap">
           <input id="scrub" type="range" min="0" max="0" value="0" step="1" disabled data-i18n-attr="aria-label:ui.scrub.aria-label">
           <span id="scrub-marks" class="scrub-marks" aria-hidden="true">
@@ -394,7 +398,7 @@
                   data-i18n-attr="aria-label:ui.length-handle.aria-label;data-tip:ui.length-handle.data-tip"></button>
         </span>
       </div>
-      <div id="transport-lanes" class="transport-lanes">
+      <div id="transport-lanes" class="transport-lanes" dir="ltr">
         <div id="layer-bars" class="layer-bars" role="group" hidden data-i18n-attr="aria-label:ui.layer-bars.aria-label"></div>
         <div id="overlay-track" class="overlay-track" role="group" hidden data-i18n-attr="aria-label:ui.overlay-track.aria-label"></div>
         <div id="cut-track" class="cut-track" role="group" hidden data-i18n-attr="aria-label:ui.cut-track.aria-label"></div>

@@ -219,7 +219,10 @@ input[type="checkbox"] { width: auto; }
 .app {
   display: grid;
   /* The browse panel and the center; the right column went with milestone 38, so the stage
-     and the results span from the browse panel's edge to the window's right edge. */
+     and the results span from the browse panel's edge to the window's far edge. Grid columns
+     follow the writing direction, so in a right-to-left language the panel is on the right and
+     everything in this file that says left or right about the interface says start or end
+     instead; the transport row and the picture are pinned left to right in the markup (milestone 70). */
   grid-template-columns: var(--browse-w, 260px) 6px minmax(0, 1fr);
   /* Rows: the regions, the collection tray, the transport row (milestone 37). The status bar was a
      fourth row until milestone 42 put its items at the end of the transport row. */
@@ -283,7 +286,7 @@ input[type="checkbox"] { width: auto; }
 .search-section { flex: 0 0 auto; gap: 6px; padding: 10px 12px 10px; border-bottom: 1px solid var(--border); container-type: inline-size; }
 .browse-section { flex: 1; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
-.browse-section .section-head { padding: var(--space-2) var(--space-2) 0 var(--space-3); }
+.browse-section .section-head { padding: var(--space-2) 0 0; padding-inline: var(--space-3) var(--space-2); }
 .section-title { color: var(--muted); font-size: var(--font-secondary); font-weight: 600; }
 .section-head .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
 .section-head .icon-button:hover { color: var(--text); }
@@ -348,9 +351,12 @@ input[type="checkbox"] { width: auto; }
 /* Icons (ADR 0011): inline SVG inheriting currentColor; hosts carry the accessible name. */
 .icon { display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
 .icon-wrap { display: inline-flex; align-items: center; }
-button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
+button > .icon + .label, button > .icon-wrap + .label { margin-inline-start: 6px; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; line-height: 1; }
 .icon.spin { animation: spin 1s linear infinite; }
+/* A caret that points along the reading direction — a panel's fold, a tree's twisty — turns with it in a
+   mirrored window (milestone 70). The transport row is pinned left to right, so its step carets stay. */
+[data-icon="caret-left"]:dir(rtl) > .icon, [data-icon="caret-right"]:dir(rtl) > .icon { transform: scaleX(-1); }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* The right-click menu (milestone 39, ADR 0017): one panel of commands at the pointer, with
    submenus beside it. Above everything but the tooltip, which never covers anything pressable. */
@@ -360,26 +366,28 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   box-shadow: 0 8px 24px var(--shadow-strong); }
 .context-menu > button { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%;
   padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none; color: inherit;
-  font: inherit; font-size: var(--font-body); text-align: left; cursor: default; }
+  font: inherit; font-size: var(--font-body); text-align: start; cursor: default; }
 .context-menu > button:hover:not(:disabled), .context-menu > button:focus-visible { background: var(--panel-2); outline: none; }
 .context-menu > button:disabled { color: var(--muted); }
 /* A choice with a line under it saying what it brings (milestone 47): the label keeps its weight,
    the line reads as the quieter of the two. */
 .context-menu > button .item-lines { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
 /* The label keeps to the start of the row; whatever follows it (a submenu's caret) goes to the end. */
-.context-menu > button > .item-label, .context-menu > button > .item-lines { margin-right: auto; }
+.context-menu > button > .item-label, .context-menu > button > .item-lines { margin-inline-end: auto; }
 .context-menu > button .item-detail { color: var(--muted); font-size: var(--font-caption); }
 .context-menu > button:disabled .item-detail { opacity: 0.8; }
 /* The one caret that says a submenu opens here; drawn rather than an icon, as the tree's twisty is. */
-.context-menu > button.has-submenu::after { content: ''; width: 5px; height: 5px; margin-right: 2px; border-right: 1px solid currentColor;
+.context-menu > button.has-submenu::after { content: ''; width: 5px; height: 5px; margin-inline-end: 2px; border-inline-end: 1px solid currentColor;
   border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 auto; }
+/* In a mirrored window the submenu opens to the left, and the caret turns to point there (milestone 70). */
+.context-menu > button.has-submenu:dir(rtl)::after { transform: rotate(-45deg); }
 .context-menu > button.has-submenu:disabled::after { opacity: 0.5; }
 /* A choice that is on carries a tick in a gutter of its own, and a panel with any choice in it gives
    every row that gutter, so the labels line up whether or not an item can be ticked or is. */
-.context-menu.has-checks > button { padding-left: var(--space-1); }
+.context-menu.has-checks > button { padding-inline-start: var(--space-1); }
 .context-menu.has-checks > button::before {
   /* Its margin takes back most of the row's gap, which is there for the label and a submenu's caret. */
-  content: ''; flex: 0 0 auto; width: 14px; height: 14px; margin-right: calc(var(--space-1) - var(--space-3)); background: currentColor; opacity: 0;
+  content: ''; flex: 0 0 auto; width: 14px; height: 14px; margin-inline-end: calc(var(--space-1) - var(--space-3)); background: currentColor; opacity: 0;
   -webkit-mask: var(--check-mask) center / contain no-repeat; mask: var(--check-mask) center / contain no-repeat;
 }
 .context-menu > button.checked::before { opacity: 1; }
@@ -401,7 +409,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app.browse-collapsed .browse-tree .twisty-slot,
 .app.browse-collapsed .browse-tree .tree-rows.nested { display: none; }
 .app.browse-collapsed .browse-tree .tree-section + .tree-section { margin-top: var(--space-1); }
-.app.browse-collapsed .browse-tree .node-row { padding-left: 0; }
+.app.browse-collapsed .browse-tree .node-row { padding-inline-start: 0; }
 .app.browse-collapsed .browse-tree .browse-node { justify-content: center; padding: 6px; }
 .app.browse-collapsed .region-expand { margin: 4px auto 0; order: -1; }
 /* The search icon on the rail (milestone 41): unfolds the panel with the field focused. */
@@ -413,11 +421,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app.tray-collapsed .tray-body, .app.tray-collapsed #split-tray { display: none; }
 
 .search-field { position: relative; flex: 1; display: flex; min-width: 0; }
-.search-field input { flex: 1; min-width: 0; padding-left: 28px; }
-.search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
+.search-field input { flex: 1; min-width: 0; padding-inline-start: 28px; }
+.search-icon { position: absolute; inset-inline-start: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
 .sort-wrap { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
 .sort-wrap select { max-width: 150px; }
-.scope-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 10px; padding: 2px 6px 2px 10px; font-size: var(--font-secondary); white-space: nowrap; align-self: flex-start; max-width: 100%; }
+.scope-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 10px; padding: 2px 0; padding-inline: 10px 6px; font-size: var(--font-secondary); white-space: nowrap; align-self: flex-start; max-width: 100%; }
 .scope-chip #scope-chip-label { overflow: hidden; text-overflow: ellipsis; }
 .scope-chip[hidden] { display: none; }
 .scope-chip { gap: 6px; }
@@ -428,18 +436,18 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .view-controls .icon-button { color: var(--muted); background: none; border-color: transparent; }
 .view-controls .icon-button:hover { color: var(--text); }
 .view-controls .icon-button[aria-pressed="true"] { color: var(--text); background: var(--panel-2); border-color: var(--accent); }
-.view-controls #thumb-size { width: 72px; padding: 0; margin-left: var(--space-1); background: none; border: 0; accent-color: var(--accent); }
+.view-controls #thumb-size { width: 72px; padding: 0; margin-inline-start: var(--space-1); background: none; border: 0; accent-color: var(--accent); }
 .view-controls #thumb-size:disabled { opacity: 0.4; }
 /* The filter chips in one compact row (milestone 41): icon-only in a narrow panel, each named by
    its tooltip; the labels come back when the panel is wide enough to hold them on a line. */
 .filter-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .filter-chips { gap: 3px; }
 .filter-chips .chip { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-caption); padding: 3px 6px; border-radius: 10px; color: var(--muted); }
-.filter-chips .chip > .icon + .label { margin-left: 0; }
+.filter-chips .chip > .icon + .label { margin-inline-start: 0; }
 .filter-chips .chip .label { display: none; }
 /* Seven labeled chips take about 420 px; the labels come back only where they still fit one row. */
 @container (min-width: 430px) {
-  .filter-chips .chip { padding: 2px 9px 2px 7px; }
+  .filter-chips .chip { padding: 2px 0; padding-inline: 7px 9px; }
   .filter-chips .chip .label { display: inline; }
 }
 /* For… and Look under the chips, each taking half the row. */
@@ -473,13 +481,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   padding: var(--space-2) var(--space-2) var(--space-1);
 }
 .browse-tree .section-heading:hover { color: var(--text-secondary); }
-.browse-tree .section-heading > .icon-wrap + .label { margin-left: 0; }
+.browse-tree .section-heading > .icon-wrap + .label { margin-inline-start: 0; }
 .browse-tree .section-heading .icon { width: 12px; height: 12px; }
 .browse-tree .tree-section + .tree-section { border-top: 1px solid var(--border); margin-top: var(--space-1); }
 
 /* Rows. The gutter holds the twisty (or nothing), so icons line up whether or not a
    row folds; a child's gutter is wider by one step, which is its indent. */
-.browse-tree .node-row { display: flex; align-items: center; padding-left: var(--space-2); border-radius: var(--radius-control); }
+.browse-tree .node-row { display: flex; align-items: center; padding-inline-start: var(--space-2); border-radius: var(--radius-control); }
 .browse-tree .node-row:hover { background: var(--panel-2); }
 .browse-tree .node-row.active { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
 .browse-tree .twisty, .browse-tree .twisty-slot { flex: 0 0 14px; width: 14px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: none; border: 0; color: var(--muted); }
@@ -497,9 +505,9 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
   background: none;
   border: 0;
   color: var(--text-secondary);
-  padding: 4px 8px 4px 6px;
+  padding: 4px 0; padding-inline: 6px 8px;
 }
-.browse-tree .browse-node > .icon-wrap + .label { margin-left: 0; }
+.browse-tree .browse-node > .icon-wrap + .label { margin-inline-start: 0; }
 .browse-tree .browse-node .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Children sit a shade quieter until they are pointed at or chosen. */
 .browse-tree .node-row.lvl-2 .browse-node { color: var(--muted); }
@@ -509,13 +517,13 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* A stock library that is not connected (milestone 32): still listed, dimmed, and saying so in words
    on the row, not only in a tooltip. The tag yields its width last, after the name. */
 .browse-tree .browse-node.offline .label, .browse-tree .browse-node.offline .count { opacity: 0.6; }
-.browse-tree .browse-node .node-status { flex: 0 0 auto; margin-left: var(--space-1); padding: 0 5px; border-radius: 8px; font-size: var(--font-caption); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
-.browse-tree .count { margin-left: auto; padding-left: var(--space-1); font-size: var(--font-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
+.browse-tree .browse-node .node-status { flex: 0 0 auto; margin-inline-start: var(--space-1); padding: 0 5px; border-radius: 8px; font-size: var(--font-caption); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+.browse-tree .count { margin-inline-start: auto; padding-inline-start: var(--space-1); font-size: var(--font-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* The guide line runs down the middle of the parent row's icon:
    8 px row padding + 14 px gutter + 6 px button padding + half of a 16 px icon. */
 .browse-tree .tree-rows.nested { position: relative; }
-.browse-tree .tree-rows.nested::before { content: ""; position: absolute; left: 36px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.browse-tree .tree-rows.nested::before { content: ""; position: absolute; inset-inline-start: 36px; top: 0; bottom: 0; width: 1px; background: var(--border); }
 
 /* The results keep a readable height however short the window: the stage above shrinks first
    (flex-shrink below), and the tray body is capped so the center column keeps room for both. */
@@ -530,7 +538,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results-head { flex: 0 0 auto; display: flex; align-items: center; padding: var(--space-1) var(--space-3) 0; position: relative; z-index: 1; background: var(--bg); }
 /* How the results are shown sits with the results (milestone 41): sort, grid or list and the
    thumbnail size at the heading's right, and the two region toggles after them. */
-.results-tools { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; }
+.results-tools { margin-inline-start: auto; display: inline-flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; }
 .results-tools .region-toggle { padding: 2px 5px; }
 .region-count { color: var(--muted); font-size: var(--font-caption); font-variant-numeric: tabular-nums; }
 
@@ -613,7 +621,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .project-recent-head { font-size: var(--font-secondary); margin: var(--space-2) 0 var(--space-1); }
 .project-recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
 .project-recent li { display: flex; align-items: center; gap: var(--space-1); }
-.project-recent .recent-open { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-recent .recent-open { flex: 1; text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-recent .recent-path { color: var(--muted); font-size: var(--font-caption); }
 .unsaved-dialog { max-width: 420px; }
 /* The keyboard shortcuts, grouped by the menu they are on: a name and its keys to the right,
@@ -647,7 +655,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .guided-step-body .guided-choice .note { margin: 2px 0 0; }
 .guided-step-body h3 { margin: 0; font-size: var(--font-body); font-weight: 600; }
 .guided-step-body .field { display: flex; flex-direction: column; gap: 4px; }
-.guided-step-body ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.guided-step-body ul { margin: 0; padding-inline-start: 18px; display: flex; flex-direction: column; gap: 6px; }
 .guided-actions { align-items: center; }
 @media (max-width: 640px) { .guided-columns { grid-template-columns: 1fr; } }
 .pack-dialog h2 { margin: 0 0 6px; font-size: var(--font-dialog); }
@@ -675,7 +683,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .results li.missing { opacity: 0.45; filter: grayscale(1); }
 /* A file Pulp cannot read (milestone 32): its preview as usual, but its badge says it can't be opened.
    On the stage the note sits over the bottom of the preview, so both are read. */
-.preview-empty.unreadable-note, .preview-empty.preview-note { inset: auto 0 0 0; height: auto; padding: var(--space-2) var(--space-3); background: color-mix(in srgb, var(--panel) 88%, transparent); text-align: left; }
+.preview-empty.unreadable-note, .preview-empty.preview-note { inset: auto 0 0 0; height: auto; padding: var(--space-2) var(--space-3); background: color-mix(in srgb, var(--panel) 88%, transparent); text-align: start; }
 .results .spacer { grid-column: 1 / -1; }
 .results .meta.empty { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--font-caption); }
 /* Nothing here: outlines where cards would be, and the reason over them. The outlines are a hint
@@ -718,11 +726,11 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 /* A word is a short outlined tag (milestone 66): "Full HD", "4K", "1440p", read as one thing, not as more gray text. */
 .results .badge.tag { border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; line-height: 14px; color: var(--text-secondary); }
 /* The icons sit together, set apart from the tags. */
-.results .badge-icons { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: var(--space-1); }
-.results .badge-icons:first-child { margin-left: 0; }
+.results .badge-icons { display: inline-flex; align-items: center; gap: var(--space-1); margin-inline-start: var(--space-1); }
+.results .badge-icons:first-child { margin-inline-start: 0; }
 /* The running time over the thumbnail's bottom-right corner, as video sites print a length: a small dark
    pill that reads on any poster in either appearance (milestone 66). */
-.results .thumb .thumb-time { position: absolute; right: 4px; bottom: 4px; padding: 0 4px; border-radius: 3px; background: var(--time-pill); color: var(--time-pill-text); font-size: var(--font-caption); line-height: 15px; font-variant-numeric: tabular-nums; pointer-events: none; }
+.results .thumb .thumb-time { position: absolute; inset-inline-end: 4px; bottom: 4px; padding: 0 4px; border-radius: 3px; background: var(--time-pill); color: var(--time-pill-text); font-size: var(--font-caption); line-height: 15px; font-variant-numeric: tabular-nums; pointer-events: none; }
 .results .badge { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
 .results .badge-icons .badge { color: var(--text-secondary); }
 .results .badge-icons .badge .label {
@@ -758,7 +766,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 .app.theater.results-collapsed #region-results { display: none; }
 /* The message in the heading: the one line that says what is going on, its detail as a tooltip,
    and each way out as a small button beside it. */
-.results-empty-note { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; margin-left: var(--space-2); color: var(--text-secondary); font-size: var(--font-secondary); }
+.results-empty-note { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; margin-inline-start: var(--space-2); color: var(--text-secondary); font-size: var(--font-secondary); }
 .results-empty-note[hidden] { display: none; }
 .results-empty-note .empty-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; color: inherit; }
 .results-empty-note .empty-actions { margin: 0; display: inline-flex; gap: var(--space-1); flex: 0 0 auto; }
@@ -899,7 +907,7 @@ button > .icon + .label, button > .icon-wrap + .label { margin-left: 6px; }
 
 /* Keyframes under Animate (milestone 51). */
 .layer-animate { margin-top: var(--space-1); }
-.animate-body { display: grid; gap: var(--space-1); padding: var(--space-1) 0 0 var(--space-2); }
+.animate-body { display: grid; gap: var(--space-1); padding: var(--space-1) 0 0; padding-inline-start: var(--space-2); }
 .key-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .key-at { font-size: var(--font-secondary); color: var(--muted); min-width: 48px; font-variant-numeric: tabular-nums; }
 .key-row .key-curve { width: 56px; }
@@ -1136,12 +1144,12 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .guide-contents { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--space-2) 0; }
 .guide-body { max-height: 62vh; }
 .guide-body h4 { margin: var(--space-2) 0 var(--space-1); font-size: var(--font-secondary); color: var(--text-secondary); }
-.guide-body ul { margin: 0 0 var(--space-2); padding-left: var(--space-4); }
+.guide-body ul { margin: 0 0 var(--space-2); padding-inline-start: var(--space-4); }
 .guide-body li { margin-bottom: 4px; }
 .notices-body h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--font-body); }
 .notices-body p { margin: 0 0 var(--space-2); }
 .notices-body table { border-collapse: collapse; width: 100%; margin: 0 0 var(--space-2); }
-.notices-body th, .notices-body td { text-align: left; vertical-align: top; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
+.notices-body th, .notices-body td { text-align: start; vertical-align: top; padding: 4px 0; padding-inline-end: 8px; border-bottom: 1px solid var(--border); }
 
 /* The captions (milestone 50): the chosen caption style's own page, after the template's in the
    DOM so the words sit over the graphic, as they sit over everything in the finished video. It
@@ -1204,7 +1212,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .transport-lanes.drop-target { outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
 
 /* The cover's own row under its checkbox: the frame, and a button that takes the playhead's. */
-.cover-row { display: flex; align-items: flex-end; gap: var(--space-2); margin: var(--space-1) 0 0 var(--space-4); }
+.cover-row { display: flex; align-items: flex-end; gap: var(--space-2); margin: var(--space-1) 0 0; margin-inline-start: var(--space-4); }
 .cover-row[hidden] { display: none; }
 .cover-row .field { flex: 0 1 auto; }
 .cover-row button { flex: 0 0 auto; }
@@ -1212,7 +1220,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 /* How the picture is viewed — background and safe areas — a quiet overlay on the stage's corner
    (milestone 38), so the stage's box is all picture. Over the letterbox dead space at most sizes;
    above the layer overlay, so its buttons stay clickable. */
-.stage-view { position: absolute; top: 8px; right: 12px; z-index: 2; display: flex; align-items: center; gap: var(--space-2); }
+.stage-view { position: absolute; top: 8px; inset-inline-end: 12px; z-index: 2; display: flex; align-items: center; gap: var(--space-2); }
 /* Four buttons of one size: the background, the safe areas, pop out and theater. */
 .stage-view .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0; color: var(--muted); background: none; border-color: transparent; }
 .stage-view .icon-button:hover { color: var(--text); }
@@ -1221,7 +1229,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .stage-view .bg-choice { position: relative; display: inline-flex; }
 .stage-view #bg-button[aria-expanded="true"] { background: var(--panel-2); border-color: var(--border); }
 .stage-view .bg-current { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--border); }
-.stage-view .bg-picker { position: absolute; z-index: 3; top: calc(100% + var(--space-1)); right: 0; display: flex; gap: var(--space-1); padding: var(--space-1);
+.stage-view .bg-picker { position: absolute; z-index: 3; top: calc(100% + var(--space-1)); inset-inline-end: 0; display: flex; gap: var(--space-1); padding: var(--space-1);
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-control); box-shadow: 0 8px 24px var(--shadow-strong); }
 .stage-view .bg-picker[hidden] { display: none; }
 .stage-view .swatch, .stage-view #bg-custom { width: 26px; height: 26px; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--border); }
@@ -1259,7 +1267,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .item-tools .favorite { display: inline-flex; align-items: center; line-height: 1; padding: 4px 8px; }
 .item-tools .favorite[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
 .tag-chips { display: flex; gap: 4px; flex-wrap: wrap; }
-.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 6px 1px 8px; font-size: var(--font-caption); }
+.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 0; padding-inline: 8px 6px; font-size: var(--font-caption); }
 .tag-chip.folder { opacity: 0.7; }
 .tag-chip button { display: inline-flex; padding: 0 2px; border: 0; background: none; color: var(--muted); line-height: 1; }
 .tag-chip button .icon-wrap .icon { width: 12px; height: 12px; }
@@ -1284,7 +1292,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .info-type { margin: 0; display: flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--font-secondary); }
 
 .info-section { border-top: 1px solid var(--border); }
-.info-section .section-heading { width: 100%; display: flex; align-items: center; gap: var(--space-1); background: none; border: 0; text-align: left; color: var(--muted); font-size: var(--font-secondary); font-weight: 600; padding: var(--space-2) 0; }
+.info-section .section-heading { width: 100%; display: flex; align-items: center; gap: var(--space-1); background: none; border: 0; text-align: start; color: var(--muted); font-size: var(--font-secondary); font-weight: 600; padding: var(--space-2) 0; }
 .info-section .section-heading:hover { color: var(--text-secondary); }
 .info-section .section-heading .icon { width: 12px; height: 12px; }
 .info-section .section-body { display: grid; gap: var(--space-2); padding: 0 0 var(--space-3); }
@@ -1300,7 +1308,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 
 .info-about { margin: 0; line-height: 1.5; }
 .info-about.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.info-about .more { background: none; border: 0; color: var(--accent-text); padding: 0 0 0 var(--space-1); font-size: var(--font-secondary); }
+.info-about .more { background: none; border: 0; color: var(--accent-text); padding: 0; padding-inline-start: var(--space-1); font-size: var(--font-secondary); }
 .empty-note { color: var(--muted); font-size: var(--font-secondary); }
 .chip-label { margin: 0; color: var(--muted); font-size: var(--font-caption); }
 .chip-row { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
@@ -1309,7 +1317,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .file-actions { display: flex; gap: var(--space-1); flex-wrap: wrap; }
 .file-actions button { font-size: var(--font-secondary); padding: 3px 8px; }
 .set-pieces { display: flex; gap: var(--space-1); flex-wrap: wrap; }
-.set-piece { display: grid; gap: 2px; width: 78px; padding: 2px; background: none; border: 1px solid transparent; text-align: left; }
+.set-piece { display: grid; gap: 2px; width: 78px; padding: 2px; background: none; border: 1px solid transparent; text-align: start; }
 .set-piece:hover { border-color: var(--accent); }
 .set-piece .thumb { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 .set-piece .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -1350,7 +1358,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .number-field input[type="range"] { padding: 0; min-width: 0; }
 .number-field input[type="number"] { width: 72px; }
 .text-field { display: grid; gap: 2px; }
-.text-field .counter { color: var(--muted); font-size: var(--font-caption); text-align: right; font-variant-numeric: tabular-nums; }
+.text-field .counter { color: var(--muted); font-size: var(--font-caption); text-align: end; font-variant-numeric: tabular-nums; }
 .text-field .counter.full { color: var(--accent-text); }
 .field { display: grid; gap: 4px; }
 .field > span { color: var(--muted); font-size: var(--font-secondary); }
@@ -1361,7 +1369,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .color-field .swatch-fill { position: absolute; inset: 0; }
 .color-field input[type="color"] { width: 48px; }
 .color-field .alpha { padding: 0; min-width: 0; }
-.color-field .alpha-value { color: var(--muted); font-size: var(--font-caption); text-align: right; font-variant-numeric: tabular-nums; }
+.color-field .alpha-value { color: var(--muted); font-size: var(--font-caption); text-align: end; font-variant-numeric: tabular-nums; }
 .color-field .hex { grid-column: 1 / -1; font-family: Menlo, Consolas, monospace; }
 .color-field .recent-colors { grid-column: 1 / -1; display: flex; gap: 4px; flex-wrap: wrap; }
 .color-field .recent-colors[hidden] { display: none; }
@@ -1379,13 +1387,15 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .layers-block { display: grid; gap: var(--space-2); }
 .card-head { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 /* The heading is the control that folds the card: a row, not a button to press. */
-.card-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); text-align: left; background: none; border: 0; border-radius: var(--radius-control); padding: 2px 4px; }
+.card-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); text-align: start; background: none; border: 0; border-radius: var(--radius-control); padding: 2px 4px; }
 .card-toggle:hover .layer-label { color: var(--text); }
 .card-toggle::before {
   content: ''; flex: 0 0 auto; width: 0; height: 0;
-  border: 4px solid transparent; border-left: 6px solid var(--muted); margin-left: 2px;
+  border: 4px solid transparent; border-inline-start: 6px solid var(--muted); margin-inline-start: 2px;
 }
 .card-toggle[aria-expanded="true"]::before { transform: rotate(90deg) translateX(1px); }
+/* The triangle points into the row, so in a mirrored window it points left and turns the other way to open (milestone 70). */
+.card-toggle[aria-expanded="true"]:dir(rtl)::before { transform: rotate(-90deg) translateX(-1px); }
 .card-body { display: grid; gap: var(--space-2); padding: 0 var(--space-1); }
 .card-body[hidden] { display: none; }
 /* A hidden layer is kept, not drawn: it reads as set aside rather than gone. */
@@ -1402,12 +1412,13 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    and the color taking the whole width. */
 .layer-type summary, .layer-advanced summary, .layer-animate summary, .layer-look summary { cursor: pointer; color: var(--muted); font-size: var(--font-caption); padding: 2px 0; list-style: none; display: flex; align-items: center; gap: var(--space-1); }
 .layer-type summary::-webkit-details-marker, .layer-advanced summary::-webkit-details-marker, .layer-animate summary::-webkit-details-marker, .layer-look summary::-webkit-details-marker { display: none; }
-.layer-type summary::before, .layer-advanced summary::before, .layer-look summary::before { content: ''; width: 0; height: 0; border: 4px solid transparent; border-left: 5px solid var(--muted); margin-right: 2px; }
+.layer-type summary::before, .layer-advanced summary::before, .layer-look summary::before { content: ''; width: 0; height: 0; border: 4px solid transparent; border-inline-start: 5px solid var(--muted); margin-inline-end: 2px; }
 .layer-type[open] summary::before, .layer-advanced[open] summary::before, .layer-look[open] summary::before { transform: rotate(90deg); }
+.layer-type[open] summary:dir(rtl)::before, .layer-advanced[open] summary:dir(rtl)::before, .layer-look[open] summary:dir(rtl)::before { transform: rotate(-90deg); }
 .layer-type summary:hover, .layer-advanced summary:hover, .layer-look summary:hover { color: var(--text); }
 .tint-field { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1); align-items: start; }
-.image-layer-controls { padding-left: 0; }
-.type-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-1) var(--space-2); padding: var(--space-1) 0 var(--space-1) var(--space-3); }
+.image-layer-controls { padding-inline-start: 0; }
+.type-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-1) var(--space-2); padding: var(--space-1) 0; padding-inline-start: var(--space-3); }
 .type-field { display: grid; gap: 2px; min-width: 0; }
 .type-field.wide { grid-column: 1 / -1; }
 .type-field > span { color: var(--muted); font-size: var(--font-caption); }
@@ -1419,7 +1430,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .type-field .color-field { grid-template-columns: 28px 48px 1fr 36px; }
 /* The family control: the current family set in itself, and a list where every family is too. */
 .family-picker { position: relative; }
-.family-current { width: 100%; text-align: left; display: flex; align-items: center; justify-content: space-between; font-size: var(--font-body); }
+.family-current { width: 100%; text-align: start; display: flex; align-items: center; justify-content: space-between; font-size: var(--font-body); }
 .family-current::after { content: ''; width: 0; height: 0; border: 4px solid transparent; border-top: 5px solid var(--muted); margin-top: 4px; }
 .family-list { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: var(--space-1); list-style: none; max-height: 260px; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-control); box-shadow: 0 6px 20px var(--shadow); }
 .family-list[hidden] { display: none; }
@@ -1474,7 +1485,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 /* min-width 0, or the name's own length sets the row's width and the field overflows a narrow inspector. */
 .image-field .image-name { min-width: 0; color: var(--text-secondary); font-size: var(--font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .image-field .image-dims { color: var(--muted); font-size: var(--font-caption); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.image-field .image-buttons { margin-left: auto; display: flex; gap: var(--space-1); flex: 0 0 auto; }
+.image-field .image-buttons { margin-inline-start: auto; display: flex; gap: var(--space-1); flex: 0 0 auto; }
 .image-field .image-buttons .icon-button { color: var(--muted); background: none; border-color: transparent; padding: 3px 5px; }
 .image-field .image-buttons .icon-button:hover { color: var(--text); border-color: var(--border); }
 .image-field .image-buttons .icon-button[hidden] { display: none; }
@@ -1484,7 +1495,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .image-field .picker-head input[type="search"] { flex: 1; min-width: 0; }
 .image-field .picker-head .from-file { flex: 0 0 auto; font-size: var(--font-secondary); padding: 3px 8px; }
 .image-field .image-choices { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: grid; gap: 2px; }
-.image-field .image-choice { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: 2px 4px; background: none; border-color: transparent; }
+.image-field .image-choice { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: start; padding: 2px 4px; background: none; border-color: transparent; }
 .image-field .image-choice:hover, .image-field .image-choice[aria-pressed="true"] { background: var(--panel-2); }
 .image-field .image-choice .thumb { width: 40px; height: 24px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0; }
 .image-field .image-choice .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
@@ -1498,9 +1509,9 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; }
 .segmented button {
   font-size: var(--font-caption); padding: 3px 8px; color: var(--muted); background: none;
-  border: 0; border-left: 1px solid var(--border); border-radius: 0;
+  border: 0; border-inline-start: 1px solid var(--border); border-radius: 0;
 }
-.segmented button:first-child { border-left: 0; }
+.segmented button:first-child { border-inline-start: 0; }
 .segmented button:hover { color: var(--text); background: var(--panel-2); }
 .segmented button[aria-pressed="true"] { color: var(--text); background: var(--panel-2); box-shadow: inset 0 -2px 0 var(--accent); }
 .image-field .image-treatment .tint { width: 26px; height: 22px; padding: 1px; flex: 0 0 auto; }
@@ -1572,7 +1583,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .queue .order .icon { width: 12px; height: 12px; }
 .note.editing { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--accent); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); }
 .note.editing[hidden] { display: none; }
-.note.editing button { font-size: var(--font-secondary); padding: 2px 8px; margin-left: auto; }
+.note.editing button { font-size: var(--font-secondary); padding: 2px 8px; margin-inline-start: auto; }
 .tray-head .primary { font-size: var(--font-secondary); padding: 3px 10px; }
 .tray-progress { width: 120px; height: 4px; }
 .tray-progress[hidden] { display: none; }
@@ -1589,7 +1600,7 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .tray-foot .icon-slot:hover { color: var(--text); }
 .note.notice { display: flex; align-items: center; gap: var(--space-2); background: var(--panel-2); border: 1px solid var(--accent); border-radius: var(--radius-control); padding: var(--space-2); margin: 0 0 var(--space-2); }
 .note.notice[hidden] { display: none; }
-.note.notice button { font-size: var(--font-secondary); padding: 3px 8px; margin-left: auto; white-space: nowrap; }
+.note.notice button { font-size: var(--font-secondary); padding: 3px 8px; margin-inline-start: auto; white-space: nowrap; }
 progress { width: 100%; margin: 2px 0; }
 
 /* ---------------------------------------------------------------- recording a voice (milestone 63) */
@@ -1597,7 +1608,7 @@ progress { width: 100%; margin: 2px 0; }
 /* The microphone and its input chooser sit as one group in the library tools; the chooser is a
    slim chevron, pressed far less often than the button it serves. */
 .sidebar-actions .record-group { display: inline-flex; align-items: center; }
-.sidebar-actions .record-input { padding: 4px 2px; margin-left: -2px; }
+.sidebar-actions .record-input { padding: 4px 2px; margin-inline-start: -2px; }
 #record-audio[aria-pressed="true"] { color: var(--danger); border-color: var(--danger); }
 
 /* The strip over the window while a take runs: the level, the elapsed time, the way to stop —
@@ -1621,7 +1632,7 @@ progress { width: 100%; margin: 2px 0; }
    when both are up. A confirmation fades as the tray's line does; an error stays until dismissed,
    replaced, or the tray's own line is back to carry it. */
 .say-strip { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 59;
-  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; padding-inline: var(--space-3) var(--space-2);
   max-width: min(680px, calc(100vw - 24px));
   background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 8px 24px var(--shadow-strong); }
 .say-strip[hidden] { display: none; }
@@ -1639,7 +1650,7 @@ progress { width: 100%; margin: 2px 0; }
 .camera-well video { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* A camera facing the person is shown as a mirror shows a face; the recorder takes the camera's own picture, never this. */
 .camera-well video.mirrored { transform: scaleX(-1); }
-.camera-live { position: absolute; top: var(--space-2); left: var(--space-2); display: inline-flex; align-items: center; gap: var(--space-2);
+.camera-live { position: absolute; top: var(--space-2); inset-inline-start: var(--space-2); display: inline-flex; align-items: center; gap: var(--space-2);
   padding: 2px 10px; border-radius: 10px; background: var(--time-pill); color: var(--time-pill-text); }
 .camera-live[hidden] { display: none; }
 .camera-denied { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); }
@@ -1758,20 +1769,20 @@ progress { width: 100%; margin: 2px 0; }
 
 /* First run: the checklist as one card near the top, with its progress. */
 .start-setup { margin-top: var(--space-4); background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-3) var(--space-4) var(--space-4); }
-.start-progress { margin-left: auto; font-size: var(--font-secondary); font-weight: 400; color: var(--s-muted); }
+.start-progress { margin-inline-start: auto; font-size: var(--font-secondary); font-weight: 400; color: var(--s-muted); }
 .start-checklist { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .start-checklist li { display: flex; align-items: center; gap: var(--space-2); color: var(--s-text-2); }
 .start-checklist li.done { color: var(--s-muted); }
 .start-checklist .start-check-mark { display: inline-flex; color: var(--s-muted); }
 .start-checklist li.done .start-check-mark { color: var(--s-accent); }
-.start-checklist button { margin-left: auto; background: transparent; color: var(--s-text); border: 1px solid var(--s-border); border-radius: var(--radius-control); padding: 4px 10px; }
+.start-checklist button { margin-inline-start: auto; background: transparent; color: var(--s-text); border: 1px solid var(--s-border); border-radius: var(--radius-control); padding: 4px 10px; }
 .start-checklist button:hover { background: var(--s-panel-2); }
 
 /* Continue: recent projects as recognizable cards, three to the width, in one row that scrolls
    sideways like the gallery — ten recents must not push Learn off the screen. */
 .start-recents { list-style: none; margin: 0; padding: 0 0 var(--space-1); display: grid; grid-auto-flow: column; grid-auto-columns: max(280px, calc((100% - 2 * var(--space-3)) / 3)); gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; }
 .start-recents li { display: flex; align-items: stretch; gap: var(--space-2); min-width: 0; }
-.start-recent-card { flex: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; text-align: left; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
+.start-recent-card { flex: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; text-align: start; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
 .start-recent-card:hover:not(:disabled) { background: var(--s-panel-2); }
 .start-recent-card:disabled { opacity: 0.7; }
 .start-thumb { position: relative; flex: none; width: 96px; height: 54px; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; display: inline-flex; align-items: center; justify-content: center; }
@@ -1789,7 +1800,7 @@ progress { width: 100%; margin: 2px 0; }
 /* Start from an idea: one gallery of picture tiles — the ideas and the examples together. */
 /* One row that scrolls sideways, so Learn stays above the fold whatever the gallery holds. */
 .start-gallery { list-style: none; margin: 0; padding: 0 0 var(--space-1); display: grid; grid-auto-flow: column; grid-auto-columns: 172px; gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; }
-.start-idea { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); width: 100%; text-align: left; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
+.start-idea { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); width: 100%; text-align: start; background: var(--s-panel); border: 1px solid var(--s-border); border-radius: var(--radius-surface); padding: var(--space-2); color: var(--s-text); }
 .start-idea:hover { background: var(--s-panel-2); }
 .start-idea-pic { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-control); background: var(--s-panel-2); overflow: hidden; }
 .start-idea-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -1799,13 +1810,13 @@ progress { width: 100%; margin: 2px 0; }
 .start-idea-pic.scrubbing .strip { display: block; }
 /* Three lines of description at most, so a long one (or a wide font) cannot make the row taller. */
 .start-gallery .start-card-meta { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
-.start-idea-badge { position: absolute; right: 4px; top: 4px; font-size: var(--font-caption); background: color-mix(in srgb, var(--s-bg) 72%, transparent); color: var(--s-text); border-radius: 3px; padding: 0 5px; }
+.start-idea-badge { position: absolute; inset-inline-end: 4px; top: 4px; font-size: var(--font-caption); background: color-mix(in srgb, var(--s-bg) 72%, transparent); color: var(--s-text); border-radius: 3px; padding: 0 5px; }
 
 /* Learn: plain links in a row; the glance is one quiet line in the foot. */
 .start-learn { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .start-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--s-border); }
 .start-foot-add { font-size: var(--font-secondary); color: var(--s-muted); }
-.start-foot .start-caption { margin: 0 0 0 auto; }
+.start-foot .start-caption { margin: 0; margin-inline-start: auto; }
 
 /* A window under 940 px tall — the default 788 among them — down to the 600 px the window
    allows: the same screen, nothing taken off it, drawn tighter so the whole of it fits without
@@ -1870,7 +1881,7 @@ progress { width: 100%; margin: 2px 0; }
 .whats-new-dialog { width: min(640px, 90vw); }
 .whats-new-body { max-height: 60vh; overflow-y: auto; }
 .whats-new-body h3 { font-size: var(--font-secondary); font-weight: 600; color: var(--muted); margin: var(--space-3) 0 var(--space-2); }
-.whats-new-body ul { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.whats-new-body ul { margin: 0; padding-inline-start: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .whats-new-body li { color: var(--text-secondary); }
 
 /* ---------------------------------------------------------------- the browse panel says what things are (milestone 34) */
@@ -1881,10 +1892,10 @@ progress { width: 100%; margin: 2px 0; }
 .browse-tree .tree-section + .tree-section.tree-top { border-top: 0; }
 
 /* For… and Look: a select dressed as a chip, so narrowing by theme or look sits with the other chips. */
-.filter-chips .chip-select, .narrow-chips .chip-select { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0 4px 0 7px; background: var(--panel-2); }
+.filter-chips .chip-select, .narrow-chips .chip-select { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0; padding-inline: 7px 4px; background: var(--panel-2); }
 .filter-chips .chip-select:hover, .narrow-chips .chip-select:hover { color: var(--text); }
 .filter-chips .chip-select.set, .narrow-chips .chip-select.set { color: var(--text); border-color: var(--accent); }
-.filter-chips .chip-select select.chip, .narrow-chips .chip-select select.chip { border: 0; background: transparent; padding: 2px 2px 2px 0; font-size: var(--font-caption); color: inherit; max-width: 160px; }
+.filter-chips .chip-select select.chip, .narrow-chips .chip-select select.chip { border: 0; background: transparent; padding: 2px 0; padding-inline-end: 2px; font-size: var(--font-caption); color: inherit; max-width: 160px; }
 .filter-chips .chip-select select.chip:focus-visible, .narrow-chips .chip-select select.chip:focus-visible { outline-offset: 0; }
 
 /* One line under the results heading on what the chosen category holds. */
@@ -1907,7 +1918,7 @@ progress { width: 100%; margin: 2px 0; }
    since the stage and the list have the floors the layout promises (docs/platform-notes.md). */
 .results { min-height: var(--results-min-h); }
 .category-card {
-  flex: 0 0 auto; width: 112px; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  flex: 0 0 auto; width: 112px; display: flex; flex-direction: column; gap: 2px; text-align: start;
   padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-surface);
 }
 .category-card:hover { background: var(--panel-2); }

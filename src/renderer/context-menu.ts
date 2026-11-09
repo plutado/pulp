@@ -13,6 +13,7 @@
  */
 
 import type { MenuCommand, MenuItemSpec } from '../core/menu';
+import { isRtl } from './direction';
 
 /** How far a submenu overlaps its parent, so the pointer can cross without falling off the item. */
 const SUBMENU_OVERLAP_PX = 4;
@@ -75,17 +76,24 @@ function moveFocus(panel: HTMLElement, delta: number): void {
   items[next]!.focus();
 }
 
-/** Put a panel inside the window: flipped back from the right or bottom edge rather than cut off. */
-function place(panel: HTMLElement, x: number, y: number, flipFrom?: { left: number; right: number }): void {
+/**
+ * Put a panel inside the window: flipped back from the right or bottom edge rather than cut off.
+ * `x` is the panel's left edge, or its right edge when `alignEnd` says so — a menu hung under a
+ * button in a mirrored window, or a submenu opening to the left of its parent (milestone 70).
+ */
+function place(panel: HTMLElement, x: number, y: number, flipFrom?: { left: number; right: number }, alignEnd = false): void {
   panel.style.left = '0px';
   panel.style.top = '0px';
   const box = panel.getBoundingClientRect();
   // The window the panel is drawn in, which is where its edges are.
   const view = panel.ownerDocument.defaultView ?? window;
-  let left = x;
+  let left = alignEnd ? x - box.width : x;
   if (left + box.width > view.innerWidth - EDGE_MARGIN_PX) {
     // A submenu flips to the other side of its parent; a root menu simply slides back in.
     left = flipFrom ? flipFrom.left - box.width + SUBMENU_OVERLAP_PX : view.innerWidth - box.width - EDGE_MARGIN_PX;
+  } else if (left < EDGE_MARGIN_PX && flipFrom) {
+    // Opened to the left and off the edge there: the other side of its parent.
+    left = flipFrom.right - SUBMENU_OVERLAP_PX;
   }
   let top = y;
   if (top + box.height > view.innerHeight - EDGE_MARGIN_PX) top = Math.max(EDGE_MARGIN_PX, view.innerHeight - box.height - EDGE_MARGIN_PX);
@@ -167,15 +175,17 @@ function buildPanel(items: readonly MenuItemSpec[], depth: number): HTMLDivEleme
         const child = buildPanel(item.submenu!, depth + 1);
         child.dataset.parent = panel.dataset.panel!;
         element().append(child);
+        // A submenu opens on the side the row reads toward: the right, or the left in a mirrored window.
         const box = button.getBoundingClientRect();
-        place(child, box.right - SUBMENU_OVERLAP_PX, box.top, { left: box.left, right: box.right });
+        const rtl = isRtl(button);
+        place(child, rtl ? box.left + SUBMENU_OVERLAP_PX : box.right - SUBMENU_OVERLAP_PX, box.top, { left: box.left, right: box.right }, rtl);
         if (focusFirst) itemsOf(child)[0]?.focus();
       };
       button.addEventListener('pointerenter', () => open(false));
       button.addEventListener('focus', () => open(false));
       button.addEventListener('click', () => open(true));
       button.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+        if (e.key === (isRtl(button) ? 'ArrowLeft' : 'ArrowRight') || e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           open(true);
         }
@@ -195,7 +205,7 @@ function buildPanel(items: readonly MenuItemSpec[], depth: number): HTMLDivEleme
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       moveFocus(panel, -1);
-    } else if (e.key === 'ArrowLeft' && depth > 0) {
+    } else if (e.key === (isRtl(panel) ? 'ArrowRight' : 'ArrowLeft') && depth > 0) {
       e.preventDefault();
       const parent = element().querySelector<HTMLElement>(`.context-menu[data-panel="${panel.dataset.parent}"]`);
       const opener = parent?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]');
@@ -220,6 +230,8 @@ export interface ContextMenuOptions {
   focusBack?: HTMLElement | null;
   /** The document to draw in: the one the pointer is in, which is the stage's own window when the stage is out. */
   doc?: Document;
+  /** `x` is the menu's right edge rather than its left: a menu hung under a button in a mirrored window (milestone 70). */
+  alignEnd?: boolean;
 }
 
 /** Open a menu at a point. An empty list opens nothing, so there is never an empty box. */
@@ -233,7 +245,7 @@ export function openContextMenu(options: ContextMenuOptions): boolean {
   const panel = buildPanel(options.items, 0);
   layer.replaceChildren(panel);
   layer.hidden = false;
-  place(panel, options.x, options.y);
+  place(panel, options.x, options.y, undefined, options.alignEnd === true);
   // The first item takes the keyboard, so the menu can be walked without the pointer.
   itemsOf(panel)[0]?.focus();
   return true;

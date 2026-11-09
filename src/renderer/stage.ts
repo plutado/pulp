@@ -1291,6 +1291,9 @@ export function initStage(): void {
   onLayoutApplied(placeScrubLine);
   // The stage's elements leaving for a window of their own, or coming back (milestone 43).
   onStageWindow((doc) => stageRehome(doc?.defaultView ?? window));
+  // A change of language can mirror the window (milestone 70): the picture moves to the other
+  // side without changing size, which no resize observer reports, and the bar must follow it.
+  whenLocaleChanges(placeScrubLine);
   placeScrubLine();
 
   // A layer of the layered file on the stage was shown or hidden: the picture follows (milestone 33).

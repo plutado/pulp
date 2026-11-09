@@ -141,6 +141,14 @@ Pulp's own terms are translated the same way everywhere. A translator adding or 
 
 **Simplified Chinese** uses full-width punctuation (，。：；！？“ ”（）), one plural form (`other` only), and a space around Latin words and placeholders ("已保存为 {name}。"). It is never set in italic.
 
+## Right-to-left languages
+
+A language declared `rtl` in `LOCALES` mirrors the window (milestone 70): `<html dir>` follows the language, the panels and menus read from the right, and the stylesheet says start and end rather than left and right wherever it means the interface. Three things are decided one by one and **stay left to right** in every language, because time runs rightward in every editing tool: the **transport row** — the scrub bar and the lanes under it, the playback buttons in their order, the marks, the volume, the inspector's tabs and the status — the **picture** on the stage with everything drawn over it (the layer handles, the safe areas), and the **hover scrub** on a card, which reads time across the thumbnail. They are pinned by `dir="ltr"` in the markup; the scrub line and the lanes carry the pin themselves, since the stage's own window takes them along.
+
+What moves with the direction: the browse panel to the right and its splitter's keys with it (Left widens a panel on the right), submenus opening to the left with their caret turned, a menu hung from a button hanging from its right edge, the tour's card on the far side of its highlight, carets and disclosure triangles pointing into the row, and the arrows inside a row or grid of controls trading places so the key follows the eye. The tree's Right and Left do the same: the key that points into the tree unfolds.
+
+No right-to-left language is translated yet. **English (mirrored)**, `en-XB`, is the tool for looking at the mirrored window before one is: US English declared `rtl`, a variant with nothing of its own, never offered in Settings and never the system's. Reach it with `window.pulp.setLanguage('en-XB')` in the developer tools, or `"language": "en-XB"` in `settings.json`. The end-to-end suite switches to it at 1280 × 788 and 960 × 600 ("right to left (milestone 70)" in `tests/e2e/ui.e2e.test.ts`). A real right-to-left catalog follows "Adding a language" above with `dir: 'rtl'`, and the window is already mirrored for it.
+
 ## Room for the words
 
 German makes labels long, and Chinese needs its own face. The window allows for both:

@@ -7068,6 +7068,83 @@ describe.skipIf(!electron)('inspector UI', () => {
     }, 90_000);
   });
 
+  describe('right to left (milestone 70)', () => {
+    type Box = { id: string; left: number; right: number; top: number; bottom: number; width: number };
+    const boxes = (selectors: string[]) =>
+      page.eval<Box[]>(
+        `(${JSON.stringify(selectors)}).map((sel) => { const el = document.querySelector(sel); const b = el.getBoundingClientRect(); return { id: sel, left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width }; })`,
+      );
+    const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const direction = (selector: string) => page.eval<string>(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).direction`);
+    const settled = () => page.eval(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
+
+    it('mirrors the window for a right-to-left language, with the timeline and the playback controls kept left to right', async () => {
+      try {
+        // English (mirrored) is the tool for this: US English declared right to left, reached only by
+        // asking for it — Settings does not list it, so nobody chooses it by mistake.
+        expect(await page.eval<string[]>(`[...document.getElementById('settings-language').options].map((o) => o.value)`)).not.toContain('en-XB');
+        await page.eval(`window.pulp.setLanguage('en-XB')`);
+        await until(() => page.eval<boolean>(`document.documentElement.dir === 'rtl' && document.documentElement.lang === 'en-XB'`), 'the window mirrored');
+        // The words are US English still: a mirrored window, not a translated one.
+        expect(await page.eval<string>(`document.getElementById('bg-gray').getAttribute('aria-label')`)).toBe('Gray background');
+
+        for (const [width, height] of [[1280, 788], [960, 600]] as const) {
+          await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+          await until(() => page.eval<boolean>(`window.innerHeight === ${height} && window.innerWidth === ${width}`), `the ${width} × ${height} window`);
+          await settled();
+          const at = `at ${width} × ${height}`;
+          // The browse panel is on the right, the stage and the results to its left, and nothing overlaps.
+          const [browse, stage, results, transport] = await boxes(['#region-browse', '#region-stage', '#region-results', '#region-transport']);
+          expect(browse!.left, `the browse panel sits right of the stage ${at}`).toBeGreaterThanOrEqual(stage!.right - 1);
+          expect(browse!.left, `and right of the results ${at}`).toBeGreaterThanOrEqual(results!.right - 1);
+          expect(browse!.right, `against the window's right edge ${at}`).toBeCloseTo(width, 0);
+          expect(stage!.left, `the stage against the left edge ${at}`).toBeLessThanOrEqual(1);
+          const shown = [browse!, stage!, results!, transport!].filter((b) => b.width > 0);
+          for (let i = 0; i < shown.length; i++) for (let j = i + 1; j < shown.length; j++) expect(overlap(shown[i]!, shown[j]!), `${shown[i]!.id} does not overlap ${shown[j]!.id} ${at}`).toBe(0);
+          expect(transport!.left, `the transport row spans the window ${at}`).toBeLessThanOrEqual(1);
+          expect(transport!.right).toBeCloseTo(width, 0);
+          // Time runs left to right everywhere: the row, its scrub bar and the lanes are pinned, and
+          // the picture is never mirrored — a title's left edge is still the frame's left edge.
+          for (const sel of ['#region-transport', '#scrub', '#transport-lanes', '#preview-frame', '#layer-overlay']) expect(await direction(sel), `${sel} reads left to right ${at}`).toBe('ltr');
+          expect(await direction('#region-browse'), `the panel reads right to left ${at}`).toBe('rtl');
+          // The playback cluster keeps its order, step back · play · step forward, at the row's left.
+          const [back, play, forward, scrub] = await boxes(['#step-back', '#play', '#step-forward', '#scrub-line .scrub-wrap']);
+          expect(back!.right, `step back is left of play ${at}`).toBeLessThanOrEqual(play!.left + 0.5);
+          expect(play!.right, `play is left of step forward ${at}`).toBeLessThanOrEqual(forward!.left + 0.5);
+          expect(back!.left, `the cluster is at the row's left ${at}`).toBeLessThan(width / 3);
+          // The scrub bar still sits under the picture, which is on the left now.
+          expect(scrub!.left, `the scrub bar under the stage ${at}`).toBeGreaterThanOrEqual(stage!.left - 1);
+          expect(scrub!.right).toBeLessThanOrEqual(stage!.right + 1);
+          // The results' thumbnail-size slider is interface, so it reads right to left with the rest.
+          expect(await direction('#thumb-size'), `a slider in the panel mirrors ${at}`).toBe('rtl');
+        }
+
+        // The browse splitter's keys follow the separator: Left widens a panel that is on the right.
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await settled();
+        const panelWidth = async () => (await boxes(['#region-browse']))[0]!.width;
+        const before = await panelWidth();
+        await page.eval(`(() => { const s = document.getElementById('split-browse'); s.focus(); s.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); })()`);
+        await until(async () => (await panelWidth()) > before + 8, 'Left widening the mirrored panel');
+        await page.eval(`document.getElementById('split-browse').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))`);
+        await until(async () => Math.abs((await panelWidth()) - before) < 1, 'Right narrowing it back');
+
+        // A menu hung from a button hangs from its right edge, into the window.
+        await page.eval(`document.getElementById('library-add').click()`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu') && !document.querySelector('.context-menu-layer').hidden`), 'the Add menu');
+        const [menu, button] = await boxes(['.context-menu', '#library-add']);
+        expect(Math.abs(menu!.right - button!.right), 'the menu hangs from the button\'s right edge').toBeLessThan(1.5);
+        await page.eval(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+        await until(() => page.eval<boolean>(`document.querySelector('.context-menu-layer').hidden`), 'the menu closed');
+      } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await page.eval(`window.pulp.setLanguage('en-US')`);
+        await until(() => page.eval<boolean>(`document.documentElement.lang === 'en-US' && document.documentElement.dir === 'ltr'`), 'the suite back in US English');
+        await settled();
+      }
+    }, 120_000);
+  });
+
   describe('Chinese and German (milestone 68)', () => {
     /**
      * Words in the window that a translation cut or stacked: a label, button, tab, chip or heading

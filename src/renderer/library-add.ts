@@ -19,6 +19,7 @@ import { libraryAddItems, type MenuCommand } from '../core/menu';
 import { openContextMenu } from './context-menu';
 import { t } from './i18n';
 import { someSampleMediaUnmade } from './sample-hint';
+import { isRtl } from './direction';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -65,9 +66,12 @@ export function setLibraryAddBusy(busy: boolean): void {
 
 export function openLibraryAddMenu(): void {
   const button = $('library-add');
+  // Hung from the button's leading edge: its left, or its right in a mirrored window (milestone 70).
   const box = button.getBoundingClientRect();
+  const rtl = isRtl(button);
   openContextMenu({
-    x: box.left,
+    x: rtl ? box.right : box.left,
+    alignEnd: rtl,
     y: box.bottom + 2,
     items: libraryAddItems(libraryAddState(), t),
     run: (command) => runLibraryAdd(command),

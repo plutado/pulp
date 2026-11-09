@@ -11,6 +11,7 @@
  */
 
 import { isRovingKey, rovingTarget, type RovingShape } from '../core/roving';
+import { isRtl } from './direction';
 
 export interface RovingOptions {
   shape: RovingShape;
@@ -45,7 +46,7 @@ export function mountRovingGroup(container: HTMLElement, options: RovingOptions)
     if (!isRovingKey(e.key) || e.altKey || e.metaKey || e.ctrlKey) return;
     const items = options.items();
     const at = items.findIndex((item) => item === document.activeElement);
-    const target = rovingTarget(e.key, { count: items.length, index: at, shape: options.shape, columns: options.columns?.() });
+    const target = rovingTarget(e.key, { count: items.length, index: at, shape: options.shape, columns: options.columns?.(), rtl: isRtl(container) });
     if (target === null) return;
     e.preventDefault();
     items[target]?.focus();

@@ -21,6 +21,7 @@ import { openContextMenu } from './context-menu';
 import { menuStateChanged } from './menu';
 import { sayInTray } from './tray';
 import { t } from './i18n';
+import { isRtl } from './direction';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -207,9 +208,12 @@ async function openInputMenu(): Promise<void> {
     { command: 'record.input', label: t('recorder.input.default'), arg: '', type: 'radio', checked: chosen === null, enabled: true },
     ...inputs.map((d): MenuItemSpec => ({ command: 'record.input', label: labels.get(d.deviceId)!, arg: d.deviceId, type: 'radio', checked: chosen?.id === d.deviceId, enabled: true })),
   ];
+  // Hung from the button's leading edge: its left, or its right in a mirrored window (milestone 70).
   const box = button.getBoundingClientRect();
+  const rtl = isRtl(button);
   openContextMenu({
-    x: box.left,
+    x: rtl ? box.right : box.left,
+    alignEnd: rtl,
     y: box.bottom + 2,
     items,
     run: (_command, arg) => {

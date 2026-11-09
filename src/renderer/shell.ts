@@ -23,6 +23,7 @@ import { appState, hasIndex, results } from './store';
 import { categoryCardCount } from './category-cards';
 import { bindAttr } from './i18n';
 import { setIcon } from './icons';
+import { isRtl } from './direction';
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id);
@@ -89,8 +90,11 @@ function wireSplitter(app: HTMLElement, el: HTMLElement, pane: SizedPane, fromPo
     el.addEventListener('pointerup', up);
   });
   el.addEventListener('keydown', (e) => {
-    const less = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
-    const more = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+    // Left and Right move the separator, not the pane: in a mirrored window the browse panel is
+    // on the right, so Left is what makes it wider (milestone 70).
+    const flip = isRtl(el) && pane === 'browseWidth';
+    const less = (flip ? e.key === 'ArrowRight' : e.key === 'ArrowLeft') || e.key === 'ArrowUp';
+    const more = (flip ? e.key === 'ArrowLeft' : e.key === 'ArrowRight') || e.key === 'ArrowDown';
     if (!less && !more) return;
     e.preventDefault();
     const step = pane === 'stageShare' ? 0.03 : 16;
@@ -110,7 +114,12 @@ export function initShell(): void {
   apply(app);
 
   const center = document.querySelector('.center') as HTMLElement;
-  wireSplitter(app, $('split-browse'), 'browseWidth', (e) => e.clientX - app.getBoundingClientRect().left);
+  // The panel's width is the distance from its own edge of the window: the left in a left-to-right
+  // window, the right in a mirrored one (milestone 70).
+  wireSplitter(app, $('split-browse'), 'browseWidth', (e) => {
+    const box = app.getBoundingClientRect();
+    return isRtl(app) ? box.right - e.clientX : e.clientX - box.left;
+  });
   // The drawer resizes from its top edge, as the tray and the transport row do (milestone 38).
   wireSplitter(app, $('split-inspector'), 'inspectorHeight', (e) => $('region-inspector').getBoundingClientRect().bottom - e.clientY);
   // The stage starts at the center's top edge (milestone 41): nothing sits above it any more.

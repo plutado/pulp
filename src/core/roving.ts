@@ -31,6 +31,8 @@ export interface RovingInput {
   columns?: number;
   /** Rows a page key moves, in a grid. Default 1 screen is the caller's business; this is rows. */
   page?: number;
+  /** The group reads right to left (milestone 70): Right then moves to the previous item and Left to the next, as the eye does. */
+  rtl?: boolean;
 }
 
 /** The keys this answers for; anything else comes back null. */
@@ -44,9 +46,11 @@ export function isRovingKey(key: string): boolean {
  * Where a key moves focus, or null when the key means nothing in this shape —
  * Up in a row of chips, Left in a list — so the caller leaves it alone.
  */
-export function rovingTarget(key: string, input: RovingInput): number | null {
+export function rovingTarget(rawKey: string, input: RovingInput): number | null {
   const count = Math.max(0, Math.floor(input.count));
-  if (count === 0 || !isRovingKey(key)) return null;
+  if (count === 0 || !isRovingKey(rawKey)) return null;
+  // In a right-to-left group the next item is to the left, so the two keys trade places.
+  const key = input.rtl && rawKey === 'ArrowLeft' ? 'ArrowRight' : input.rtl && rawKey === 'ArrowRight' ? 'ArrowLeft' : rawKey;
   const last = count - 1;
   const columns = Math.max(1, Math.floor(input.columns ?? 1));
   const page = Math.max(1, Math.floor(input.page ?? 1));

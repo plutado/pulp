@@ -180,6 +180,8 @@ export function iconElement(name: IconName, size: IconSize = 16): SVGSVGElement 
 
 /** Puts the icon first inside the host, replacing one that is already there (state swaps). */
 export function setIcon(host: Element, name: IconName, size: IconSize = 16): void {
+  // The host says which icon it wears, so a caret can be turned by a style rule in a mirrored window (milestone 70).
+  host.setAttribute('data-icon', name);
   const next = iconElement(name, size);
   const current = host.querySelector(':scope > svg.icon');
   if (current) current.replaceWith(next);
@@ -198,7 +200,7 @@ export function mountIcons(root: ParentNode = document): void {
 
 /** The same thing for Preact-rendered regions. */
 export function Icon({ name, size = 16 }: { name: IconName; size?: IconSize }) {
-  return <span class="icon-wrap" dangerouslySetInnerHTML={{ __html: iconSvg(name, size) }} />;
+  return <span class="icon-wrap" data-icon={name} dangerouslySetInnerHTML={{ __html: iconSvg(name, size) }} />;
 }
 
 /** Type-group icons for templates and kind icons for media, used as empty-thumbnail placeholders and in the tree. */

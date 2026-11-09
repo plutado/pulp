@@ -35,6 +35,7 @@ import { Icon, scopeIcon } from './icons';
 import { itemCount } from '../core/display';
 import { t } from './i18n';
 import { openContextMenu } from './context-menu';
+import { isRtl } from './direction';
 
 const activeScope = computed(() => appState.value.scope);
 /** Folded sections and groups, by node id; the tree starts fully open. */
@@ -324,7 +325,8 @@ function onKeyDown(e: KeyboardEvent): void {
       e.preventDefault();
       const id = row.dataset.node;
       const open = row.dataset.foldable === 'true' && id !== undefined && !folded.value.has(id);
-      if (e.key === 'ArrowRight') {
+      // The key that points into the tree: Right, or Left in a mirrored window (milestone 70).
+      if (e.key === (isRtl(tree) ? 'ArrowLeft' : 'ArrowRight')) {
         // Unfold what is folded; step into what is already open; do nothing on a leaf.
         if (row.dataset.foldable === 'true' && !open && id) toggleFold(id);
         else if (open) focus(current + 1);

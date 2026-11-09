@@ -63,6 +63,24 @@ describe('a grid: the results', () => {
   });
 });
 
+describe('a group that reads right to left (milestone 70)', () => {
+  it('trades Left and Right in a row and in a grid, so the arrow follows the eye', () => {
+    expect(rovingTarget('ArrowLeft', { count: 3, index: 0, shape: 'row', rtl: true })).toBe(1);
+    expect(rovingTarget('ArrowRight', { count: 3, index: 0, shape: 'row', rtl: true })).toBe(2);
+    expect(rovingTarget('ArrowLeft', { count: 10, index: 4, shape: 'grid', columns: 3, rtl: true })).toBe(5);
+    expect(rovingTarget('ArrowRight', { count: 10, index: 4, shape: 'grid', columns: 3, rtl: true })).toBe(3);
+    // Nowhere yet: Left, the first step into a mirrored row, lands on its first item.
+    expect(rovingTarget('ArrowLeft', { count: 3, index: -1, shape: 'row', rtl: true })).toBe(0);
+  });
+
+  it('leaves the vertical keys, Home and End as they are', () => {
+    expect(rovingTarget('ArrowDown', { count: 10, index: 4, shape: 'grid', columns: 3, rtl: true })).toBe(7);
+    expect(rovingTarget('Home', { count: 3, index: 2, shape: 'row', rtl: true })).toBe(0);
+    expect(rovingTarget('End', { count: 3, index: 0, shape: 'row', rtl: true })).toBe(2);
+    expect(rovingTarget('ArrowLeft', { count: 4, index: 1, shape: 'list', rtl: true })).toBeNull();
+  });
+});
+
 describe('what it answers for', () => {
   it('lands on an end when focus is nowhere yet', () => {
     expect(row('ArrowRight', -1)).toBe(0);

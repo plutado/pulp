@@ -11,6 +11,7 @@
 
 import { TOUR_STEPS, type TourStep } from '../core/start-screen';
 import { bindText, whenLocaleChanges } from './i18n';
+import { isRtl } from './direction';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -46,10 +47,15 @@ function place(step: TourStep): void {
   card.style.top = '0px';
   requestAnimationFrame(() => {
     const size = card.getBoundingClientRect();
-    let left = rect.right + 16;
+    // After the highlight in reading order: to its right, or to its left in a mirrored window
+    // (milestone 70); the other side when that one is off the screen.
+    const rtl = isRtl(el);
+    const after = rtl ? rect.left - size.width - 16 : rect.right + 16;
+    const before = rtl ? rect.right + 16 : rect.left - size.width - 16;
+    const fits = (x: number) => x >= 8 && x + size.width <= window.innerWidth - 8;
+    let left = fits(after) ? after : Math.max(8, before);
     let top = rect.top;
-    if (left + size.width > window.innerWidth - 8) left = Math.max(8, rect.left - size.width - 16);
-    if (left < 8 || (left < rect.right && left + size.width > rect.left && rect.width > window.innerWidth * 0.8)) {
+    if (!fits(left) || (left < rect.right && left + size.width > rect.left && rect.width > window.innerWidth * 0.8)) {
       left = Math.max(8, Math.min(window.innerWidth - size.width - 8, rect.left));
       top = rect.bottom + 16 + size.height > window.innerHeight ? Math.max(8, rect.top - size.height - 16) : rect.bottom + 16;
     }

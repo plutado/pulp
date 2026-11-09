@@ -271,10 +271,10 @@ function initLanguageChoice(): void {
     // says so, and named as a preview in its own words (milestone 68).
     const previews = document.createElement('optgroup');
     previews.label = t('settings.language.previews');
-    previews.append(...LOCALES.filter((l) => l.preview).map(language));
+    previews.append(...LOCALES.filter((l) => l.preview && !l.pseudo).map(language));
     select.replaceChildren(
       option('system', t('settings.language.system', { language: LOCALES.find((l) => l.id === system)!.label })),
-      ...LOCALES.filter((l) => !l.preview).map(language),
+      ...LOCALES.filter((l) => !l.preview && !l.pseudo).map(language),
       ...(previews.childElementCount > 0 ? [previews] : []),
     );
     select.value = state?.choice ?? 'system';
