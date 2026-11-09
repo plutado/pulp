@@ -33,6 +33,7 @@ import { resolveLength, type TemplateStructure } from './timing';
 import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 import { isCubeFile, lutFilter } from './clip-clean';
+import { tonemapSteps, type HdrFormat } from './hdr';
 import { tr } from './i18n';
 import { reframeCropFilter } from './reframe';
 
@@ -481,6 +482,14 @@ export interface RenderPlanInput {
       transition?: { type: 'dissolve' | 'dip'; seconds: number; color?: string };
       /** The crop's path for the output's shape (milestone 77): present, the picture fills the frame and follows it. */
       reframe?: ReframeKey[];
+      /**
+       * The HDR the cut's file carries, where it is to be converted to
+       * standard range (milestone 81): the conversion comes first in the
+       * cut's chain, so its speed, framing, transitions and the graphic over
+       * it all meet an ordinary Rec. 709 picture. Absent for a standard-range
+       * clip, and for an HDR one this ffmpeg cannot convert.
+       */
+      tonemap?: HdrFormat;
     }[];
     /** Bundled wipes over the joins, captured by the caller as numbered RGBA frames at the output's own rate. */
     wipes?: { pattern: string; at: number; seconds: number }[];
@@ -679,7 +688,7 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
       const framing = cut.reframe && cut.reframe.length > 0
         ? [reframeCropFilter({ width, height }, cut.reframe, (clipSeconds) => cutTimelineTime(cut, clipSeconds))]
         : [`scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`];
-      const steps = [...cutSpeedSteps(cut, timing.fps), ...framing, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
+      const steps = [...(cut.tonemap ? tonemapSteps(cut.tonemap) : []), ...cutSpeedSteps(cut, timing.fps), ...framing, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
       const seconds = Math.max(0.001, cutSeconds(cut));
       const into = i > 0 ? track.cuts[i - 1]!.transition : undefined;
       if (into?.type === 'dip') steps.push(`fade=t=in:st=0:d=${sec(into.seconds / 2)}:color=${hexToFfmpegColor(into.color ?? '#000000')}`);

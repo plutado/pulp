@@ -83,6 +83,14 @@ Chromium's `<input type=color>` holds `#rrggbb` only. An 8-digit value collapses
 
 ffmpeg 7 and later take color properties from the frames leaving the filter graph. `-color_primaries`, `-color_trc` and `-colorspace` as output options left transfer and primaries unknown in the files; `setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv` on the frames set all four in every container, and the MOV `colr` atom appeared without the experimental `write_colr` flag. Put `setparams` *before* the final `format` filter: with `range=tv` immediately before an `[out]` label the graph fails to parse.
 
+### HDR to standard range needs zimg, and the tone curve assumes 1000 nits (milestone 81)
+
+The conversion is `zscale` (libavfilter's binding to zimg) for the transfer and gamut and `tonemap` for the range itself: `zscale=tin=…:min=bt2020nc:pin=bt2020:t=linear:npl=100, format=gbrpf32le, zscale=p=bt709, tonemap=tonemap=hable:desat=0, zscale=t=bt709:m=bt709:r=tv` (`src/core/hdr.ts`). Not every build carries zimg — it is a separate library, and a build without it has no `zscale` at all — so the filter list is read once per ffmpeg path (`src/main/hdr-service.ts`) and a build without it leaves the clip alone and says so.
+
+Two things measured while building it. **The input's transfer, matrix and primaries are stated rather than read:** `zscale` needs them, and a file whose *frames* carry no tags (as against its stream) otherwise fails the conversion outright. **`tonemap` assumes a 1000-nit peak** for PQ when the stream carries no mastering metadata (`ff_determine_signal_peak`), so a flat PQ mid-gray does not come out near white — 94 nits of a 1000-nit range is a mid tone, which is right for real footage and worth knowing when reading a test's numbers.
+
+Generating an HDR fixture has the same catch as the section above: `-color_trc`/`-color_primaries` as output options do not reach the file (only `-colorspace` did), while `setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc` on the frames sets all three. mpeg4 keeps them as well as H.264 does.
+
 ### VideoToolbox from BGRA leaves the matrix untagged
 
 `hevc_videotoolbox` accepts BGRA and converts internally with BT.709, but writes `colr` with matrix 0 (unspecified). A decoder falling back to BT.601 then reads pure red as (233, 0, 1). Feeding `ayuv` (4:4:4 Y'CbCr with alpha) that the Rec.709 steps converted and tagged gives `nclc` 1/1/1 and an exact round trip (ADR 0005). The encoder exists only in macOS builds.

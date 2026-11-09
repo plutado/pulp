@@ -127,6 +127,8 @@ export interface FfmpegInfo {
   message?: string;
   /** Encoder names from `ffmpeg -encoders`, so the UI can mark presets this build cannot write. */
   encoders?: string[];
+  /** Whether this build can convert HDR to standard range (milestone 81): zimg's zscale and tonemap. */
+  tonemap?: boolean;
 }
 
 /**

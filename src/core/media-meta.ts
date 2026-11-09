@@ -5,6 +5,7 @@
  */
 
 import type { ClipSetSound, ClipSetTiming } from './clip-set';
+import { hdrFromTransfer, type HdrFormat } from './hdr';
 import { tr } from './i18n';
 import { moodsFromText } from './taxonomy';
 
@@ -22,6 +23,12 @@ export interface MediaMetadata {
    * `alpha_mode` tag, or HEVC's auxiliary alpha layer (see `hevcAlpha`).
    */
   alpha?: boolean;
+  /**
+   * The HDR the file tags itself as (milestone 81): PQ or HLG, and absent for
+   * the standard range everything else is. Its pixels are converted wherever
+   * they are read; the file itself is left exactly as it is.
+   */
+  hdr?: HdrFormat;
   audioCodec?: string;
   channels?: number;
   sampleRate?: number;
@@ -88,6 +95,7 @@ interface ProbeStream {
   width?: number;
   height?: number;
   pix_fmt?: string;
+  color_transfer?: string;
   r_frame_rate?: string;
   avg_frame_rate?: string;
   duration?: string;
@@ -127,6 +135,9 @@ export function parseFfprobe(json: string): MediaMetadata | null {
     if (video.pix_fmt) meta.pixelFormat = video.pix_fmt;
     const fps = rate(video.avg_frame_rate) ?? rate(video.r_frame_rate);
     if (fps && fps > 0) meta.fps = fps;
+    // HDR by the file's own transfer tag (milestone 81); anything else is standard range.
+    const hdr = hdrFromTransfer(video.color_transfer);
+    if (hdr) meta.hdr = hdr;
     const alphaTag = video.tags?.alpha_mode ?? video.tags?.ALPHA_MODE;
     meta.alpha = (video.pix_fmt !== undefined && ALPHA_PIX_FMT.test(video.pix_fmt)) || alphaTag === '1' || hevcAlpha(video);
   }

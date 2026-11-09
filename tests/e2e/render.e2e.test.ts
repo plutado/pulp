@@ -16,6 +16,7 @@ import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { probeMedia } from '../../src/core/media-probe';
+import { hasTonemapping } from '../../src/core/hdr';
 import { SEQUENCE_FPS, sequenceMetadata, sequencePatternName } from '../../src/core/media-sequence';
 import { sequenceStripArgs } from '../../src/core/hover-scrub';
 import { itemId } from '../../src/core/library-scan';
@@ -1523,6 +1524,87 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect((await pixels(join(out, 'keys-together_00055.png'), ...middle))[3]).toBe(0);
     expect((await pixels(join(out, 'keys-together_00055.png'), ...right))[3]).toBe(0);
   }, 300_000);
+
+  it('converts an HDR clip to standard range for the render and leaves the file alone, or says why it cannot (milestone 81)', async () => {
+    // Two clips of the same two-tone picture — a dark half and a bright half — one tagged as a
+    // phone tags HDR (PQ, BT.2020) and one left standard range. The pixels are identical; only
+    // the tags differ, which is exactly what makes a file HDR and all Pulp reads to recognize one.
+    const lib = join(out, 'hdr-library');
+    await mkdir(lib, { recursive: true });
+    const twoTone = async (file: string, tags: string) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs([
+        '-v', 'error', '-y',
+        '-f', 'lavfi', '-i', 'color=c=0x404040:s=80x160:d=1:r=30',
+        '-f', 'lavfi', '-i', 'color=c=0xC0C0C0:s=80x160:d=1:r=30',
+        '-filter_complex', `[0][1]hstack${tags}`,
+        '-frames:v', '30', '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-movflags', '+faststart', join(lib, file),
+      ]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    // The tags go on the frames themselves: an output flag alone does not reach the encoder here.
+    const hdrId = await twoTone('phone-hdr.mp4', ',setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc');
+    const sdrId = await twoTone('phone-sdr.mp4', '');
+    const hdrFile = join(lib, 'phone-hdr.mp4');
+    const before = await readFile(hdrFile);
+
+    // Recognized from the file itself: what ffmpeg wrote is what Pulp's own probe reads back.
+    expect((await probeMedia(ffprobe, hdrFile, nodeRunner))?.hdr, 'the clip is seen for what it is').toBe('pq');
+    expect((await probeMedia(ffprobe, join(lib, 'phone-sdr.mp4'), nodeRunner))?.hdr).toBeUndefined();
+
+    const common = ['--library', FIXTURES, '--library', lib];
+    const trackOf = (id: string) => ['--param', `@track=${JSON.stringify({ cuts: [{ id, from: 0, to: 1 }] })}`];
+    // The square clip is letterboxed into the 320 × 180 frame: its picture runs x 70 to 250, so
+    // these two sit well inside each half, away from the seam the scale softens.
+    const darkAt = [110, 90] as const;
+    const brightAt = [210, 90] as const;
+    const halves = async (name: string) => {
+      const file = join(out, `${name}_00015.png`);
+      const mean = async (x: number, y: number) => {
+        const [r, g, b] = await pixels(file, x, y);
+        return (r! + g! + b!) / 3;
+      };
+      return { dark: await mean(...darkAt), bright: await mean(...brightAt) };
+    };
+
+    const hdrRender = await render('pulp.test.video-layer', 'png-sequence', 'hdr-clip', { extra: [...common, ...trackOf(hdrId)] });
+    expect(hdrRender.code, hdrRender.stderr).toBe(0);
+    const sdrRender = await render('pulp.test.video-layer', 'png-sequence', 'hdr-control', { extra: [...common, ...trackOf(sdrId)] });
+    expect(sdrRender.code, sdrRender.stderr).toBe(0);
+    const control = await halves('hdr-control');
+    const converted = await halves('hdr-clip');
+
+    // The standard-range clip is written as it was drawn, whatever this ffmpeg can do.
+    expect(control.dark, 'the control is the picture itself').toBeGreaterThan(40);
+    expect(control.dark).toBeLessThan(90);
+    expect(control.bright).toBeGreaterThan(160);
+    expect(control.bright).toBeLessThan(215);
+
+    const filters = await runBounded(ffmpeg, ['-hide_banner', '-filters'], { timeoutMs: TOOL_TIMEOUT_MS });
+    if (hasTonemapping(filters.stdout)) {
+      // Taken at face value, HDR code values are a flat picture in the middle of the range; read
+      // as the light they mean, the dark half settles down and the bright half comes up to white,
+      // so what was washed out has its contrast back.
+      expect(converted.bright, 'the bright half brought up').toBeGreaterThan(control.bright + 30);
+      expect(converted.dark, 'and the dark half down').toBeLessThan(control.dark);
+      expect(converted.bright - converted.dark, 'the contrast the file really holds').toBeGreaterThan((control.bright - control.dark) + 40);
+      // Neutral stays neutral through the gamut conversion: no color cast either side.
+      const [r, , b] = await pixels(join(out, 'hdr-clip_00015.png'), ...darkAt);
+      expect(Math.abs(r! - b!), 'gray stays gray').toBeLessThan(12);
+      expect(hdrRender.stderr, 'nothing to warn about when it can be converted').not.toContain('zimg');
+    } else {
+      // An ffmpeg without zimg cannot convert: the render still finishes, the clip is written as
+      // it is, and the person is told why and what to do rather than left with a washed-out file.
+      expect(Math.abs(converted.bright - control.bright), 'written as it is').toBeLessThan(6);
+      expect(Math.abs(converted.dark - control.dark)).toBeLessThan(6);
+      expect(hdrRender.stderr).toContain('zimg');
+      expect(hdrRender.stderr).toContain('HDR (PQ)');
+    }
+
+    // Whatever happened, the camera's own file is untouched: same bytes, still HDR.
+    expect(await readFile(hdrFile), 'the original is only ever read').toEqual(before);
+    expect((await probeMedia(ffprobe, hdrFile, nodeRunner))?.hdr).toBe('pq');
+  }, 180_000);
 
   it('renders the cut track under the graphic as one file, each cut\'s sound in the mix (milestone 49)', async () => {
     // Two solid one-second clips, each with its own tone, so the picture and the sound both say

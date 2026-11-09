@@ -38,6 +38,8 @@ import { resolveLayers } from '../core/layers';
 import { checkImages, readSlotImages } from './image-grant';
 import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './library-service';
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
+import { hdrLabel } from '../core/display';
+import { hdrOf, tonemapFor } from './hdr-service';
 import { tr } from '../core/i18n';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan, type RenderPlanInput } from '../core/render-plan';
@@ -216,6 +218,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     return (cut.path && findMediaIdByPath(cut.path)) || null;
   }))(trackIn(params));
   const trackCuts: NonNullable<RenderPlanInput['track']>['cuts'] = [];
+  /** Said once however many HDR shots an ffmpeg without zimg met (milestone 81). */
+  let hdrWarned = false;
   const trackWipes: { template: string; at: number; seconds: number }[] = [];
   for (const [index, cut] of (track?.cuts ?? []).entries()) {
     const found = lookupClipItem(cut.id);
@@ -232,8 +236,18 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // The transition leaving this cut, as it will play: clamped by both sides (src/core/cut-track.ts).
     const transition = track ? transitionAt(track, index) : null;
     if (transition?.type === 'wipe' && transition.template) trackWipes.push({ template: transition.template, at: transition.at, seconds: transition.seconds });
+    // An HDR shot is converted to standard range on the way in (milestone 81), where this ffmpeg
+    // can; where it cannot, it is written as it is and the render says so rather than quietly
+    // delivering a washed-out picture. The file itself is only ever read.
+    const hdr = await hdrOf(ffmpeg.path, found.entry);
+    const tonemap = await tonemapFor(ffmpeg.path, found.entry);
+    if (hdr && !tonemap && !hdrWarned) {
+      hdrWarned = true;
+      warnings.push(tr('render.warning.hdr-unconverted', { format: hdrLabel(hdr) }));
+    }
     trackCuts.push({
       path, from: cut.from, to: cut.to,
+      ...(tonemap ? { tonemap } : {}),
       // The speed or the hold ride through as the cut has them (milestone 56); the plan does the arithmetic.
       ...(cut.speed ? { speed: cut.speed } : {}),
       ...(cut.hold !== undefined ? { hold: cut.hold } : {}),
@@ -318,6 +332,16 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     const source = await resolveClipSource(ffprobePathFor(ffmpeg.path), choice.id);
     if (source) clipSources[choice.id] = source;
     else return { ok: false, message: 'slot' in choice ? tr('render.slot.clip-unreadable', { template: manifest.name, slot: choice.slot }) : tr('render.layer.clip-unreadable') };
+    // An HDR layer or slot is converted with its frames (milestone 81, src/main/clip-grant.ts);
+    // where this ffmpeg cannot, it is said once here, as it is for a shot on the track.
+    const item = lookupClipItem(choice.id);
+    if (item?.kind === 'media' && !hdrWarned) {
+      const hdr = await hdrOf(ffmpeg.path, item.entry);
+      if (hdr && !(await tonemapFor(ffmpeg.path, item.entry))) {
+        hdrWarned = true;
+        warnings.push(tr('render.warning.hdr-unconverted', { format: hdrLabel(hdr) }));
+      }
+    }
   }
 
   // Every layer's sound (milestone 48): each audible video layer's clip and each audio layer's

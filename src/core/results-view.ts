@@ -10,7 +10,7 @@ import { unreadableNote } from './unreadable-media';
 import { versionLabel } from './music-groups';
 import { entryLabel } from './app-state';
 import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
-import { dimensionsLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
+import { dimensionsLabel, hdrLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
 import { tr } from './i18n';
 import type { LibraryEntry } from './library-types';
 import { resolutionTag } from './media-meta';
@@ -204,14 +204,15 @@ export function columnsFor(width: number, cardWidth: number): number {
 
 // What a card and a row show.
 
-export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing' | 'unreadable' | 'preview';
+export type BadgeId = 'alpha' | 'loop' | 'resolution' | 'vertical' | 'square' | 'pack' | 'sound' | 'clip-set' | 'archive' | 'versions' | 'stems' | 'missing' | 'unreadable' | 'preview' | 'hdr';
 
 /**
  * The badges that are words, drawn as outlined tags; the rest are icons with their meaning in the
- * tooltip, set apart after the tags (milestone 66). Only the resolution is a word now: the duration
- * left the row for a pill over the thumbnail (entryRunningTime).
+ * tooltip, set apart after the tags (milestone 66). The resolution and HDR are words: the duration
+ * left the row for a pill over the thumbnail (entryRunningTime), and HDR has no icon anyone would
+ * read — it is three letters every camera app uses, and what it means is in the tooltip.
  */
-export const TAG_BADGES: readonly BadgeId[] = ['resolution'];
+export const TAG_BADGES: readonly BadgeId[] = ['resolution', 'hdr'];
 
 export interface ResultBadge {
   id: BadgeId;
@@ -253,6 +254,8 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   const tag = resolutionTag(width, height);
   if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
+  // Recorded in HDR (milestone 81): converted to standard range wherever it is used, file untouched.
+  if (entry.kind === 'media' && entry.meta?.hdr) badges.push({ id: 'hdr', label: tr('results.badge.hdr'), tip: tr('results.badge.hdr.tip', { format: hdrLabel(entry.meta.hdr) }) });
   if (entryType(entry) === 'animated-loop') badges.push({ id: 'loop', label: tr('results.badge.loop'), tip: tr('results.badge.loop.tip') });
   // A file Pulp cannot read, listed with what it needs (milestone 32).
   if (entry.kind === 'media' && entry.unreadable) badges.push({ id: 'unreadable', label: tr('results.badge.unreadable'), tip: unreadableNote(entry.path.split(/[\\/]/).pop()!, entry.unreadable.ext, entry.unreadable.encrypted) });

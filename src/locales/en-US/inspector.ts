@@ -169,6 +169,7 @@ export const inspector = {
   'media-render.error.sound-needs-audio-preset': 'a sound renders with an audio preset, not {preset}',
   'media-render.error.no-scratch': 'a crossfaded loop needs a scratch folder to write its loop unit to',
   'media-render.error.tint': 'tint must be #RRGGBB, got "{got}"',
+  'media-render.warning.hdr-unconverted': 'This clip was recorded in {format} and the FFmpeg in use cannot convert it to standard range — it was built without zimg — so it is written as it is, which looks washed out. Install an FFmpeg built with zimg, or let Pulp fetch one in Settings.',
   'media-render.warning.no-alpha': 'the item has no alpha; the output carries an alpha channel that is fully opaque',
   'media-render.warning.no-alpha-matte': 'the item has no alpha, so its matte is all white',
   'media-render.error.bit-depth': 'bit depth must be {depths}, got {got}',

@@ -19,6 +19,7 @@ import {
   frameRateLabel,
   mediaKindLabel,
   sizeLabel,
+  hdrLabel,
   typeLabel,
 } from './display';
 import { templateDefaultSize } from './aspect';
@@ -71,7 +72,7 @@ export function aboutRows(entry: LibraryEntry): InfoRow[] {
 }
 
 /** Format: what the item *is*, in numbers. Templates declare theirs; media is probed. */
-export function formatRows(entry: LibraryEntry): InfoRow[] {
+export function formatRows(entry: LibraryEntry, ffmpeg: { tonemap?: boolean } = {}): InfoRow[] {
   const rows: InfoRow[] = [];
   if (entry.kind === 'template') {
     const m = entry.manifest;
@@ -136,6 +137,15 @@ export function formatRows(entry: LibraryEntry): InfoRow[] {
   if (meta?.fps && entry.mediaKind === 'video') rows.push({ label: tr('info.row.frame-rate'), value: frameRateLabel(meta.fps) });
   if (meta?.codec) rows.push({ label: tr('info.row.codec'), value: codecLabel(meta.codec) });
   if (meta?.alpha) rows.push({ label: tr('info.row.alpha'), value: tr('info.value.transparent'), icon: 'alpha' });
+  // Recorded in HDR (milestone 81). The row says what the clip is and what becomes of it: converted
+  // to standard range wherever Pulp draws or writes it, with the file itself left alone — or, where
+  // the FFmpeg in use has no zimg to convert with, that it plays as it is and what to do about it.
+  if (meta?.hdr) {
+    const format = hdrLabel(meta.hdr);
+    rows.push(ffmpeg.tonemap === false
+      ? { label: tr('info.row.hdr'), value: tr('info.value.hdr.unconverted', { format }), tone: 'warn' }
+      : { label: tr('info.row.hdr'), value: tr('info.value.hdr', { format }) });
+  }
   if (entryType(entry) === 'animated-loop') rows.push({ label: tr('info.row.loop'), value: tr('info.value.loop'), icon: 'loop' });
   if (meta?.audioCodec) rows.push({ label: tr('info.row.audio'), value: audioLabel(meta.audioCodec, meta.channels, meta.sampleRate) });
   return rows;

@@ -21,6 +21,8 @@ import { alphaDecoderFor } from '../core/media-meta';
 import { sequencePatternName, SEQUENCE_FPS } from '../core/media-sequence';
 import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSource, type ClipValue } from '../core/video-layer';
 import { isCubeFile, lutFilter } from '../core/clip-clean';
+import { tonemapPrefix, tonemapSteps, type HdrFormat } from '../core/hdr';
+import { tonemapFor } from './hdr-service';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem, lookupMedia, probeClipSet, prepareForUse } from './library-service';
 import { clipSetLayersFramesArgs } from '../core/clip-set';
@@ -194,15 +196,27 @@ export function clipStamps(ids: readonly string[]): { id: string; size: number; 
  * everything else is seeked to the in point and read forward. The seek is
  * before `-i`, so it is the fast kind, and `-frames:v` stops it at the window's
  * end rather than decoding the rest of a long clip.
+ *
+ * `read.tonemap` is the HDR the file carries where it is to be converted
+ * (milestone 81): its steps come first, so everything after them — the grade,
+ * the scale, and the page that draws the frames — sees an ordinary
+ * standard-range picture, and the file is only ever read from.
  */
-export function clipFramesArgs(entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, maxSide: number, lut?: string): string[] {
+export function clipFramesArgs(
+  entry: MediaEntry,
+  source: ClipSource,
+  window: { first: number; frames: number },
+  maxSide: number,
+  read: { lut?: string; tonemap?: HdrFormat } = {},
+): string[] {
+  const { lut, tonemap } = read;
   const side = Math.max(16, Math.min(MAX_CLIP_FRAME_SIDE, Math.round(maxSide)));
   const scale = `scale=w='min(iw,${side})':h='min(ih,${side})':force_original_aspect_ratio=decrease`;
   // A clip set is decoded as its parts end to end, each once: the frames the timing counts in.
   if (entry.clipSet && source.set) {
     const grade = lut && isCubeFile(lut) ? lutFilter(lut) : '';
     const own = { fps: source.fps, width: entry.meta?.width ?? side, height: entry.meta?.height ?? side };
-    const filters = [grade, scale].filter(Boolean).join(',');
+    const filters = [...(tonemap ? tonemapSteps(tonemap) : []), grade, scale].filter(Boolean).join(',');
     const decoder = alphaDecoderFor(entry.meta);
     // A set of several layers is composited into the frames it is handed (milestone 32).
     if (entry.clipSetLayers && source.setLayers?.length === entry.clipSetLayers.length) {
@@ -222,7 +236,8 @@ export function clipFramesArgs(entry: MediaEntry, source: ClipSource, window: { 
     '-v', 'error', '-nostdin',
     ...input,
     '-frames:v', String(window.frames),
-    '-an', '-vf', `${grade}${scale},format=rgba`,
+    // HDR first (milestone 81), then the grade: a `.cube` is a look drawn for standard range.
+    '-an', '-vf', `${tonemapPrefix(tonemap)}${grade}${scale},format=rgba`,
     '-f', 'image2pipe', '-c:v', 'png', 'pipe:1',
   ];
 }
@@ -271,12 +286,15 @@ export async function readClipFrames(
   // Twice the drawn height, rounded up to a proxy step: sharp enough for a scaled or rotated
   // layer, and stable while a window is resized, so nothing is decoded twice for a few pixels.
   const side = clipProxySize(drawnHeight * 2);
-  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${asFile ?? ''}`;
+  // An HDR file is converted on the way in (milestone 81), where this ffmpeg can: part of the key,
+  // so frames read before an ffmpeg that can convert arrived are not served after it.
+  const tonemap = found.kind === 'media' ? await tonemapFor(ffmpegPath, found.entry) : undefined;
+  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${tonemap ?? ''}|${asFile ?? ''}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
   const frames = found.kind === 'drawn'
     ? await drawnClipFrames(found.entry, window, side)
-    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, value.lut);
+    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, { ...(value.lut ? { lut: value.lut } : {}), ...(tonemap ? { tonemap } : {}) });
   if (!frames.ok) return { ok: false, problem: { kind: 'failed', detail: frames.message } };
   const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
   cachePut(key, data);
@@ -296,8 +314,8 @@ export type ClipReadProblem =
 
 type FramesRead = { ok: true; pngs: Buffer[] } | { ok: false; message: string };
 
-async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, lut?: string): Promise<FramesRead> {
-  const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side, lut));
+async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, read: { lut?: string; tonemap?: HdrFormat }): Promise<FramesRead> {
+  const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side, read));
   if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
   const pngs = splitPngStream(result.stdout);
   if (pngs.length === 0) return { ok: false, message: 'ffmpeg decoded no frames from it' }; // i18n-exempt(diagnostic)

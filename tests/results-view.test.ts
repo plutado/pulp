@@ -158,8 +158,8 @@ describe('badges', () => {
     expect(entryBadges(alpha).map((b) => b.id)).toEqual(['resolution', 'alpha']);
     // The exact pixels stay in the tag's tooltip.
     expect(entryBadges(alpha).find((b) => b.id === 'resolution')?.tip).toBe('1920 × 1080');
-    // Only the resolution is a word; everything else is an icon with its meaning in the tooltip.
-    expect(TAG_BADGES).toEqual(['resolution']);
+    // The resolution and HDR are words; everything else is an icon with its meaning in the tooltip.
+    expect(TAG_BADGES).toEqual(['resolution', 'hdr']);
   });
 
   it('puts the running time over the thumbnail as a clock reading, and none on a still (milestone 66)', () => {

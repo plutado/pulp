@@ -24,6 +24,8 @@ import { isValidColor } from './manifest';
 import { sequencePatternName, SEQUENCE_FPS } from './media-sequence';
 import { clipSetNaturalSeconds } from './clip-set';
 import { alphaDecoderFor } from './media-meta';
+import { tonemapSteps, type HdrFormat } from './hdr';
+import { hdrLabel } from './display';
 import {
   AUDIO_BIT_DEPTHS, AUDIO_SAMPLE_RATES, matteCodecArgs, matteFilters, matteOutputPath, normalizeOutputPath, OUTPUT_PRESETS, REC709_CONVERT, REC709_TAGS,
   RenderPlanError, RGB_FULL_TAGS, type AudioOptions, type OutputPreset, type PresetId, type RenderOptions,
@@ -84,6 +86,8 @@ export interface MediaSource {
   fps?: number;
   alpha: boolean;
   hasAudio: boolean;
+  /** The HDR the file tags itself as (milestone 81); converted to standard range on the way in. */
+  hdr?: HdrFormat;
 }
 
 /**
@@ -135,6 +139,8 @@ export function sourceFromEntry(entry: MediaEntry, options: Pick<RenderOptions, 
     ...(meta?.fps ? { fps: meta.fps } : {}),
     alpha: meta?.alpha === true || ext === '.png' || ext === '.svg' || ext === '.psd' || ext === '.webp' || ext === '.gif',
     hasAudio: entry.mediaKind === 'audio' || meta?.audioCodec !== undefined,
+    // What the file says of its own range (milestone 81); the plan converts it on the way in.
+    ...(meta?.hdr ? { hdr: meta.hdr } : {}),
   };
 }
 
@@ -237,6 +243,12 @@ export interface MediaRenderInput {
   overwrite?: boolean;
   /** A folder for the loop unit when a crossfaded loop needs one; a plan that needs it and has none is refused. */
   scratchDir?: string;
+  /**
+   * Whether the ffmpeg this will run on can convert HDR (milestone 81, zimg).
+   * False with an HDR source writes the picture as it is and warns, since a
+   * washed-out delivery nobody was told about is the worse of the two.
+   */
+  tonemap?: boolean;
 }
 
 export interface MediaRenderStage {
@@ -384,8 +396,13 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   if (tint !== undefined && !isValidColor(tint)) throw new RenderPlanError(tr('media-render.error.tint', { got: tint }));
   const lut = options.lut;
   if (lut !== undefined && !isCubeFile(lut)) throw new RenderPlanError(tr('render-plan.error.lut', { got: lut }));
+  // An HDR file is brought to standard range before anything else (milestone 81) — the grade, the
+  // recolor and the fit all expect Rec. 709 — or, where this ffmpeg cannot, written as it is and said.
+  const tonemap = source.hdr && input.tonemap !== false ? tonemapSteps(source.hdr) : [];
+  if (source.hdr && tonemap.length === 0) warnings.push(tr('media-render.warning.hdr-unconverted', { format: hdrLabel(source.hdr) }));
   // What every path normalises the picture to first: speed, a constant output rate, the grade, the recolor, the size.
   const normalise = (speedToo: boolean): string[] => [
+    ...tonemap,
     ...(speedToo && timing.speed !== 1 ? [`setpts=PTS/${timing.speed}`] : []),
     `fps=${fps}`,
     ...(lut ? [lutFilter(lut)] : []),

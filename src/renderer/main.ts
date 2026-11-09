@@ -6,7 +6,7 @@ import { workIsTall } from '../core/vertical-layout';
 import { platformPreset } from '../core/platform-presets';
 import { mountResults, showSelectedResult } from './results';
 import { mountCategoryCards } from './category-cards';
-import { mountItemInfo } from './item-info';
+import { infoSetFfmpeg, mountItemInfo } from './item-info';
 import { initStage, stageClear, stageShowMedia, stageShowTemplate, stopPlayback } from './stage';
 import { initCleanup, initStabilize } from './cleanup';
 import { initShell } from './shell';
@@ -688,6 +688,8 @@ function readFfmpeg(): void {
   void window.pulp.ffmpegStatus().then((info) => {
     setFfmpeg(info);
     outputSetFfmpeg(info.ok, info.encoders ?? []);
+    // Whether it can convert HDR (milestone 81), for an HDR clip's Range row in the Info tab.
+    infoSetFfmpeg(info);
   });
 }
 registerFfmpegRefresh(readFfmpeg);

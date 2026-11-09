@@ -53,6 +53,17 @@ function toggleSection(id: InfoSectionId): void {
   void window.pulp.saveInfoSections(next);
 }
 
+/**
+ * Whether the FFmpeg in use can convert HDR (milestone 81), so an HDR clip's
+ * Range row can say what will become of it. Set from the one status the
+ * window already reads at launch and again after Settings fetches a build.
+ */
+const ffmpegTonemap = signal<boolean | undefined>(undefined);
+
+export function infoSetFfmpeg(info: { ok: boolean; tonemap?: boolean }): void {
+  ffmpegTonemap.value = info.ok ? info.tonemap : undefined;
+}
+
 /** Saved preset counts per template, for Usage; asked for once per template. */
 const presetCounts = signal<ReadonlyMap<string, number>>(new Map());
 const askedPresets = new Set<string>();
@@ -450,7 +461,7 @@ function Panel({ onSelect }: { onSelect: (e: LibraryEntry) => void }) {
   if (!entry) return null;
   const sections: Partial<Record<InfoSectionId, preact.ComponentChildren>> = {
     about: <About entry={entry} />,
-    format: <Rows rows={formatRows(entry)} />,
+    format: <Rows rows={formatRows(entry, { ...(ffmpegTonemap.value !== undefined ? { tonemap: ffmpegTonemap.value } : {}) })} />,
     ...(isPsdEntry(entry) ? { layers: <Layers entry={entry} /> } : {}),
     categories: <Categories entry={entry} />,
     tags: (

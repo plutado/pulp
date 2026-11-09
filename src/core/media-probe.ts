@@ -25,8 +25,9 @@ function ffprobeArgs(file: string, caps: string[] = []): string[] {
   return [
     '-v', 'error',
     // view_ids_available and view_pos_available are what give away HEVC's auxiliary alpha
-    // layer, which no pixel format reports (see hevcAlpha in media-meta.ts).
-    '-show_entries', 'format=duration:format_tags=genre,mood,comment:stream=codec_type,codec_name,width,height,pix_fmt,r_frame_rate,avg_frame_rate,duration,channels,sample_rate,view_ids_available,view_pos_available:stream_tags=alpha_mode',
+    // layer, which no pixel format reports (see hevcAlpha in media-meta.ts); color_transfer is
+    // what makes a phone's clip HDR rather than standard range (milestone 81, see hdr.ts).
+    '-show_entries', 'format=duration:format_tags=genre,mood,comment:stream=codec_type,codec_name,width,height,pix_fmt,color_transfer,r_frame_rate,avg_frame_rate,duration,channels,sample_rate,view_ids_available,view_pos_available:stream_tags=alpha_mode',
     '-of', 'json',
     ...caps,
     file,

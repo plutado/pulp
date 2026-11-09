@@ -27,6 +27,7 @@ import { fetchSemanticModel, semanticSearch, semanticStatus, setSemanticProgress
 import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
 import { voiceLevels } from './voice-levels';
+import { canTonemap } from './hdr-service';
 import { cancelStabilize, chromaKeyClip, chromaKeyPreview, setStabilizeProgressWindow, splitScenes, stabilizeClip, stabilizeStatus } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
@@ -362,7 +363,7 @@ function registerIpc(): void {
   ipcMain.handle('ffmpeg:status', async (): Promise<FfmpegInfo> => {
     const status = await detectFfmpeg();
     return status.ok
-      ? { ok: true, path: status.path, version: status.version, encoders: status.encoders }
+      ? { ok: true, path: status.path, version: status.version, encoders: status.encoders, tonemap: await canTonemap(status.path) }
       : { ok: false, message: status.message };
   });
   // The download helper (milestone 17, ADR 0022). The status says what would be fetched and

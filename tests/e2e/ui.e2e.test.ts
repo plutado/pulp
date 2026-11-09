@@ -532,6 +532,17 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-f', 'lavfi', '-i', 'color=c=red:s=24x24:d=2:r=10',
           '-filter_complex', "[0][1]overlay=x='floor(t*40)':y=32", '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-mover.mp4'),
         ]), { timeoutMs: 60_000 });
+        // A clip tagged as a phone tags HDR (milestone 81): two flat halves, a dark and a bright,
+        // whose pixels are ordinary but whose frames carry PQ and BT.2020 — which is all that
+        // makes a file HDR. Half a second so the duration searches count what they counted, and
+        // mpeg4 and sorted last, like the fixtures above, for the same reasons.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y',
+          '-f', 'lavfi', '-i', 'color=c=0x404040:s=80x160:d=0.5:r=10',
+          '-f', 'lavfi', '-i', 'color=c=0xC0C0C0:s=80x160:d=0.5:r=10',
+          '-filter_complex', '[0][1]hstack,setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
+          '-frames:v', '5', '-c:v', 'mpeg4', '-qscale:v', '2', '-pix_fmt', 'yuv420p', join(mediaDir, 'zz-hdr.mp4'),
+        ]), { timeoutMs: 60_000 });
         // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
         await mkdir(join(mediaDir, 'frames'), { recursive: true });
         await runBounded(ffmpeg.path, ffmpegArgs([
@@ -3688,6 +3699,77 @@ describe.skipIf(!electron)('inspector UI', () => {
         }, 'the line sitting where it was asked for');
       }, 120_000);
     });
+
+    // Last in this block on purpose: dropping the clip marks it recently used, and the Add Asset
+    // submenu offers the eight most recent, so running it earlier would push a clip the
+    // right-click menu's own test looks for out of that list.
+    it('shows an HDR clip for what it is and draws it converted on the stage, the file left alone (milestone 81)', async () => {
+      // Whether the ffmpeg this suite runs on carries zimg decides which way the clip may look;
+      // the window says which in the Info tab either way, so the test reads it there first.
+      await onResult('zz-hdr', '(li) => li.click()');
+      await openTab('info');
+      await until(() => page.eval<boolean>(`document.querySelector('#info-item [data-section=format]')?.textContent.includes('Range') === true`), 'the range row for an HDR clip');
+      const range = await page.eval<string>(`document.querySelector('#info-item [data-section=format]').textContent`);
+      expect(range, 'seen for what it is').toContain('HDR (PQ)');
+      const convertible = !range.includes('without zimg');
+      if (convertible) expect(range).toContain('converted to standard range');
+      else expect(range).toContain('Install an FFmpeg built with zimg');
+      // And the card wears it, so a clip is known for HDR without opening anything.
+      expect(await onResult<string>('zz-hdr', "(li) => li.querySelector('[data-badge=hdr]')?.textContent ?? ''")).toBe('HDR');
+      expect(await onResult<string>('zz-hdr', "(li) => li.querySelector('[data-badge=hdr]')?.getAttribute('data-tip') ?? ''")).toContain('standard range');
+      const hdrId = await onResult<string>('zz-hdr', '(li) => li.dataset.id');
+
+      // Back to the template, with the clip dropped on its stage as a shot.
+      await clickResult('Title Card');
+      await openTab('output');
+      await fire('#opt-aspect', '16:9', 'change');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const count = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const dropOnStage = (id: string) =>
+        page.eval<boolean>(
+          `(() => {
+            const el = document.getElementById('preview-frame');
+            const r = el.getBoundingClientRect();
+            const dt = new DataTransfer();
+            dt.setData('application/x-pulp-item', ${JSON.stringify(id)});
+            const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+            el.dispatchEvent(new DragEvent('dragover', at));
+            el.dispatchEvent(new DragEvent('drop', at));
+            return true;
+          })()`,
+        );
+      /** The mean of one pixel of the track's picture, a fraction across its middle. */
+      const pixel = (fx: number) => page.eval<number>(
+        `(() => { const c = document.getElementById('track-picture');
+          const d = c.getContext('2d').getImageData(Math.floor(c.width * ${fx}), Math.floor(c.height / 2), 1, 1).data;
+          return (d[0] + d[1] + d[2]) / 3; })()`,
+      );
+      try {
+        // The square clip is pillarboxed in the 16:9 frame, so a third across is its dark half
+        // and two thirds its bright one.
+        await dropOnStage(hdrId);
+        await until(async () => (await count()) === 1, 'the clip on the track');
+        // Inside the half-second shot, where its frames are the ones the stage draws.
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '5'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await until(() => page.eval<string>(`document.getElementById('preview-frame').dataset.frame`).then((f) => Number(f) === 5), 'the playhead inside the shot');
+        await until(async () => (await pixel(0.65)) > 20, 'the clip\'s picture on the stage', 30_000);
+        const dark = await pixel(0.35);
+        const bright = await pixel(0.65);
+        if (convertible) {
+          // Converted: the bright half comes up to near white and the dark half settles down, so
+          // what the stage shows is what the render will write rather than the washed-out middle.
+          expect(bright, 'the bright half brought up').toBeGreaterThan(215);
+          expect(dark, 'and the dark half down').toBeLessThan(70);
+        } else {
+          // Not converted here: the file's own values, which is what the Info tab said would happen.
+          expect(bright).toBeGreaterThan(160);
+          expect(bright).toBeLessThan(215);
+        }
+      } finally {
+        await restoreLayers();
+      }
+    }, 120_000);
   });
 
   describe('length (milestone 30)', () => {

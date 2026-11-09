@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { detectFfmpeg, runForBuffer, type FfmpegStatus } from '../core/ffmpeg';
+import { canTonemap } from './hdr-service';
 import { clipSetLayersStitchArgs, stitchHasSound } from '../core/clip-set';
 import { stitchLayersFor } from './clip-set-service';
 import { tr } from '../core/i18n';
@@ -153,7 +154,7 @@ export async function planMediaRender(entry: MediaEntry, presetId: string, optio
   try {
     // A scratch folder is named but not made: the plan only has to know one would exist.
     const source = await mediaSourceFor(entry, ffmpeg, undefined, params, undefined, options);
-    const plan = buildMediaRenderPlan({ source, presetId, outputPath, options, scratchDir: join(tmpdir(), 'pulp-media') });
+    const plan = buildMediaRenderPlan({ source, presetId, outputPath, options, scratchDir: join(tmpdir(), 'pulp-media'), tonemap: await canTonemap(ffmpeg.path) });
     return { ok: true, plan };
   } catch (err) {
     return { ok: false, message: (err as Error).message };
@@ -204,7 +205,7 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
   const scratch = await mkdtemp(join(tmpdir(), 'pulp-media-'));
   try {
     const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) }, job.options);
-    const plan = buildMediaRenderPlan({ source, presetId: job.presetId, outputPath: job.outputPath, options: job.options, overwrite: job.overwrite, scratchDir: scratch });
+    const plan = buildMediaRenderPlan({ source, presetId: job.presetId, outputPath: job.outputPath, options: job.options, overwrite: job.overwrite, scratchDir: scratch, tonemap: await canTonemap(ffmpeg.path) });
     await mkdir(dirname(plan.output), { recursive: true });
     const total = plan.timing.totalFrames;
     for (let i = 0; i < plan.stages.length; i += 1) {
