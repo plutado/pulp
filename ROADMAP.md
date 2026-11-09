@@ -84,7 +84,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 67. Twice the polished art, and an airliner redone (post-1.0, **done**) | 21-35 h |
 | 68. Chinese and German (post-1.0, **done**) | 18-32 h |
 | 69. The library in German and Chinese (post-1.0, **done**) | 12-20 h |
-| 70. Right-to-left and complex scripts (post-1.0) | 12-23 h |
+| 70. Right-to-left and complex scripts (post-1.0, **done**) | 12-23 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
 | **Total including post-1.0 items** | **1059-1736 h** |
@@ -893,7 +893,7 @@ Decided 2026-11-05. Milestone 68 translated the window, which left the library's
 - [x] **Search in both:** a typed English word still finds an item in any language, and so does its translated name (1-2 h)
 - [x] **Tests:** an end-to-end test finds the airliner by its English and translated names in each language and opens it with its parameters translated (2-3 h)
 
-## 70. Right-to-left and complex scripts (12-23 h, after 1.0)
+## 70. Right-to-left and complex scripts (done; 12-23 h, after 1.0)
 
 Decided 2026-11-06, moved out of milestone 59 for later. No right-to-left language is planned yet, and the mirroring is worth doing only alongside one.
 
