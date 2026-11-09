@@ -94,9 +94,14 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 77. Auto-reframe for vertical video (post-1.0) | 15-25 h |
 | 78. Stabilize shaky clips (post-1.0, **done**) | 6-10 h |
 | 79. Spanish and French (post-1.0) | 30-52 h |
+| 80. Music that dips under a voice (post-1.0) | 4-7 h |
+| 81. HDR phone clips made ready to use (post-1.0) | 6-10 h |
+| 82. More export formats (post-1.0) | 8-13 h |
+| 83. Deinterlace old footage (post-1.0) | 3-6 h |
+| 84. A flash warning before export (post-1.0) | 4-7 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1154-1899 h** |
+| **Total including post-1.0 items** | **1179-1942 h** |
 
 ## 0. Foundation (done)
 
@@ -983,3 +988,45 @@ Decided 2026-11-09. Two more languages, built the way milestones 68 and 69 built
 - [ ] **The user guide** in each (4-7 h)
 - [ ] **The library:** category names, descriptions and search words in each (12-20 h)
 - [ ] **Tests:** complete catalogs, and the layout check at 1280 × 788 and 960 × 600 in each (2-3 h)
+
+## 80. Music that dips under a voice (4-7 h, after 1.0)
+
+Decided 2026-11-09. The music in a short drops by hand today, cut by cut. ffmpeg's sidechain compressor can do it from the voice itself.
+
+- [ ] **Duck under a voice:** a music layer named to dip under a chosen voice layer, with how far and how quickly, in the render's mix (2-4 h)
+- [ ] **Heard in the preview:** the same dip while playing, so what is heard is what renders (1-2 h)
+- [ ] **Tests:** generated music and voice bursts, the music measured lower while the voice speaks and back after (1 h)
+
+## 81. HDR phone clips made ready to use (6-10 h, after 1.0)
+
+Decided 2026-11-09. Phones record HDR by default, and HDR footage treated as standard range looks washed out. Needs zimg in the ffmpeg in use.
+
+- [ ] **Seen for what it is:** PQ and HLG clips recognized when read, and marked in the library (1-2 h)
+- [ ] **Converted:** tone-mapped to standard range for the preview and the render alike, the original left alone (3-5 h)
+- [ ] **Said plainly:** an ffmpeg without zimg is told so, with what to do, and the clip still plays as it is (1-2 h)
+- [ ] **Tests:** a generated HDR-tagged clip converted and its levels measured (1 h)
+
+## 82. More export formats (8-13 h, after 1.0)
+
+Decided 2026-11-09. Formats that reach people Pulp's presets miss: Avid-style editing, and animated pictures on the web that need no editing app at all.
+
+- [ ] **DNxHR:** presets for editing apps that prefer it (2-3 h)
+- [ ] **GIF:** a palette made for the clip, so the colors hold, with a size and frame-rate control (2-3 h)
+- [ ] **Animated WebP and APNG:** both keeping alpha; WebP needs libwebp in the ffmpeg in use and says so when it is missing (2-4 h)
+- [ ] **Tests:** each format rendered and read back, its alpha and frame count checked (2-3 h)
+
+## 83. Deinterlace old footage (3-6 h, after 1.0)
+
+Decided 2026-11-09. Old stock discs and archives are often interlaced, which shows as combing on a progressive timeline. Goes with the stock library of milestone 32.
+
+- [ ] **Noticed:** an interlaced clip recognized by looking at its frames, not only its tags, and marked in the library (1-2 h)
+- [ ] **Fixed:** deinterlaced for the preview and the render, the field order read from the clip, with a way to turn it off (1-3 h)
+- [ ] **Tests:** a generated interlaced clip measured free of combing after, and a progressive one left alone (1 h)
+
+## 84. A flash warning before export (4-7 h, after 1.0)
+
+Decided 2026-11-09. Rapid flashing can be unsafe for some viewers. This is a warning to help a person catch it, not a certified broadcast test, and it says so.
+
+- [ ] **Checked:** an optional pass over the finished render that names where flashing is strong (2-3 h)
+- [ ] **Softened:** an option to calm those moments, shown before anything is overwritten (1-2 h)
+- [ ] **Tests:** a generated strobe flagged and softened, and steady footage left unmarked (1-2 h)
