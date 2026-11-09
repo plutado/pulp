@@ -1233,6 +1233,39 @@ function placeScrubLine(): void {
   host.style.setProperty('--scrub-w', `${width}px`);
 }
 
+/**
+ * The buttons line's labels yield before the status does. The tabs fold to their icons on a
+ * narrow window by a width rule in the stylesheet; that width was measured in English, and a
+ * language whose words run longer fills the line sooner — English (lengthened), the pseudo-locale
+ * of milestone 59, showed the project's name pushed out of the status at the default 1280 px.
+ * So the line is measured as well: with the labels shown, does the status overflow its box, or
+ * the row its own? Then the labels fold. Measured, not styled, because what overflows depends on
+ * the words, which a stylesheet cannot read.
+ */
+function fitButtonsLine(): void {
+  const status = document.getElementById('region-status');
+  if (!status) return;
+  els.row.classList.remove('labels-folded');
+  // The status is aligned to its end, so what does not fit spills out of its start — which
+  // scrollWidth never counts. Its items' boxes against its own box say it, whichever way it reads.
+  const box = status.getBoundingClientRect();
+  const spilled = [...status.children].some((item) => {
+    const r = item.getBoundingClientRect();
+    return r.width > 0 && (r.left < box.left - 0.5 || r.right > box.right + 0.5);
+  });
+  if (spilled || els.row.scrollWidth > els.row.clientWidth + 1) els.row.classList.add('labels-folded');
+}
+
+/** Everything that can change what the line needs: the window, the layout, the language, and the status's own words. */
+function followButtonsLine(): void {
+  window.addEventListener('resize', fitButtonsLine);
+  onLayoutApplied(fitButtonsLine);
+  whenLocaleChanges(fitButtonsLine);
+  const status = document.getElementById('region-status');
+  if (status) new MutationObserver(fitButtonsLine).observe(status, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+  fitButtonsLine();
+}
+
 /** The window the picture is in: the main window, or the stage's own when it is popped out. */
 let hostWindow: Window = window;
 let follow: ResizeObserver | null = null;
@@ -1295,6 +1328,7 @@ export function initStage(): void {
   // side without changing size, which no resize observer reports, and the bar must follow it.
   whenLocaleChanges(placeScrubLine);
   placeScrubLine();
+  followButtonsLine();
 
   // A layer of the layered file on the stage was shown or hidden: the picture follows (milestone 33).
   effect(() => {

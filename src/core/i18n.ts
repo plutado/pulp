@@ -43,17 +43,20 @@ export type Catalog = Partial<Record<MessageId, Message>>;
  * language — and the system's language never comes to it, so nobody is put into an unchecked
  * translation they did not choose. A speaker's check is what turns `preview` off; docs/translating.md.
  *
- * A `pseudo` locale (milestone 70) is a tool, not a language: English (mirrored) is US English
+ * A `pseudo` locale is a tool, not a language. English (lengthened) (milestone 59) is US English
+ * with every word drawn out by two fifths, so a layout that clips a long word is caught by a test
+ * before a language with long words is translated. English (mirrored) (milestone 70) is US English
  * declared right to left, so the mirrored window can be looked at and tested before any
- * right-to-left language is translated. Settings never offers it and the system never comes to it;
- * it is reached by `window.pulp.setLanguage('en-XB')` or by `"language": "en-XB"` in settings.json.
- * (XB is the private-use region pseudo-locales conventionally take.)
+ * right-to-left language is. Settings never offers either and the system never comes to them; one
+ * is reached by `window.pulp.setLanguage('en-XA')` or by `"language": "en-XA"` in settings.json.
+ * (XA and XB are the private-use regions pseudo-locales conventionally take.)
  */
 export const LOCALES = [
   { id: 'en-US', label: 'English (US)', dir: 'ltr', variant: false, preview: false, previewLabel: '', pseudo: false }, // i18n-exempt(content): a language's own name for itself
   { id: 'en-GB', label: 'English (UK)', dir: 'ltr', variant: true, preview: false, previewLabel: '', pseudo: false }, // i18n-exempt(content): a language's own name for itself
   { id: 'de', label: 'Deutsch', dir: 'ltr', variant: false, preview: true, previewLabel: 'Deutsch (Vorschau)', pseudo: false }, // i18n-exempt(content): a language's own name for itself
   { id: 'zh-CN', label: '中文（简体）', dir: 'ltr', variant: false, preview: true, previewLabel: '中文（简体）（预览）', pseudo: false }, // i18n-exempt(content): a language's own name for itself
+  { id: 'en-XA', label: 'English (lengthened)', dir: 'ltr', variant: false, preview: false, previewLabel: '', pseudo: true }, // i18n-exempt(content): a developer's tool, named as the language it draws out
   { id: 'en-XB', label: 'English (mirrored)', dir: 'rtl', variant: true, preview: false, previewLabel: '', pseudo: true }, // i18n-exempt(content): a developer's tool, named as the language it mirrors
 ] as const;
 
@@ -67,7 +70,40 @@ export type LocaleId = (typeof LOCALES)[number]['id'];
 /** The source: what every other catalog falls back to, and the one used when nothing else matches. */
 export const SOURCE_LOCALE: LocaleId = 'en-US';
 
-const CATALOGS: Record<LocaleId, Catalog> = { 'en-US': enUS, 'en-GB': enGB, de, 'zh-CN': zhCN, 'en-XB': {} };
+/** How much longer English (lengthened) makes a word: two fifths, about what German adds to English. */
+const LENGTHEN_BY = 0.4;
+/** What a lengthened word grows by: a letter the window has no words in, so the padding is seen for what it is. */
+const FILLER = 'ø'; // i18n-exempt(technical): a pseudo-locale's padding, not a word
+
+/**
+ * A message as English (lengthened) says it: every word two fifths longer, grown at its end so the
+ * word itself is still in it (the search field's `favorite:` is still typed and still found).
+ * Placeholders, the inline tags of a rich message, and tokens with no letters are left alone, so
+ * the message still fills, still builds and still reads.
+ */
+export function lengthen(text: string): string {
+  return text.replace(/\S+/g, (word) => {
+    if (/[{}<>]/.test(word)) return word;
+    const letters = (word.match(/\p{L}/gu) ?? []).length;
+    return letters === 0 ? word : word + FILLER.repeat(Math.max(1, Math.round(letters * LENGTHEN_BY)));
+  });
+}
+
+function lengthenMessage(message: Message): Message {
+  if (typeof message === 'string') return lengthen(message);
+  const out: Record<string, string> = {};
+  for (const [form, text] of Object.entries(message)) if (text !== undefined) out[form] = lengthen(text);
+  return out as Message;
+}
+
+/** The source, every message drawn out: made once at load, from the source itself, so it can never be behind it. */
+function lengthenedCatalog(): Catalog {
+  const out: Catalog = {};
+  for (const [id, message] of Object.entries(enUS) as [MessageId, Message][]) out[id] = lengthenMessage(message);
+  return out;
+}
+
+const CATALOGS: Record<LocaleId, Catalog> = { 'en-US': enUS, 'en-GB': enGB, de, 'zh-CN': zhCN, 'en-XA': lengthenedCatalog(), 'en-XB': {} };
 
 /** What Settings → Language holds: the system's language, or one chosen. */
 export type LanguageChoice = 'system' | LocaleId;

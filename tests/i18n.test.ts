@@ -11,7 +11,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  catalogFor, directionOf, formatMessage, LOCALES, ownCatalog, placeholdersOf, resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translate, translator, type Catalog,
+  catalogFor, directionOf, formatMessage, lengthen, LOCALES, ownCatalog, placeholdersOf, resolveLocale, sanitizeLanguage, SOURCE_LOCALE, translate, translator, type Catalog,
 } from '../src/core/i18n';
 import { enUS } from '../src/locales/en-US';
 import { EXEMPT_REASONS, findWords } from './i18n-scan';
@@ -119,6 +119,38 @@ describe('Chinese and German (milestone 68)', () => {
   });
 });
 
+describe('English (lengthened), the pseudo-locale for long words (milestone 59)', () => {
+  it('draws every word out by two fifths at its end, and leaves placeholders, tags and numbers alone', () => {
+    expect(lengthen('Save')).toBe('Saveøø');
+    expect(lengthen('Parameters')).toBe('Parametersøøøø');
+    expect(lengthen('a')).toBe('aø');
+    expect(lengthen('Saved as {name}.')).toBe('Savedøø asø {name}.');
+    expect(lengthen('{count} items')).toBe('{count} itemsøø');
+    expect(lengthen('Press <strong>Render</strong> now')).toBe('Pressøø <strong>Render</strong> nowø');
+    expect(lengthen('1920 × 1080 · 25 fps')).toBe('1920 × 1080 · 25 fpsø');
+    expect(lengthen('favorite:')).toContain('favorite:');
+  });
+
+  it('is a complete catalog of its own, made from the source, every message longer than the source says it', () => {
+    const mirrored = LOCALES.find((l) => l.id === 'en-XA')!;
+    expect(mirrored.pseudo).toBe(true);
+    expect(mirrored.variant).toBe(false);
+    expect(directionOf('en-XA')).toBe('ltr');
+    const own = ownCatalog('en-XA');
+    expect(Object.keys(own).sort()).toEqual(Object.keys(enUS).sort());
+    const text = (m: unknown) => (typeof m === 'string' ? m : (m as { other: string }).other);
+    for (const [id, m] of Object.entries(enUS)) {
+      const longer = text(own[id as keyof typeof enUS]);
+      expect(longer.length, id).toBeGreaterThanOrEqual(text(m).length);
+      expect(placeholdersOf(own[id as keyof typeof enUS]!), id).toEqual(placeholdersOf(m));
+      expect(longer.startsWith(text(m).split(/\s+/)[0]!), `${id} begins as the source does`).toBe(true);
+    }
+    // Never offered, never the system's.
+    for (const tags of [['en-XA'], ['en-US'], ['de-DE']]) expect(resolveLocale('system', tags, { previews: true })).not.toBe('en-XA');
+    expect(resolveLocale('en-XA', ['en-US'])).toBe('en-XA');
+  });
+});
+
 describe('right to left (milestone 70)', () => {
   it('every language says which way it is written, and the ones translated so far read left to right', () => {
     for (const l of LOCALES) expect(['ltr', 'rtl']).toContain(l.dir);
@@ -126,8 +158,8 @@ describe('right to left (milestone 70)', () => {
   });
 
   it('English (mirrored) is a tool: US English read right to left, a variant with nothing of its own, never offered and never the system\'s', () => {
-    const mirrored = LOCALES.find((l) => l.pseudo)!;
-    expect(mirrored.id).toBe('en-XB');
+    const mirrored = LOCALES.find((l) => l.id === 'en-XB')!;
+    expect(mirrored.pseudo).toBe(true);
     expect(mirrored.variant).toBe(true);
     expect(mirrored.preview).toBe(false);
     expect(directionOf('en-XB')).toBe('rtl');
@@ -137,7 +169,7 @@ describe('right to left (milestone 70)', () => {
     expect(sanitizeLanguage('en-XB')).toBe('en-XB');
     expect(resolveLocale('en-XB', ['en-US'])).toBe('en-XB');
     for (const tags of [['en-XB'], ['ar'], ['he-IL', 'en-US'], ['fa']]) expect(resolveLocale('system', tags, { previews: true }), tags.join()).not.toBe('en-XB');
-    expect(LOCALES.filter((l) => l.pseudo)).toHaveLength(1);
+    expect(LOCALES.filter((l) => l.pseudo).map((l) => l.id)).toEqual(['en-XA', 'en-XB']);
   });
 });
 

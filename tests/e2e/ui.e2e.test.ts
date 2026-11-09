@@ -29,7 +29,7 @@ import { sampleMediaPath, samplesForTypes } from '../../src/core/sample-media';
 import { BRIDGE_TOKEN_HEADER, parseBridgeFile } from '../../src/core/panel-bridge';
 import { frameHash, hammingDistance, looksSame } from '../../src/core/visual-hash';
 import { categoryInfo } from '../../src/core/categories';
-import { catalogFor, type LocaleId } from '../../src/core/i18n';
+import { catalogFor, lengthen, type LocaleId } from '../../src/core/i18n';
 import { libraryWordsFor as libraryWords } from '../../src/core/library-words';
 import { ffmpegArgs, killTree, runBounded } from './process';
 
@@ -7193,6 +7193,9 @@ describe.skipIf(!electron)('inspector UI', () => {
     const LANGUAGES: [LocaleId, string[]][] = [
       ['de', ['Datei', 'Bearbeiten', 'Ansicht']],
       ['zh-CN', ['文件', '编辑', '视图']],
+      // English (lengthened), the pseudo-locale of milestone 59: every word two fifths longer, so a
+      // layout that clips a long word is caught here before a language with long words is translated.
+      ['en-XA', ['File', 'Edit', 'View'].map(lengthen)],
     ];
     it('shows the bundled library in the language, and still finds it by a typed English word', async () => {
       const names = { de: libraryWords('de'), 'zh-CN': libraryWords('zh-CN') };

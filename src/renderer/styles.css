@@ -942,6 +942,17 @@ button > .icon + .label, button > .icon-wrap + .label { margin-inline-start: 6px
      and comes later in the file — equal specificity would hand the narrow window the wide slider. */
   .transport-row .transport-tools #volume { width: 56px; }
 }
+/* And at any width where the words need it: the stage measures the line (fitButtonsLine) and folds
+   the labels when the status would otherwise overflow — a language whose labels run longer than
+   English's fills the line before 1230 px (milestone 59's English (lengthened) showed it at 1280). */
+.transport-row.labels-folded .transport-tabs .tab .label { display: none; }
+.transport-row.labels-folded .transport-tools #volume { width: 56px; }
+/* And the line's gaps and side padding close up a step, before anything that must stay is squeezed:
+   at the window's minimum a language two fifths longer than English still wanted a few pixels with
+   the labels folded. */
+.transport-row.labels-folded .buttons-line { column-gap: var(--space-2); padding-inline: var(--space-2); }
+.transport-row.labels-folded .transport-middle, .transport-row.labels-folded .transport-tools { gap: var(--space-2); }
+.transport-row.labels-folded .transport-tabs { margin-left: var(--space-1); padding-left: var(--space-2); }
 /* The meter folds too: below about 1100 px the line has no room for its bar, and the Output tab's
    button sat over the project's name on CI's 1008 px window (docs/ideas.md, 2026-11-01). The
    measurement still runs — the meter is back the moment the window is. */

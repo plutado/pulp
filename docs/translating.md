@@ -106,6 +106,13 @@ A complete catalog is not yet a checked one. A language is offered as a **previe
 - "Same as the system" never comes to a preview. A person gets one only by choosing it, so nobody is put into an unchecked translation they did not ask for.
 - When the speaker's check is done, set `preview: false`. From then on a system in that language gets it: German for any German-speaking region (Germany, Austria, Switzerland and the rest: German has one standard written form), Simplified Chinese for `zh-Hans`, mainland China and Singapore. A system set to Traditional Chinese (`zh-Hant`, Taiwan, Hong Kong, Macau) is never given Simplified: it goes on to its next language, or English, until a Traditional catalog exists. `resolveLocale` in `src/core/i18n.ts` holds these rules, and `tests/i18n.test.ts` checks them with `{ previews: true }`.
 
+## Pseudo-locales
+
+Two entries in `LOCALES` are tools rather than languages (`pseudo: true`). Settings never lists them and "Same as the system" never comes to them; a developer reaches one with `window.pulp.setLanguage('en-XA')` in the developer tools, or `"language": "en-XA"` in `settings.json`.
+
+- **English (lengthened)**, `en-XA` (milestone 59): the source with every word two fifths longer — "Saveøø", "Parametersøøøø" — grown at the word's end, so the word is still in it, placeholders and inline tags untouched, numbers alone. It is made from the source at load (`lengthen` in `src/core/i18n.ts`), so it is never behind it. It stands in for a language with long words before one is translated: the end-to-end suite switches to it beside German and Chinese and fails on a label, button, tab, chip or heading that is cut, runs out of a box that clips it, or overlaps its neighbor, at 1280 × 788 and 960 × 600. Its first run found the transport row's tabs folding to their icons at a window width measured in English, which left a longer language's labels pushing the project's name out of the status; the row measures its own line now.
+- **English (mirrored)**, `en-XB` (milestone 70): the source declared right to left, a variant with nothing of its own, for the mirrored window (below).
+
 ## Glossary
 
 Pulp's own terms are translated the same way everywhere. A translator adding or changing a message uses these, and `tests/i18n.test.ts` holds the catalogs to the first four.
@@ -147,7 +154,7 @@ A language declared `rtl` in `LOCALES` mirrors the window (milestone 70): `<html
 
 What moves with the direction: the browse panel to the right and its splitter's keys with it (Left widens a panel on the right), submenus opening to the left with their caret turned, a menu hung from a button hanging from its right edge, the tour's card on the far side of its highlight, carets and disclosure triangles pointing into the row, and the arrows inside a row or grid of controls trading places so the key follows the eye. The tree's Right and Left do the same: the key that points into the tree unfolds.
 
-No right-to-left language is translated yet. **English (mirrored)**, `en-XB`, is the tool for looking at the mirrored window before one is: US English declared `rtl`, a variant with nothing of its own, never offered in Settings and never the system's. Reach it with `window.pulp.setLanguage('en-XB')` in the developer tools, or `"language": "en-XB"` in `settings.json`. The end-to-end suite switches to it at 1280 × 788 and 960 × 600 ("right to left (milestone 70)" in `tests/e2e/ui.e2e.test.ts`). A real right-to-left catalog follows "Adding a language" above with `dir: 'rtl'`, and the window is already mirrored for it.
+No right-to-left language is translated yet. **English (mirrored)**, `en-XB`, is the tool for looking at the mirrored window before one is (see "Pseudo-locales"). The end-to-end suite switches to it at 1280 × 788 and 960 × 600 ("right to left (milestone 70)" in `tests/e2e/ui.e2e.test.ts`). A real right-to-left catalog follows "Adding a language" above with `dir: 'rtl'`, and the window is already mirrored for it.
 
 ## Room for the words
 
