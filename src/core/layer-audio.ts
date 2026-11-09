@@ -33,6 +33,7 @@
  * its length, so a trimmed render hears what its frames show.
  */
 
+import { duckGainAt, duckVolumeFilter, LEVEL_STEP_SECONDS, speakingAt, voiceThreshold, type DuckSpan, type DuckValue, type ResolvedDuck } from './duck';
 import { spanWindow, type LayerSpan } from './layer-time';
 import type { RenderPlan } from './render-plan';
 import { soundAudible, soundTimeAt, soundWindow, type SoundSource, type SoundValue } from './sound-layer';
@@ -73,6 +74,12 @@ export interface SoundAudioLayer {
    * has none; absent is real time.
    */
   speed?: number;
+  /**
+   * Its dip under a voice (milestone 80), worked out against the voice's
+   * levels by `resolveDuck`: the settings and where the voice speaks. Absent
+   * holds its level, as does a dip whose voice never speaks.
+   */
+  duck?: ResolvedDuck;
 }
 
 /** One layer that makes sound, of either kind. */
@@ -200,7 +207,10 @@ export function layerGainAt(layer: AudioLayer, time: number, length: number): nu
   const audible = layer.kind === 'sound' ? soundAudible(layer.value) : clipAudible(layer.value);
   if (!audible) return 0;
   const { volume } = settings(layer);
-  return Math.min(1, Math.max(0, volume * layerFadeAt(layer, time, length)));
+  // A dip under a voice (milestone 80) rides on top of the volume and the fades, as the render's
+  // `volume` expression does after its `afade` steps.
+  const duck = layer.kind === 'sound' ? duckGainAt(layer.duck, time) : 1;
+  return Math.min(1, Math.max(0, volume * layerFadeAt(layer, time, length) * duck));
 }
 
 /** Seconds the layer's whole file runs for, which its waveform's peaks are spread over. */
@@ -232,6 +242,74 @@ export function layerBarPeaks(layer: AudioLayer, peaks: ArrayLike<number>, lengt
     out[column] = Math.round((peaks[bucket] ?? 0) * shape);
   }
   return out;
+}
+
+// ---------------------------------------------------------------- dipping under a voice (milestone 80)
+
+/** A voice a music layer dips under: the layer as it is heard, and the levels measured from its file. */
+export interface DuckVoice {
+  layer: AudioLayer;
+  levels: ArrayLike<number>;
+}
+
+/**
+ * Where the voices speak, in the graphic's seconds: every step at which one
+ * of them is heard (its span, delay, loop and fades — muted or silent, it
+ * speaks to no one) and its file is loud enough there, run together into
+ * stretches. Measured on the file as recorded, so a voice treatment does not
+ * move the dip.
+ */
+export function voiceSpans(voices: readonly DuckVoice[], length: number): DuckSpan[] {
+  const spans: DuckSpan[] = [];
+  if (!Number.isFinite(length) || length <= 0) return spans;
+  const ready = voices.map((v) => ({ ...v, threshold: voiceThreshold(v.levels) }));
+  const steps = Math.ceil(length / LEVEL_STEP_SECONDS);
+  let open: number | null = null;
+  for (let i = 0; i <= steps; i++) {
+    const time = Math.min(length, i * LEVEL_STEP_SECONDS);
+    const speaking = i < steps && ready.some((v) => {
+      if (layerGainAt(v.layer, time, length) <= 0) return false;
+      const at = layerSourceTimeAt(v.layer, time);
+      return at !== null && speakingAt(v.levels, v.threshold, at);
+    });
+    if (speaking && open === null) open = time;
+    else if (!speaking && open !== null) {
+      spans.push({ from: open, to: time });
+      open = null;
+    }
+  }
+  return spans;
+}
+
+/** A music layer's dip, worked out: its settings with where its voices speak. */
+export function resolveDuck(duck: DuckValue, voices: readonly DuckVoice[], length: number): ResolvedDuck {
+  return { depth: duck.depth, speed: duck.speed, spans: voiceSpans(voices, length) };
+}
+
+/**
+ * Every dip in a mix worked out at once: each sound layer whose value names a
+ * voice by `block.layer` gets that voice's spans, its own key never counting
+ * as its voice. `keyed` pairs each layer with its key (a layer with stems
+ * appears once per stem, all under one key); `levelsFor` gives a voice's
+ * levels, or null when they could not be measured — a voice that cannot be
+ * measured dips nothing, rather than guessing.
+ */
+export function applyDucks(keyed: readonly { key: string; layer: AudioLayer }[], levelsFor: (layer: AudioLayer) => ArrayLike<number> | null | undefined, length: number): void {
+  for (const { key, layer } of keyed) {
+    if (layer.kind !== 'sound') continue;
+    const duck = layer.value.duck;
+    if (!duck || duck.under === key) {
+      delete layer.duck;
+      continue;
+    }
+    const voices: DuckVoice[] = [];
+    for (const other of keyed) {
+      if (other.key !== duck.under) continue;
+      const levels = levelsFor(other.layer);
+      if (levels) voices.push({ layer: other.layer, levels });
+    }
+    layer.duck = resolveDuck(duck, voices, length);
+  }
 }
 
 // ---------------------------------------------------------------- the render's graph
@@ -297,6 +375,9 @@ export function layerAudioChain(inputIndex: number, layer: AudioLayer, label: st
     const d = Math.max(fadeOut, GATE_SECONDS);
     steps.push(`afade=t=out:st=${s(Math.max(0, to - d))}:d=${s(d)}`);
   }
+  // The dip under a voice (milestone 80) is on the graphic's clock too, where the voice was heard.
+  const duck = layer.kind === 'sound' ? duckVolumeFilter(layer.duck) : null;
+  if (duck) steps.push(duck);
   return `[${inputIndex}:a]${steps.join(',')}[${label}]`;
 }
 

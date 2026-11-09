@@ -57,6 +57,7 @@ import { fileHiddenLayers, layersTopFirst, layerShown, placeableLayers, psdLimit
 import { hiddenDiffersFromFile, hiddenFor, isPsdEntry, psdOutlineFor, psdOutlines } from './psd-state';
 import { CLIP_ENDINGS, CLIP_LIMITS, EMPTY_CLIP, clipFitsFrame, sanitizeClipValue, type ClipEnding, type ClipValue, CLIP_FRAME_LIMITS, DEFAULT_BORDER_COLOR, DEFAULT_BORDER_WIDTH, sanitizeCrop } from '../core/video-layer';
 import { healedTrack, trackDuration, type CutTrack } from '../core/cut-track';
+import { DEFAULT_DUCK, DUCK_LIMITS, type DuckValue } from '../core/duck';
 import { DEFAULT_VOICE_AMOUNT, VOICE_DESCRIPTIONS, VOICE_LABELS, VOICE_LIMITS, VOICE_TREATMENTS, type VoiceValue } from '../core/voice-treatment';
 import { EMPTY_SOUND, SOUND_ENDINGS, SOUND_LIMITS, type SoundEnding, type SoundStem, type SoundValue } from '../core/sound-layer';
 import { DEFAULT_CURVE, DEFAULT_KEY_EASING, KEY_EASINGS, keyedPoseAt, sanitizeKeys, withKeyAt, type KeyEasing, type LayerKey } from '../core/layer-keys';
@@ -1679,6 +1680,39 @@ function voiceControls(current: VoiceValue | undefined, onChange: (voice: VoiceV
   return out;
 }
 
+/**
+ * A music layer's dip under a voice (milestone 80): which audio layer it dips
+ * under — any other in the project, named as the layers list names it — then
+ * how far and how quickly. The dip follows the voice by itself: down as it
+ * speaks, back once it stops, in the preview and the render alike.
+ */
+function duckControls(current: DuckValue | undefined, self: string, onChange: (duck: DuckValue | undefined) => void, label: string): HTMLElement[] {
+  const voices: { key: string; label: string }[] = [];
+  for (const [blockId, stack] of Object.entries(currentLayers())) {
+    for (const layer of stack) {
+      const key = `${blockId}.${layer.id}`;
+      if (layer.type === 'audio' && key !== self) voices.push({ key, label: layer.label });
+    }
+  }
+  // A dip whose voice is gone stays named until the person picks again, so undoing the delete brings it back.
+  if (current && !voices.some((v) => v.key === current.under)) voices.push({ key: current.under, label: t('params.duck.missing') });
+  if (voices.length === 0 && !current) return [];
+  const values = ['', ...voices.map((v) => v.key)];
+  const labels: Record<string, string> = { '': t('params.duck.none') };
+  for (const v of voices) labels[v.key] = v.label;
+  const chosen = selectOf(values, labels, current?.under ?? '', (under) => {
+    onChange(under === '' ? undefined : { ...DEFAULT_DUCK, ...current, under });
+  }, t('params.duck.aria-label', { layer: label }));
+  const out: HTMLElement[] = [typeField(t('params.duck'), chosen)];
+  if (current) {
+    out.push(
+      typeField(t('params.duck.depth'), numberOf(current.depth, DUCK_LIMITS.depth, 1, (v) => onChange({ ...current, depth: v }), t('params.duck.depth.aria-label', { layer: label }))),
+      typeField(t('params.duck.speed'), numberOf(current.speed, DUCK_LIMITS.speed, 0.05, (v) => onChange({ ...current, speed: v }), t('params.duck.speed.aria-label', { layer: label }))),
+    );
+  }
+  return out;
+}
+
 /** What the Add layer buttons say, and what a new layer of each type is called. */
 const ADD_LAYER_LABELS: Readonly<Record<LayerType, string>> = {
   get text() { return t('params.layers.add.type.text'); },
@@ -1942,7 +1976,7 @@ function soundField(
     chosen: () => value?.id ?? undefined,
     // A new sound starts from the whole of it: in and out points of the one before mean nothing here.
     // A track's cuts give the one that fits the graphic; a song's stems arrive as stems (milestone 32).
-    onPick: (entry) => set({ ...EMPTY_SOUND, ...placedSound(entry.id), ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1, ...(value?.voice ? { voice: value.voice } : {}) }),
+    onPick: (entry) => set({ ...EMPTY_SOUND, ...placedSound(entry.id), ending: value?.ending ?? EMPTY_SOUND.ending, delay: value?.delay ?? 0, volume: value?.volume ?? 1, ...(value?.voice ? { voice: value.voice } : {}), ...(value?.duck ? { duck: value.duck } : {}) }),
   });
 
   const settings = document.createElement('div');
@@ -2055,6 +2089,12 @@ function soundField(
       typeField(t('params.sound-layer.fade-in'), numberOf(value.fadeIn, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeIn: v }), t('params.sound-layer.fade-in.aria-label', { slot: slot.label }))),
       typeField(t('params.sound-layer.fade-out'), numberOf(value.fadeOut, SOUND_LIMITS.fade, 0.1, (v) => patch({ fadeOut: v }), t('params.sound-layer.fade-out.aria-label', { slot: slot.label }))),
       ...voiceControls(value.voice, (voice) => patch({ voice }), slot.label),
+      ...duckControls(value.duck, slot.id, (duck) => {
+        if (!value) return;
+        const next = { ...value, ...(duck ? { duck } : {}) };
+        if (!duck) delete next.duck;
+        set(next);
+      }, slot.label),
     );
     if (duration === 0) {
       const waiting = document.createElement('p');

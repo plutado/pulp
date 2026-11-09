@@ -1218,6 +1218,55 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(missing.stderr).toContain('the sound chosen for "music"');
   }, 300_000);
 
+  it('music dips under a voice while it speaks and comes back after, and holds its level when the voice is muted (milestone 80)', async () => {
+    // A bed tone under the whole two-second graphic, and a voice that speaks — a burst of another
+    // pitch — from 0.6 s to 1.1 s and is silent either side.
+    const lib = join(out, 'duck-library');
+    await mkdir(lib, { recursive: true });
+    const make = async (file: string, source: string) => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-v', 'error', '-y', '-f', 'lavfi', '-i', source, '-c:a', 'pcm_s16le', join(lib, file)]), { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(r.code, r.stderr).toBe(0);
+      return itemId(`media:${join(lib, file)}`);
+    };
+    const musicId = await make('bed.wav', 'sine=frequency=220:duration=2');
+    const voiceId = await make('voice.wav', "sine=frequency=880:duration=2,volume='if(between(t,0.6,1.1),1,0)':eval=frame");
+    /**
+     * The voice layer plays at a hundredth of its level (-40 dB), so what the mix's loudness reads is
+     * the music's alone: the dip is worked out from the voice's file as recorded, not from how loud
+     * it is set, so the quiet voice still dips the music as a full one would.
+     */
+    const layers = (voice: Record<string, unknown> = {}) => ['--param', `@layers=${JSON.stringify({ stack: [
+      { id: 'music', type: 'audio', sound: { id: musicId, duck: { under: 'stack.voice', depth: 12, speed: 0.1 } } },
+      { id: 'voice', type: 'audio', sound: { id: voiceId, volume: 0.01, ...voice } },
+    ] })}`];
+    const maxVolume = async (file: string, from: number, to: number): Promise<number> => {
+      const r = await runBounded(ffmpeg, ffmpegArgs(['-i', file, '-af', `atrim=start=${from}:end=${to},asetpts=PTS-STARTPTS,volumedetect`, '-f', 'null', '-']), { timeoutMs: TOOL_TIMEOUT_MS });
+      const m = /max_volume:\s*(-?[\d.]+) dB/.exec(r.stderr);
+      expect(m, r.stderr.slice(-2000)).not.toBeNull();
+      return Number(m![1]);
+    };
+    const common = ['--library', FIXTURES, '--library', lib];
+
+    // The dip falls over 0.1 s before the first word, holds while the voice speaks and comes back over
+    // 0.2 s after it stops: full before 0.4 s, 12 dB down from 0.65 s to 1.05 s, full again after 1.4 s.
+    // WAV beside a PNG sequence, so nothing lossy stands between the mix and the measurement.
+    const ducked = await render('pulp.test.video-layer', 'png-sequence', 'duck', { extra: [...common, ...layers()] });
+    expect(ducked.code, ducked.stderr).toBe(0);
+    const wav = join(out, 'duck-audio.wav');
+    const before = await maxVolume(wav, 0.05, 0.4);
+    const during = await maxVolume(wav, 0.65, 1.05);
+    const after = await maxVolume(wav, 1.45, 1.95);
+    expect(before - during, 'the music lower while the voice speaks').toBeGreaterThan(10);
+    expect(before - during, 'by the depth it was given').toBeLessThan(14);
+    expect(Math.abs(after - before), 'and back after').toBeLessThan(1);
+
+    // A muted voice speaks to no one: the music holds its level throughout.
+    const held = await render('pulp.test.video-layer', 'png-sequence', 'duck-muted', { extra: [...common, ...layers({ muted: true })] });
+    expect(held.code, held.stderr).toBe(0);
+    const heldWav = join(out, 'duck-muted-audio.wav');
+    expect(Math.abs((await maxVolume(heldWav, 0.65, 1.05)) - (await maxVolume(heldWav, 0.05, 0.4))), 'no dip without a voice').toBeLessThan(1);
+  }, 120_000);
+
   it('music as stems: mute and solo decide what the mix holds, and --stems files writes one WAV per stem beside the render (milestone 16)', async () => {
     // Two tones at different pitches stand in for two stems of one piece.
     const lib = join(out, 'stems-library');

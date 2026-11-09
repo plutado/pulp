@@ -20,6 +20,7 @@ import { sanitizeClipValue } from '../core/video-layer';
 import { resolveClipAudio, resolveClipSource } from './clip-grant';
 import { findTemplate } from './library-service';
 import { resolveSoundSource, resolveTemplateSoundFile } from './sound-grant';
+import { duckLayers } from './voice-levels';
 
 /**
  * What the window sends: each layer's settings as stored, with its span; the
@@ -29,7 +30,8 @@ import { resolveSoundSource, resolveTemplateSoundFile } from './sound-grant';
  * library's.
  */
 export interface MixLoudnessRequest {
-  layers: { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: LayerSpan; speed?: number; templateId?: string }[];
+  /** `key` is an audio layer's `block.layer`, which a music layer's dip names its voice by (milestone 80). */
+  layers: { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: LayerSpan; speed?: number; templateId?: string; key?: string }[];
   fps: number;
   length: number;
 }
@@ -63,6 +65,7 @@ async function measure(raw: unknown): Promise<MixLoudnessAnswer> {
   const ffmpeg = await detectFfmpeg();
   if (!ffmpeg.ok) return NOTHING;
   const layers: AudioLayer[] = [];
+  const keyed: { key: string; layer: AudioLayer }[] = [];
   for (const entry of request.layers) {
     const span = entry?.span ? { span: entry.span } : {};
     if (entry?.kind === 'template') {
@@ -79,7 +82,10 @@ async function measure(raw: unknown): Promise<MixLoudnessAnswer> {
       const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), value.id);
       // A cut's sound at a speed (milestone 56) is measured at that speed, as it will be mixed.
       const speed = typeof entry.speed === 'number' && Number.isFinite(entry.speed) && entry.speed > 0 ? { speed: entry.speed } : {};
-      if (found) layers.push({ kind: 'sound', path: found.path, value, source: found.source, ...span, ...speed });
+      if (!found) continue;
+      const layer: AudioLayer = { kind: 'sound', path: found.path, value, source: found.source, ...span, ...speed };
+      layers.push(layer);
+      if (typeof entry.key === 'string') keyed.push({ key: entry.key, layer });
     } else if (entry?.kind === 'clip') {
       const value = sanitizeClipValue(entry.value);
       if (!value?.id) continue;
@@ -88,6 +94,8 @@ async function measure(raw: unknown): Promise<MixLoudnessAnswer> {
       if (audio?.hasAudio && source) layers.push({ kind: 'clip', path: audio.path, value, source, ...span });
     }
   }
+  // The dips under a voice (milestone 80), so the meter hears the mix a render writes.
+  await duckLayers(ffmpeg.path, keyed, length);
   const audible = audibleLayers(layers, length);
   if (audible.length === 0) return NOTHING;
   const timing = { fps, firstFrame: 0, totalFrames: Math.max(1, Math.round(length * fps)), length };

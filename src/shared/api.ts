@@ -362,7 +362,13 @@ export interface PulpApi {
    * settings; the main process resolves the files (ADR 0013). Null when there
    * is nothing to measure.
    */
-  mixLoudness(request: { layers: { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: { start: number; end: number | null }; speed?: number; templateId?: string }[]; fps: number; length: number }): Promise<{ lufs: number | null; truePeakDb: number | null }>;
+  mixLoudness(request: { layers: { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: { start: number; end: number | null }; speed?: number; templateId?: string; key?: string }[]; fps: number; length: number }): Promise<{ lufs: number | null; truePeakDb: number | null }>;
+  /**
+   * A voice's levels (milestone 80): the loudest sample in every fiftieth of a
+   * second of a library sound, which a music layer dipping under it reads to
+   * know when it speaks — or null when it cannot be measured. By id (ADR 0013).
+   */
+  voiceLevels(id: string): Promise<Uint8Array | null>;
   /**
    * A treated voice preview (milestone 53): the layer's sound rendered once
    * through its treatment's own recipe, answered as a pulp-media URL for the

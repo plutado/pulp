@@ -146,6 +146,7 @@ const api: PulpApi = {
   waveform: (id) => ipcRenderer.invoke('library:waveform', id),
   mixLoudness: (request) => ipcRenderer.invoke('audio:mix-loudness', request),
   voicePreview: (request) => ipcRenderer.invoke('audio:voice-preview', request),
+  voiceLevels: (id) => ipcRenderer.invoke('audio:voice-levels', id),
   trackFrames: (request) => ipcRenderer.invoke('track:frames', request),
   trackSilences: (request) => ipcRenderer.invoke('track:silences', request),
   exportEdit: (request) => ipcRenderer.invoke('track:export-edit', request),

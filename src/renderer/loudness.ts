@@ -34,18 +34,19 @@ let generation = 0;
 let shown: { lufs: number; truePeakDb: number | null } | null = null;
 
 /** One entry on the meter's wire: ids and settings, never paths; a template entry names its template. */
-type SoundRequestEntry = { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: { start: number; end: number | null }; speed?: number; templateId?: string };
+type SoundRequestEntry = { kind: 'clip' | 'sound' | 'template'; value: unknown; span?: { start: number; end: number | null }; speed?: number; templateId?: string; key?: string };
 
 /** The layers that could be heard, as the wire carries them: ids and settings, never paths. */
 function soundRequest(layers: LayerValues): SoundRequestEntry[] {
   const out: SoundRequestEntry[] = [];
   const spanOf = (layer: Layer) => (layer.span ? { span: layer.span } : {});
-  for (const stack of Object.values(layers)) {
+  for (const [blockId, stack] of Object.entries(layers)) {
     for (const layer of stack) {
       if (layer.hidden) continue;
       // Music as stems (milestone 16) measures as what is heard: one entry per unmuted (or soloed) stem.
       if (layer.type === 'audio' && layer.sound?.id && !layer.sound.hidden) {
-        for (const playable of playableSounds(layer.sound)) out.push({ kind: 'sound', value: playable.value, ...spanOf(layer) });
+        // Keyed by block.layer, so a music layer's dip finds its voice (milestone 80).
+        for (const playable of playableSounds(layer.sound)) out.push({ kind: 'sound', value: playable.value, key: `${blockId}.${layer.id}`, ...spanOf(layer) });
       }
       if (layer.type === 'video' && layer.clip?.id && !layer.clip.hidden) out.push({ kind: 'clip', value: layer.clip, ...spanOf(layer) });
     }

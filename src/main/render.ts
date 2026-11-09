@@ -41,6 +41,7 @@ import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '..
 import { tr } from '../core/i18n';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan, type RenderPlanInput } from '../core/render-plan';
+import { duckLayers } from './voice-levels';
 import { applyLayerAudio, applyStemAudio, audibleLayers, measureMixArgs, parseMixLoudness, type AudioLayer, type LoudnessTarget, type MixLoudness } from '../core/layer-audio';
 import { clipAudible } from '../core/video-layer';
 import { soundAudible } from '../core/sound-layer';
@@ -358,13 +359,16 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // those entries are set aside here and written one WAV per stem after the mix is in place.
   const stemsAside = job.options?.stems === 'files';
   const stemFiles: { layer: Extract<AudioLayer, { kind: 'sound' }>; label: string }[] = [];
+  /** The audio layers by `block.layer`, which a music layer's dip names its voice by (milestone 80). */
+  const keyedSounds: { key: string; layer: AudioLayer }[] = [];
   for (const choice of layerSoundChoices(manifest, layers)) {
     if (!soundAudible(choice)) continue;
     const found = await resolveSoundSource(ffprobePathFor(ffmpeg.path), choice.id);
     // A sound that cannot be read stops the render by name: a voice-over silently dropped from a
     // delivery is worse than being told, and the person can hide the layer if they meant to.
     if (!found) return { ok: false, message: tr('render.layer.sound-unreadable', { template: manifest.name, layer: choice.layer }) };
-    const layer = { kind: 'sound' as const, path: found.path, value: choice, source: found.source, ...(choice.span ? { span: choice.span } : {}) };
+    const layer: Extract<AudioLayer, { kind: 'sound' }> = { kind: 'sound' as const, path: found.path, value: choice, source: found.source, ...(choice.span ? { span: choice.span } : {}) };
+    keyedSounds.push({ key: `${choice.block}.${choice.layer}`, layer });
     if (stemsAside && choice.stem) stemFiles.push({ layer, label: choice.stem.label });
     else audioLayers.push(layer);
   }
@@ -400,6 +404,9 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     }
     audioLayers.push({ kind: 'sound', path: found.path, value: made.value, source: found.source, speed: made.speed });
   }
+  // Music that dips under a voice (milestone 80): the voices are measured and each dip worked out
+  // before the mix is built — and before it is measured for leveling, which hears the dips too.
+  await duckLayers(ffmpeg.path, keyedSounds, plan.length);
   if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
   // One WAV per stem beside the render (milestone 16), cut to exactly the rendered range.
   if (stemFiles.length > 0) plan = applyStemAudio(plan, stemFiles);

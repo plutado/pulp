@@ -94,7 +94,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 77. Auto-reframe for vertical video (post-1.0, **done**) | 15-25 h |
 | 78. Stabilize shaky clips (post-1.0, **done**) | 6-10 h |
 | 79. Spanish and French (post-1.0) | 30-52 h |
-| 80. Music that dips under a voice (post-1.0) | 4-7 h |
+| 80. Music that dips under a voice (post-1.0, **done**) | 4-7 h |
 | 81. HDR phone clips made ready to use (post-1.0) | 6-10 h |
 | 82. More export formats (post-1.0) | 8-13 h |
 | 83. Deinterlace old footage (post-1.0) | 3-6 h |
@@ -989,13 +989,13 @@ Decided 2026-11-09. Two more languages, built the way milestones 68 and 69 built
 - [ ] **The library:** category names, descriptions and search words in each (12-20 h)
 - [ ] **Tests:** complete catalogs, and the layout check at 1280 × 788 and 960 × 600 in each (2-3 h)
 
-## 80. Music that dips under a voice (4-7 h, after 1.0)
+## 80. Music that dips under a voice (done; 4-7 h, after 1.0)
 
 Decided 2026-11-09. The music in a short drops by hand today, cut by cut. ffmpeg's sidechain compressor can do it from the voice itself.
 
-- [ ] **Duck under a voice:** a music layer named to dip under a chosen voice layer, with how far and how quickly, in the render's mix (2-4 h)
-- [ ] **Heard in the preview:** the same dip while playing, so what is heard is what renders (1-2 h)
-- [ ] **Tests:** generated music and voice bursts, the music measured lower while the voice speaks and back after (1 h)
+- [x] **Duck under a voice:** a music layer named to dip under a chosen voice layer, with how far and how quickly, in the render's mix (2-4 h) *Built 2026-11-09. An audio layer's settings gain Dip under (any other audio layer, kept as `block.layer` in the sound's `duck`), Dip by (1-40 dB, 12 to start) and Dip speed (0.05-2 s, a quarter to start; the return takes twice as long). Not ffmpeg's sidechain compressor, which the preview's elements could not reproduce: the voice's file is measured once — its loudest sample per fiftieth of a second, cached in the main process by path and mtime (`src/main/voice-levels.ts`) — the steps where it is heard and loud enough against its own loudest become stretches on the graphic's clock, and those become one piecewise-linear gain (`src/core/duck.ts`): down over the speed just before the voice, held while it speaks, back after; stretches closer than the down-and-up plus a breath are one, so the music does not pump. The render writes that gain as a `volume` expression after the layer's fades; the leveling pass and the meter measure the mix with it.*
+- [x] **Heard in the preview:** the same dip while playing, so what is heard is what renders (1-2 h) *Built 2026-11-09. The preview asks for the voice's levels by id, works the dip out by the same `applyDucks` the render runs, and `layerGainAt` multiplies the element's volume by `duckGainAt` each tick — the number the render's expression computes, point for point.*
+- [x] **Tests:** generated music and voice bursts, the music measured lower while the voice speaks and back after (1 h) *Built 2026-11-09. Units hold the setting and its text form, the levels, where a voice speaks through its delay, in point, span and mute, the curve's shape and merging, and evaluate the render's expression against the preview's gain at every 37 ms of eight seconds. The render suite generates a tone bed and a voice burst at 0.6-1.1 s, renders the dip, and reads the music 10-14 dB lower while the voice speaks and back within a decibel after; a muted voice leaves it level. No UI test drives the preview's dip yet: the UI fixture library has no voice with pauses, and adding one shifts the counts other UI tests hold.*
 
 ## 81. HDR phone clips made ready to use (6-10 h, after 1.0)
 

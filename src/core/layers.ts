@@ -890,7 +890,7 @@ function sanitizeLayer(raw: Record<string, unknown>, base: Layer, block: Block, 
     let sound = base.sound;
     if (raw.sound !== undefined) {
       const value = sanitizeSoundValue(raw.sound);
-      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume, fades and voice, or null'); // i18n-exempt(diagnostic)
+      if (value === undefined) issue('sound', 'must be a library id with optional in, out, ending, delay, volume, fades, voice and duck, or null'); // i18n-exempt(diagnostic)
       else sound = value;
     }
     void block;

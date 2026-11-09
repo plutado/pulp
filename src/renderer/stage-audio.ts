@@ -22,7 +22,7 @@
  */
 
 import { trackAudio, type CutTrack } from '../core/cut-track';
-import { layerGainAt, type AudioLayer } from '../core/layer-audio';
+import { applyDucks, layerGainAt, type AudioLayer } from '../core/layer-audio';
 import type { LayerValues } from '../core/layers';
 import type { MediaEntry } from '../core/library-types';
 import { playableSounds, soundAudible, soundTimeAt, type SoundSource } from '../core/sound-layer';
@@ -81,6 +81,28 @@ function clipSetUrl(id: string, seconds: number | undefined): string | null {
     });
   }
   return null;
+}
+
+/**
+ * A voice's levels (milestone 80), asked of the main process once per sound
+ * and kept: a music layer dipping under that voice reads where it speaks from
+ * them. Until they arrive the music holds its level; when they do, the layers
+ * are brought in line again, as a clip set's URL is.
+ */
+const voiceLevelsById = new Map<string, Uint8Array | null>();
+const voiceLevelAsks = new Set<string>();
+
+function voiceLevelsFor(id: string): Uint8Array | null | undefined {
+  if (voiceLevelsById.has(id)) return voiceLevelsById.get(id);
+  if (!voiceLevelAsks.has(id)) {
+    voiceLevelAsks.add(id);
+    void window.pulp.voiceLevels(id).then((levels) => {
+      voiceLevelAsks.delete(id);
+      voiceLevelsById.set(id, levels);
+      if (levels && lastSync) layerSoundsSync(...lastSync);
+    }).catch(() => voiceLevelAsks.delete(id));
+  }
+  return undefined;
 }
 
 /** How far the element may drift from the playhead before it is seeked. Within it, the element's own clock is smoother. */
@@ -173,6 +195,17 @@ export function layerSoundsSync(layers: LayerValues, sources: Record<string, Cli
     }
     wanted.set(`@track.${index}`, { kind: 'sound', path: '', value: cut.value, source, span: cut.span, ...(cut.speed !== undefined ? { speed: cut.speed } : {}) });
   });
+  // Music that dips under a voice (milestone 80): the voice's audio layer is found among the
+  // layers by block.layer — every stem of it under the one key — and the dip worked out by the
+  // arithmetic the render writes its `volume` expression from.
+  const keyed: { key: string; layer: AudioLayer }[] = [];
+  for (const [key, layer] of wanted) {
+    if (key.startsWith('@') || layer.kind !== 'sound') continue;
+    keyed.push({ key: key.split('~')[0]!, layer });
+  }
+  if (length !== undefined && keyed.some(({ layer }) => layer.kind === 'sound' && layer.value.duck)) {
+    applyDucks(keyed, (layer) => voiceLevelsFor(sourceId(layer)), length);
+  }
   // The template's own sound and a wipe's (milestone 16), by the URL the stage resolved.
   for (const extra of extras) {
     wanted.set(extra.key, extra.layer);
@@ -321,9 +354,11 @@ export function layerSoundsClear(): void {
 }
 
 /** For the UI test: which layers have a sound element, whether each is audibly playing, and what it is treated for. */
-export function layerSoundsDebug(): { key: string; kind: string; playing: boolean; muted: boolean; volume: number; time: number; voice: string; speed: number }[] {
+export function layerSoundsDebug(): { key: string; kind: string; playing: boolean; muted: boolean; volume: number; time: number; voice: string; speed: number; ducks: number }[] {
   return [...sounds.entries()].map(([key, s]) => ({
     key, kind: s.layer.kind, playing: !s.el.paused, muted: s.el.muted, volume: Math.round(s.el.volume * 1000) / 1000, time: s.el.currentTime, voice: s.voiceKey,
     speed: s.el.playbackRate,
+    // How many stretches of speech the layer dips under (milestone 80); 0 when it holds its level.
+    ducks: s.layer.kind === 'sound' ? (s.layer.duck?.spans.length ?? 0) : 0,
   }));
 }

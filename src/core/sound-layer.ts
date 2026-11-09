@@ -17,6 +17,7 @@
  * written.
  */
 
+import { duckFromText, duckToText, sanitizeDuck, type DuckValue } from './duck';
 import { sanitizeVoice, voiceFromText, voiceToText, type VoiceValue } from './voice-treatment';
 
 /** How the sound behaves when it reaches its out point. */
@@ -79,6 +80,8 @@ export interface SoundValue {
   hidden: boolean;
   /** A voice treatment with its amount (milestone 53, src/core/voice-treatment.ts); absent is as recorded. */
   voice?: VoiceValue;
+  /** Dip under a voice layer while it speaks (milestone 80, src/core/duck.ts); absent is a level held. */
+  duck?: DuckValue;
   /**
    * The music as stems (milestone 16): when present, these files play together
    * instead of `id` — which is kept equal to the first stem's id, so everything
@@ -224,6 +227,7 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
   const ending = (SOUND_ENDINGS as readonly string[]).includes(r.ending as string) ? (r.ending as SoundEnding) : EMPTY_SOUND.ending;
   const volume = typeof r.volume === 'number' && Number.isFinite(r.volume) ? Math.min(1, Math.max(0, Math.round(r.volume * 100) / 100)) : 1;
   const voice = sanitizeVoice(r.voice);
+  const duck = sanitizeDuck(r.duck);
   return {
     // The first stem's file stands as the layer's id (milestone 16), so "is a sound chosen" and
     // "what does the library know about it" keep an answer; playback goes through the stems.
@@ -238,6 +242,7 @@ export function sanitizeSoundValue(input: unknown): SoundValue | null | undefine
     fadeOut: seconds(r.fadeOut, 0, SOUND_LIMITS.fade),
     hidden: r.hidden === true,
     ...(voice ? { voice } : {}),
+    ...(duck ? { duck } : {}),
     ...(stems ? { stems } : {}),
   };
 }
@@ -255,6 +260,7 @@ export function soundValueToText(value: SoundValue | null): string {
   if (value.fadeIn !== 0) parts.push(`fadein=${value.fadeIn}`);
   if (value.fadeOut !== 0) parts.push(`fadeout=${value.fadeOut}`);
   if (value.voice) parts.push(`voice=${voiceToText(value.voice)}`);
+  if (value.duck) parts.push(`duck=${duckToText(value.duck)}`);
   // Each stem (milestone 16): id, URI-encoded label, gain, and its two buttons as flags.
   for (const stem of value.stems ?? []) {
     const flags = `${stem.muted ? 'm' : ''}${stem.solo ? 's' : ''}`;
@@ -290,6 +296,11 @@ export function soundValueFromText(text: string): SoundValue | null {
     if (name === 'voice') {
       const voice = voiceFromText(raw);
       if (voice) fields.voice = voice;
+      continue;
+    }
+    if (name === 'duck') {
+      const duck = duckFromText(raw);
+      if (duck) fields.duck = duck;
       continue;
     }
     if (name === 'stem') {

@@ -26,6 +26,7 @@ import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } f
 import { fetchSemanticModel, semanticSearch, semanticStatus, setSemanticProgressWindow, setSemanticSearch } from './semantic-service';
 import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
+import { voiceLevels } from './voice-levels';
 import { cancelStabilize, chromaKeyClip, chromaKeyPreview, setStabilizeProgressWindow, splitScenes, stabilizeClip, stabilizeStatus } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
@@ -639,6 +640,8 @@ function registerIpc(): void {
   ipcMain.handle('audio:mix-loudness', (_event, request: unknown) => mixLoudness(request));
   // A treated voice preview (milestone 53): an id and a treatment in, a cache URL out.
   ipcMain.handle('audio:voice-preview', (_event, request: unknown) => voicePreview(request));
+  // A voice's levels (milestone 80): an id in, the bytes a music layer's dip is read from out.
+  ipcMain.handle('audio:voice-levels', (_event, id: unknown) => voiceLevels(id));
   // The cut track's frames for the preview (milestone 49): proxy windows per cut.
   ipcMain.handle('track:frames', (_event, request: unknown) => loadTrackFrames(request));
   // The track's quiet stretches (milestone 49), shown before anything is cut.
