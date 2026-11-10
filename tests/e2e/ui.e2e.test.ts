@@ -3990,7 +3990,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(await page.eval<string>(`document.getElementById('opt-flash-field').getAttribute('data-tip')`)).toContain('not a certified broadcast test');
         await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'h264-mp4'; s.dispatchEvent(new Event('change', { bubbles: true })); const f = document.getElementById('opt-flash'); f.checked = true; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
         await page.eval(`document.getElementById('drag-prepare').click()`);
-        await until(async () => (await flashText('zz-strobe')).includes('Strong flashing at'), 'the card naming the flashing', 90_000);
+        try {
+          await until(async () => (await flashText('zz-strobe')).includes('Strong flashing at'), 'the card naming the flashing', 90_000);
+        } catch (err) {
+          // Say what the card did show, so a check that could not run is told from one still running.
+          throw new Error(`${(err as Error).message}; the card said: ${JSON.stringify(await flashText('zz-strobe'))}`, { cause: err });
+        }
         expect(await flashText('zz-strobe')).toContain('Strong flashing at 00:00:01:00');
         expect(await flashText('zz-strobe')).toContain('5 flashes a second, light and dark');
         expect(await page.eval<string>(`${cardFor('zz-strobe')}.dataset.tip`)).toContain('not a certified broadcast test');

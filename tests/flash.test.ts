@@ -154,7 +154,8 @@ describe('ffmpeg\'s arguments', () => {
     expect(softenedCopyPath('/out/strap.mov', (p) => taken.has(p))).toBe('/out/strap softened 3.mov');
     expect(softenedCopyPath('/out/strap.mov', () => false)).toBe('/out/strap softened.mov');
     expect(softenedCopyPath('C:\\out\\strap.mp4', () => false)).toBe('C:\\out\\strap softened.mp4');
-    expect(draftPathFor('/out/strap.mov')).toBe('/out/.strap.mov.softening.mov');
+    // Written with the platform's own separator, as the render it sits beside is.
+    expect(draftPathFor('/out/strap.mov')).toBe(join('/out', '.strap.mov.softening.mov'));
   });
 });
 
