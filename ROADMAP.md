@@ -99,9 +99,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 82. More export formats (post-1.0) | 8-13 h |
 | 83. Deinterlace old footage (post-1.0) | 3-6 h |
 | 84. A flash warning before export (post-1.0) | 4-7 h |
+| 85. Timeline lanes that say what they are (post-1.0) | 3-5 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1179-1942 h** |
+| **Total including post-1.0 items** | **1182-1947 h** |
 
 ## 0. Foundation (done)
 
@@ -1030,3 +1031,11 @@ Decided 2026-11-09. Rapid flashing can be unsafe for some viewers. This is a war
 - [ ] **Checked:** an optional pass over the finished render that names where flashing is strong (2-3 h)
 - [ ] **Softened:** an option to calm those moments, shown before anything is overwritten (1-2 h)
 - [ ] **Tests:** a generated strobe flagged and softened, and steady footage left unmarked (1-2 h)
+
+## 85. Timeline lanes that say what they are (3-5 h, after 1.0)
+
+Decided 2026-11-10. With cuts on the cut track and nothing on the picture track (milestone 57), the picture track sits under the layer bars as an empty dashed box whose hint is cut short at most widths, which reads as a gap rather than a place for something. Editing apps do it differently: an empty track looks like any other track and is named at its left, and a dashed outline appears only while something is being dragged onto it. This follows them, and milestone 42's rule that nothing empty takes room from the stage.
+
+- [ ] **No empty box at rest, a drop lane while dragging:** the empty picture track is hidden until a clip is dragged over the lanes, then shown as a highlighted lane that says it takes the clip as picture-in-picture (1-2 h)
+- [ ] **Each lane named:** a short label at the left of the layer bars, the picture track and the cut track, so the rows read as tracks in every language and in the mirrored window (1-2 h)
+- [ ] **Translated and held by tests:** the hint moves out of the stylesheet into the message catalog, and an end-to-end check that the empty track takes no height at rest, appears on a drag and shows its label at 1280 × 788 and 960 × 600 (1 h)
