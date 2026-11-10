@@ -4814,7 +4814,7 @@ describe.skipIf(!electron)('inspector UI', () => {
       await page.eval(`window.pulpMenuCommand('help.userGuide')`);
       await until(() => page.eval<boolean>(`document.getElementById('guide-dialog').open === true`), 'the user guide');
       expect(await page.eval<string[]>(`[...document.querySelectorAll('#guide-contents button')].map((b) => b.textContent)`))
-        .toEqual(['The window', 'Making something', 'Keys worth knowing', 'Searching', 'Where your things are', 'More']);
+        .toEqual(['The window', 'Making something', 'Working with footage', 'Keys worth knowing', 'Searching', 'Where your things are', 'More']);
       expect(await page.eval<string>(`document.getElementById('guide-body').textContent`)).toContain('Cmd/Ctrl+F');
       // A section in the strip scrolls the guide to it.
       await page.eval(`[...document.querySelectorAll('#guide-contents button')].find((b) => b.textContent === 'Searching').click()`);
