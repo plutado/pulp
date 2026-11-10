@@ -114,7 +114,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 - [x] Minimal UI: list, preview, parameter form, render button
 - [x] Three original CC0 sample templates
 
-## 1. Headless frame renderer, production quality (12-20 h)
+## 1. Headless frame renderer, production quality (12-20 h; GitHub issue #1)
 
 A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone makes it dependable.
 
@@ -127,7 +127,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Robustness: per-frame timeout for hung templates, delete partial output on cancel or failure, clear errors when a template throws (1-2 h)
 - [x] Render queue: several renders in sequence with progress per job (1-2 h)
 
-## 2. Alpha export presets and NLE verification (8-14 h)
+## 2. Alpha export presets and NLE verification (8-14 h; GitHub issue #2)
 
 - [x] Verify each alpha preset imports with correct transparency in Premiere Pro and DaVinci Resolve on macOS; results in `docs/nle-verification.md`. ProRes 4444 and PNG pass with defaults; QuickTime Animation needs Data Levels: Full in Resolve (now tagged full-range RGB, re-check); HEVC: no alpha in Premiere, Alpha Mode: Straight in Resolve; WebM: not importable in Premiere, broken alpha in Resolve (3-5 h)
 - [ ] On the test Mac: re-check whether Resolve's Data Levels Auto honors the new full-range QuickTime Animation tag (1-2 h)
@@ -136,7 +136,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Additional presets: QuickTime Animation (qtrle) for older workflows, HEVC with alpha on macOS via VideoToolbox where available; shown as unavailable elsewhere with the reason; ADR 0005 (2-3 h)
 - [x] Preset options: frame-rate override from the standard list, background color picker for flattening, in/out points as timecode or frames; in the inspector and as `--fps`, `--background`, `--in-point`, `--out-point`; verified on macOS and Windows CI (1-3 h)
 
-## 3. Parameter editor UI (10-16 h)
+## 3. Parameter editor UI (10-16 h; GitHub issue #3)
 
 - [x] Color picker with alpha (native input has none) and recent colors: alpha slider and `#RRGGBBAA` text field with swatch; eight recent colors shared across templates in `settings.json` (2-3 h)
 - [x] Number sliders with direct entry; text fields with character counter for `maxLength` (1-2 h)
@@ -145,7 +145,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Undo/redo for parameter edits (per template, typing coalesced, text fields keep their own Ctrl+Z); reset per field and for the whole template, both undoable (1-2 h)
 - [x] Evaluate moving the UI to a component framework once the form logic outgrows plain DOM; write an ADR either way. ADR 0006: stay with plain DOM, revisit at milestone 4 (1-2 h)
 
-## 4. Library: tagging, search, media preview (12-20 h)
+## 4. Library: tagging, search, media preview (12-20 h; GitHub issue #4)
 
 - [x] User tags on any item, stored in the library database (ADR 0007: `node:sqlite` in user data, `user_items` table that survives offline roots); chips with removal and an add field in the stage, searchable with `tag:` (3-5 h)
 - [x] Persistent index with incremental rescans and a file watcher; also rescans on window focus and when a missing root returns, and marks items of missing roots offline instead of deleting them. 5,100 items: 145 ms first scan, 105 ms unchanged rescan (3-4 h)
@@ -154,7 +154,7 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [x] Media preview in the stage area (video/image/audio) through `pulp-media://<id>/`: by id, real path checked against the root, media types only, ranges for seeking, bare 404s, off limits to templates; refusals tested (1-2 h)
 - [x] Favorites and recently used: a toggle on the shown item, `favorite:yes` and `recent:N` filters; selecting or rendering marks an item used (1-2 h)
 
-## 5. Drag-out to editing apps (8-16 h)
+## 5. Drag-out to editing apps (8-16 h; GitHub issue #5)
 
 - [x] Drag a rendered file from Pulp into an NLE bin or timeline using `webContents.startDrag`: finished queue jobs and the drag handle; only cache files and finished outputs may be dragged (2-3 h)
 - [x] "Render and drag": Prepare for drag renders into the cache through the queue (progress, cancel), reuses a cached render with the same key, then arms the drag handle (2-4 h)
@@ -163,14 +163,14 @@ A first renderer works (offscreen window, PNG frames to ffmpeg). This milestone 
 - [ ] Drop behavior in Premiere Pro and Resolve on Windows, including whether the target window must be focused and whether Resolve accepts drops from other apps there, checked in the Windows 11 virtual machine; if either app can't run in it, the check waits for a real Windows machine and stops blocking 1.0 (1 h)
 - [x] Render cache management: folder setting, size limit with oldest-first eviction, Clear cache (1-3 h)
 
-## 6. Template packs import (6-10 h)
+## 6. Template packs import (6-10 h; GitHub issue #6)
 
 - [x] Pack format: a folder or `.zip` with `pack.json` (name, author, license, list of templates); in `docs/template-format.md` (1-2 h)
 - [x] Import from zip or folder with validation (own ZIP reader with safe names and limits), collision handling (library copies skipped, pack copies kept or replaced) and a preview; installs into the `packs` folder of user data (3-5 h)
 - [x] Show license and author per pack and per template; warn on missing, non-open or unknown licenses (1-2 h)
 - [x] Export the listed templates as a pack with name, author and license (1 h)
 
-## 11. UI shell: regions and the framework decision (14-24 h)
+## 11. UI shell: regions and the framework decision (14-24 h; GitHub issue #11)
 
 First of the UI milestones. ADR 0006 deferred the plain DOM question to the library milestone, which has since been built in plain DOM; the decision is made here, before the big UI build rather than halfway through it. Once the regions exist, milestone 10's browse tree and milestone 12's player upgrades slot straight in. The regions, where today's features move, and the shared state are in `docs/ui-layout.md`.
 
@@ -181,7 +181,7 @@ First of the UI milestones. ADR 0006 deferred the plain DOM question to the libr
 - [x] Search bar: browse nodes (Favorites, Recently used, one per library folder; folder scopes matched by root, not query text) set a scope shown as a chip with × to clear; sort by relevance, name, recently used or duration; filter chips for templates, video, images, audio, alpha and favorites; the last eight committed searches kept in `settings.json` and offered on the search field. Logic in `src/core/app-state.ts` and `src/core/recent-searches.ts` with unit tests; the end-to-end test covers the scope chip and a filter chip (2-3 h)
 - [x] Status bar: ffmpeg found or missing, library counts, cache size, scans in progress and renders in progress (1-2 h)
 
-## 18. Visual polish: labels, icons and hierarchy (8-13 h)
+## 18. Visual polish: labels, icons and hierarchy (8-13 h; GitHub issue #18)
 
 Before milestone 10, so the browse tree, cards and badges are born with icons and display names instead of being retrofitted. The rules live in `docs/ui-style.md`; the icon set is Phosphor (ADR 0011, license confirmed MIT on the registry).
 
@@ -191,7 +191,7 @@ Before milestone 10, so the browse tree, cards and badges are born with icons an
 - [x] Design tokens in `:root` (type scale 11/12/13/15/18, 4 px spacing grid, radii, one focus ring on `:focus-visible`; icon sizes live in the Icon helper) and every font size in `styles.css` moved onto them; region titles are 15 px weight 600 in sentence case — the ALL CAPS transforms on "Library" and "Parameters" are gone; the status bar says "FFmpeg 8.0" and the cache limit reads "2 GB", through the display module (2-3 h)
 - [x] Enforcement test (`tests/ui-style.test.ts`): fails on uppercase transforms or font-size literals in the stylesheet, three-dot ellipses or ALL CAPS text in the markup, icon-only buttons without an accessible name, and raw ids in the taxonomy and chip label tables (1 h)
 
-## 10. Categorization by type and theme (14-23 h)
+## 10. Categorization by type and theme (14-23 h; GitHub issue #10)
 
 After milestone 11 (the browse panel it fills) and before milestone 8: it changes the template manifest and `pack.json`, additively, so templates written before it keep working. Housekeeping for the first commit: fold `main.ts`'s remaining `state.index` into the shared state, so the index lives in one place before the tree builds on it.
 
@@ -203,7 +203,7 @@ After milestone 11 (the browse panel it fills) and before milestone 8: it change
 - [x] Packs: `pack.json` may declare a default `type`, `themes` and `styles` for its templates (validated like a manifest; a template's own type wins, themes and styles join); any folder with a `pack.json` counts as a pack during the scan, its templates remember it, `pack:<slug>` searches it, and the tree has a Packs section with counts; spec and tests updated (1 h)
 - [x] Sample templates: four matched sets as original CC0 packs in `templates/`, one look shared across a lower third, title, transition, overlay and background — Boardroom (corporate · clean), Newsdesk (news · high-energy), Matchday (sports · high-energy, with a score bug) and Festival (holiday · playful, year-round; the theme list gained a general "holiday" leaf). Each pack declares its theme and style once and the templates inherit them; all canvas-drawn with system fonts, deterministic, backgrounds opaque and looping, the rest transparent. The samples test validates every pack and template and the type coverage per set; the render test covers one template per set; the tree shows all four packs with their counts (3-5 h)
 
-## 12. Browse and preview (13-21 h)
+## 12. Browse and preview (13-21 h; GitHub issue #12)
 
 Fills the results region and the stage described in `docs/ui-layout.md`.
 
@@ -215,7 +215,7 @@ Fills the results region and the stage described in `docs/ui-layout.md`.
 - [x] Waveforms: 400 peaks per audio file, decoded once by ffmpeg to mono samples and kept in the library database against the file's size and mtime, drawn as an SVG path in the stage behind the audio transport and in list rows where a thumbnail would be. Peaks, their storage and the path that draws them are a pure `src/core/waveform.ts` with unit tests; taken on first ask like hover-scrub strips, and through the same turn-taking as the poster queue (2-3 h)
 - [x] Audition mode: a toggle in the stage tools, kept in `settings.json`, that makes choosing an audio item play it; Up and Down walk the results and show each item as they go (useful with it off too), Escape stops whatever is playing. The step is a pure `neighbourEntry` in the shared state; the results region asks the app to stop rather than reaching into the stage (1-2 h)
 
-## 13. Collections (10-17 h)
+## 13. Collections (10-17 h; GitHub issue #13)
 
 Turns the queue in the collection tray into collections; the separate queue panel goes away. The drag-out experience is rebuilt here first, because collections inherit its cards.
 
@@ -225,7 +225,7 @@ Turns the queue in the collection tray into collections; the separate queue pane
 - [x] Render all: one folder chosen once, then a job per item carrying that item's own preset, options and parameters, through the same queue as everything else. Per-item progress on each card, total progress in the tray head; two items of the same name do not render over each other. Items the library cannot reach, and media (converting it is milestone 15), are named as skipped rather than silently dropped, and the rest still renders. Finished items become the draggable render cards from this milestone's first item. The folder dialog cannot be driven over the DevTools protocol, so the render path is proved headlessly with `--collection` (3-5 h)
 - [x] Headless: `--collection <file>` renders a saved collection into `--out`, each item with its own settings, naming and skipping what the library cannot answer for. The end-to-end test renders one collection with two settings of the same template plus a missing template and a media item, and checks both outputs and both skips (1-2 h)
 
-## 21. Sample library coverage: every type three to five deep (26-40 h)
+## 21. Sample library coverage: every type three to five deep (26-40 h; GitHub issue #21)
 
 The browse tree is only as convincing as what fills it. The bundled samples cover 7 of the taxonomy's 45 types (lower third, title, wipe, animated loop, frame, logo bug, light and particles), and five whole groups — design elements, video clips, stills, music, sound effects — have nothing. The rule the themes already follow applies to types: **every type in the tree has several examples**, so a node never opens onto one item. (The milestone worked to a three-to-five band; the upper bound was never the point, and milestone 24 raised the floor to six with no ceiling.) Visual types are filled by original CC0 templates, spread across the four matched sets where the role fits (each set keeps one look) and by standalone templates in other styles so the styles list fills out too. Media types cannot be templates and binary files would bloat the repository, so they come from a **sample-media generator**: original CC0 files made with ffmpeg and the renderer on demand into a "Sample media" library folder, in folders whose names give each file its type. A test fails when any type has fewer than three examples across the templates and the generator's catalog; while the milestone was open it named the types still to be filled, and that list only shrank. Takes over "five to ten more sample templates" from milestone 8. Counts in parentheses are what exists today.
 
@@ -282,7 +282,7 @@ The browse tree is only as convincing as what fills it. The bundled samples cove
   - logo bug / corner (2): Newsdesk bug and Matchday score bug exist; Boardroom bug
   - vignette (0): Soft vignette (organic), Letterbox vignette (cinematic), Retro vignette (retro)
 
-## 19. Vertical and square formats (13-21 h)
+## 19. Vertical and square formats (13-21 h; GitHub issue #19)
 
 Before milestone 8, which writes the authoring guide and the JSON Schema: both should describe the format as it ends up, not one that is about to change underneath them.
 
@@ -295,7 +295,7 @@ Before milestone 8, which writes the authoring guide and the JSON Schema: both s
 - [x] Cards take the item's own shape instead of letterboxing a portrait thumbnail into a 16:9 box: each picture carries its own `aspect-ratio`, between 16:9 and a full 9:16 (anything taller is boxed inside 9:16). The windowing math wants one row pitch, so a grid takes its row height from the tallest picture in it (`tallestRatio`, `cardHeight(width, ratio)` in `src/core/results-view.ts`) and the container publishes that pitch and the picture height as custom properties; an all-wide grid is exactly what it was. The Info tab's poster takes the shape too. Unit tests on the geometry, a DOM test that a tall item grows the row and only its own card, and an end-to-end test on a tall fixture clip (2-3 h)
 - [x] The bundled templates move to the aspect model: the 23 originals that declared 1920 × 1080 now declare the four aspects, scale from the short side and lay out from the frame they are handed, with their 16:9 output byte-identical to before. Each set's lower third and title re-lay out for a tall frame rather than scaling down — the lower third sits above the caption band and left of the controls column with its text shrunk or wrapped to fit, the title wraps its headline and centers above the middle — so one template is its own vertical version. The samples test checks that every bundled template declares its aspects, has no pixel size, reads the state's size and takes no scale from one side alone; the render test renders a lower third and a title at 9:16 and reads pixels inside the graphic, in the caption band and in the controls column (3-5 h)
 
-## 22. Image slots in templates (19-29 h, plus 3-5 h after 1.0)
+## 22. Image slots in templates (19-29 h, plus 3-5 h after 1.0; GitHub issue #22)
 
 Right after milestone 19, because both touch the template format and milestone 8's schema and authoring guide should describe the format as it ends up. Today a lower third takes text and colors but not a logo; adding the logo in the editor means re-keyframing it to follow every move the graphic makes. Instead, a template declares **image slots that ride its own animation**: the image is drawn inside the template's layers, so it follows every move, fade, mask, wipe and light pass for nothing. Takes over the `image` and `media` parameter types from milestone 9; the media half (a video plate behind a title) stays last and may land after 1.0.
 
@@ -308,7 +308,7 @@ Right after milestone 19, because both touch the template format and milestone 8
 - [x] A "logo reveal" type in the Titles and text group (the type list is closed and versioned, so the taxonomy version moves to 2, with ADR 0010's extension rule followed: added, never renamed; the coverage test picks it up). Three to five standalone reveals across families canvas does well — minimal, elegant line, glitch, particles, light sweep, ink — each around a slot, and a short ident for each matched set (one to three seconds, dark ground, one move) in its look. All original CC0, inspired by common patterns, never copied; each rendered and checked at 16:9 and 9:16 (4-6 h)
 - [x] Media slots, after the image slots and possibly after 1.0: a `media` parameter for a video plate behind a title or inside a frame, drawn frame-accurately from a library clip (the host decodes the frame for the template's time, with a trim and a loop option), with the same grant rule, picker and cache-key handling as images (3-5 h, post-1.0) *Built 2026-11-03. The image slot's shape with the video layer's playback (`src/core/media-slot.ts`): a `media` parameter declares the box, fit, alignment and margin; the value is a `ClipValue` — a library id with an in and an out point in clip frames, loop or once, a speed, a delay, the clip's own volume and mute, a LUT — chosen with the very field a video layer's clip is, and traveling everywhere a parameter does (projects, presets, collections, JSON on the command line, the text form in a CSV cell). The host decodes exactly the window the slot plays, at the height its box draws it, through the clip grant a layer uses, and names the frame for each moment with the layer's own arithmetic, so a slot and a layer playing the same clip show the same frame; `state.media[id]` carries the box and that frame, and `window.pulpDrawMedia` draws it, answering false while the slot plays nothing so the template draws its fallback. The clip's sound joins the mix, the preview's elements and the loudness meter as a layer's does; its id joins the render cache key. The bundled **Plate Title** is the worked example. The end-to-end render reads a frame-coded clip back off the slot: frame for frame through the loop, the trim, the once-through's end and the delay.*
 
-## 23. Layers in templates (37-56 h)
+## 23. Layers in templates (37-56 h; GitHub issue #23)
 
 After milestone 22, which it grows out of, and before milestone 8's schema and authoring guide, for the same reason every format milestone comes first: the guide should describe the format as it ends up.
 
@@ -617,7 +617,7 @@ After milestone 33. Lottie is the animated vector format After Effects exports t
 - [x] **Limits named on the item, and tests:** what the player cannot draw is named on the item and its poster stands in; generated fixtures prove frame accuracy, alpha, a changed text and color, markers stretching to a new length, and placing one as a layer. *The limits were named from the first item (`lottieLimits`, shown in the Info tab's "Not drawn"); the five end-to-end tests on generated fixtures now cover all five promises, and the unit tests cover the markers, the starter set and a Lottie being offered wherever a clip is* (1-2 h)
 - [x] After 1.0, if people use it: a font picker for text in fonts the file names but does not carry; full dotLottie theming beyond colors; several animations in one `.lottie`; turning a Lottie into an editable template (3-5 h after 1.0) *Done 2026-11-09. Each font the file names (and does not carry as glyphs) is a Font parameter with the full family picker — bundled, imported, installed — written into the file's font list. A dotLottie's themes are read in full (static values, keyframes, gradients, rules scoped per animation) and offered as a Theme select; a color left at its default takes the theme's, one a person changed wins. An archive of several animations is several items, one per animation, the first under the file's own key so nothing renames. File → Save Animation as Template… writes an editable folder — the manifest under a `custom.` id, the generated page, the player beside it, the pictures — that renders, packs and reopens like any template; proved end to end by rendering the written folder and by the menu flow in the UI suite.*
 
-## 20. Social-ready export (done; 9-14 h)
+## 20. Social-ready export (done; 9-14 h; GitHub issue #20)
 
 After milestone 19, which it depends on: a platform preset is mostly an aspect, a resolution and a frame rate, and none of those are choices until templates stop declaring a pixel size.
 
@@ -692,7 +692,7 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [x] **An amount per treatment** on any layer with sound — an audio layer or a clip's own track — heard in the preview and applied in the render, before milestone 52's loudness leveling so the target still holds (2-3 h) *Built 2026-11-01. The amount scales every parameter of the recipe from untouched to its full setting; at zero the chain emits nothing, exactly as no treatment does. In the render the steps join the layer's chain straight after its trim (`layerAudioChain`) — on the file's own clock, before a clip's speed, the loop, the volume and the fades — so the loudness measurement and the leveling hear the treated mix and the platform's target still holds, and the transport row's meter reads it too, through the same chain. The preview's element cannot run a filter, so the main process renders the treatment **once over the whole file with the very recipe the render mixes by** into a small AAC beside the other caches (`src/main/voice-service.ts`, pruned to a bound), served at `pulp-media://voice/<hash>.m4a` by exactly that name shape, and the layer's element swaps to it when it lands — the same timeline to the second, so every seek, loop and fade stays put. Until it lands, or without ffmpeg, the sound plays as recorded.*
 - [x] **Kept everywhere:** projects, presets and `--param @layers` on the command line; unit tests that each recipe builds the filter graph it says, and a render test that Reduce noise lowers a bundled noisy sample's noise floor (2-3 h) *Built 2026-11-01. `voice` rides on the sound and clip values through their sanitizers, so projects, presets, collections, CSV batches and `@layers` carry it with no other wiring, and the text forms write it `voice=reduce-noise:0.6`, the amount only when it is not the whole of it. The catalog gains `noisy-voice-memo.wav` — voice-like phrases over a steady hiss, the last stretch hiss alone on purpose — and the end-to-end test renders it plain and treated and reads the floor off the files: Reduce noise at full amount drops it by more than 8 dB, and an amount of nothing leaves it alone.*
 
-## 8. 1.0 hardening and docs (done; 14-23 h)
+## 8. 1.0 hardening and docs (done; 14-23 h; GitHub issue #8)
 
 - [x] A JSON Schema for the template manifest and `pack.json`, generated from or checked against the validator, and the compatibility rule stated where authors read it: fields are added rather than repurposed, and an incompatible change takes a new `formatVersion`. **No version freeze is planned.** This item used to be "freeze template format v1 here"; milestone 19 changes the format and later milestones may too, so the format stays versioned and documented rather than declared final (2-3 h) *Built 2026-11-01. `docs/schema/template.schema.json` and `docs/schema/pack.schema.json`, draft 2020-12, written by hand from the validators and **checked against them** by `tests/schema.test.ts`: every list the schema spells out — categories, types, styles, aspects, parameter and layer types, fits and aligns, cases, transitions, blends, easings — is asserted equal to the code's own constant, every bundled manifest and pack and every test fixture is accepted by the schema exactly when the validator accepts it, and a case per rule the schema carries is refused by both. The schema is the shape for an author's editor; the validator stays the last word, since a few rules cross fields (a default inside its range, a hold inside the duration), and the schema's description says so. The compatibility rule is stated at the top of `docs/template-format.md`, beside the link to the schema. ajv is a development dependency for the test only.*
 - [x] Template authoring guide with a step-by-step walkthrough and a `pulp-template` starter folder (2-3 h) *Built 2026-11-01. `docs/template-authoring.md` walks from an empty folder to a lower third in nine steps — the manifest, a page that draws from the state, motion from `state.time`, a hold that stretches, parameters by element, a block people can add lines to, a logo slot, checking at every shape and length, sharing as a pack — with the format document as the specification behind it and the schema for the editor. The starter is `examples/pulp-template/` (CC0: a manifest, a page and a README saying to change the id), kept out of `templates/` so it is not a bundled template; `tests/authoring.test.ts` validates it, holds it to the page rules, and checks the guide's excerpts are the starter's own structure, parameters and layers, so the two cannot drift apart.*
@@ -704,7 +704,7 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [x] A release process: version numbers, release notes drawn from the changelog's Unreleased section, a tag per release (1-2 h) *Built 2026-11-02. `npm run release -- patch|minor|major|<version>` does the three edits that have to agree: the version in `package.json` and `package-lock.json` (through `npm version --no-git-tag-version`, which keeps the lock in step), the changelog's **Unreleased** section dated into a release with a fresh empty one above it, and an annotated tag `v<version>` whose message is those same notes — so `git show`, the changelog and the release page say one thing. The notes are never written twice: every change already adds its entry under Unreleased as it lands, and a release with an empty section is refused, since a release that says nothing is a mistake every time. It runs lint, the tests and the build first (`--no-checks` skips them, `--dry-run` writes nothing), refuses a dirty tree and a version already tagged, and **pushes nothing**: it prints the two pushes to make. The arithmetic is `src/core/release.ts`, unit tested and imported by the script as it is — Node strips the types itself — so there is no second copy to drift. `docs/releasing.md` has the steps and what a patch, a minor and a major mean here.*
 - [x] Project basics: issue and pull request templates, a code of conduct, and a `SECURITY.md` saying how to report a vulnerability (1 h) *Built 2026-11-01. `.github/ISSUE_TEMPLATE/` has a bug report (what happened, steps, the diagnostics Copy diagnostics puts on the clipboard, the file that triggers it) and an idea form that points at the roadmap and the ideas file first, with a contact link sending security problems to GitHub's private reporting; `.github/PULL_REQUEST_TEMPLATE.md` is CONTRIBUTING's checks as a checklist with the license of anything added. `CODE_OF_CONDUCT.md` is short and in the project's own words — direct about the work, kind about the person — with the maintainer as the one who enforces it. `SECURITY.md` asks for private reports through GitHub, says what counts (a template, pack or file that reaches outside what it was given; anything that leaves the machine) and what to expect back.*
 
-## 17. Unsigned builds and releases (done; 9-16 h)
+## 17. Unsigned builds and releases (done; 9-16 h; GitHub issue #17)
 
 **Packaging is the last step of the project**, which is why this milestone and signing come after hardening: what is packaged should be the finished thing, and every change before this one would otherwise be packaged twice. The buildable half of the old "Packaging and signing" milestone; signing is milestone 7, blocked on account decisions. Unsigned artifacts also make the hardware-blocked verification sessions in milestones 2 and 5 easier to run when a machine is available.
 
@@ -717,7 +717,7 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [x] ffmpeg distribution, decided 2026-11-01: **a download helper**, with "use your own ffmpeg" kept as it is. On first run without ffmpeg, Pulp offers to fetch a full build from its publisher, after asking, checked against a pinned checksum and kept beside the settings — the pattern ADR 0021 set for the speech model. Not an LGPL build in the installers: an LGPL-only ffmpeg has no x264, so every H.264 render, the platform presets included, would fall back on each system's hardware encoder; and not a GPL build in them, which would make the installers distribute GPL software beside Pulp's MIT license. An ADR records it with the license implications *Built 2026-11-02. **Settings → FFmpeg** says where FFmpeg was found, or — where it was not — what Pulp would fetch for this machine: which build, from which publisher, how big it is and under what license, all before the button exists to press. Five builds are pinned in `src/core/ffmpeg-download.ts` (FFmpeg 9.0.2, 57-115 MB: macOS on either architecture and Linux on either from Martin Riedl's build server, Windows from Gyan Doshi's — both publishers listed on ffmpeg.org, every URL a versioned one, since the rolling "latest" names they also offer would break a checksum the first time they rebuilt). `src/main/ffmpeg-service.ts` streams each archive through a SHA-256 as it arrives, refuses anything that is not the published bytes, takes **only** the two named entries out of the zip — the Windows archive is 115 MB holding a third of a gigabyte unpacked, so `readZip` grew a `wanted` filter rather than inflating what nobody asked for — makes them runnable, **runs the encoder once to prove it starts**, and only then moves the pair into `ffmpeg/` beside the settings, staged in a sibling folder so the move is a rename rather than a copy that can stop half way. It is found **last** among the candidates, after PATH and `PULP_FFMPEG_PATH`, so your own ffmpeg still wins; it is picked up at startup by the window and by a headless render alike, and the moment a fetch lands the status bar and the Output tab are told, so renders work with no restart. The start screen's checklist offers the way to it rather than only naming what is missing. ADR 0022 records the decision with the license reasoning — why an LGPL build in the installers would be a worse Pulp quietly, and why fetching keeps MIT and GPL apart — and the acknowledgements say the same. Checked against the real thing: the pinned macOS and Windows archives were fetched, their published checksums matched byte for byte, the zip reader pulled the pinned member out of each (the 115 MB Windows one in about a second), and the extracted pair is what `detectFfmpeg` finds — FFmpeg 9.0.2, alpha-mode aware, with every encoder Pulp's presets name — with `ffprobe` beside it.*
 - [x] **Opening a `.pulp` file by double-clicking it**: file associations in the three builds, and the main process taking a path from `open-file` on macOS and from the command line elsewhere, handing it to the window's own project opener. Waiting on a packaged app to associate with, which is why it sits here rather than in milestone 27 (1-2 h) *Built 2026-11-02. `fileAssociations` in the builder config for `.pulp` and `.pulpcollection` — Info.plist on macOS, the per-user registry through the installer on Windows, MIME types in the AppImage's `.desktop` entry — with the two extensions moved to `src/core/open-file.ts` so the file dialogs, the associations and the reader name the same two, held together by the packaging test. The main process takes macOS's `open-file` event (registered before `ready`, since the file may be what launched the app) and, on Windows and Linux, **holds the single-instance lock**: a double-click there starts a second copy, which hands its arguments to the first and goes — `projectFileArg` reads the path out of them, past flags and their values, and back from the `file://` URL a Linux launcher may send. The path waits in the main process until the window says it is listening, then is pushed as each new one arrives; the window opens it through the very opener File → Open uses, so unsaved changes are asked about, and the start screen goes as it would for any opened project. A headless render takes no lock, so several still run at once beside an open window. Checked by launching the built app with a project path and then a second copy with another: the first opened both, the second exited at once.*
 
-## 7. Signing and auto-update (4-7 h)
+## 7. Signing and auto-update (4-7 h; GitHub issue #7)
 
 **Blocked on David's account decisions** (Apple Developer account, Windows code-signing certificate). Builds come from milestone 17.
 
@@ -725,13 +725,13 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 - [ ] Windows: code signing (1-2 h)
 - [ ] Auto-update (electron-updater; needs signed builds on macOS) (1-2 h)
 
-## 14. Defaults per type and guided setup (done; 8-13 h, after 1.0)
+## 14. Defaults per type and guided setup (done; 8-13 h, after 1.0; GitHub issue #14)
 
 - [x] "Save as default for this type" in the Output tab; new items of that type (a template type, video, image or audio) start from it (2-3 h) *Built 2026-11-02, for template types (a media item renders by its own nature and keeps its sticky controls). The button sits under the preset select and remembers the slice worth remembering for a kind of thing — the output preset, the shape and size, a rate override, the flatten background and the matte; never the trim, the cover, a LUT or the captions, which belong to one piece. Keyed by the template's type (declared, or mapped from its category), sanitized into `settings.json` (`src/core/output-defaults.ts`), applied when an item of that type is shown — each choice only where the template can take it, and under the session's platform lean, which stays the stronger word — with a note saying the default is held, and a Clear beside it.*
 - [x] Guided setup: a modal with numbered steps (what it is for, size and frame rate, format and alpha, audio, where to save), a live preview over a checkerboard, a settings summary, a save-as-default checkbox, and Add to collection at the end (4-7 h) *Built 2026-11-02. **Guided setup…** above the Output tab's preset select opens a five-step walk — what it is for (the kind presets that fit this template, a social post with its platform, or by hand), shape and size, format (with the flatten color and the matte said in plain words), sound (said, not asked: what the template and the project will render, with the stems' one output choice), and a summary in sentences. The whole way, a **live preview over a checkerboard**: the template's poster in a box of the chosen shape, the checkerboard giving way to the flatten color the moment a format without alpha is picked, the size, rate and format captioned under it. The model is pure (`src/core/guided-setup.ts`: the steps, the purposes, the seeding, the sentences) and unit-tested; the modal (`src/renderer/guided-setup.ts`) owns only the DOM and ends by setting the very controls the tab holds through `outputApplyGuided`, with the save-as-default box feeding milestone 14's own type defaults and **Add to collection** going through the window's own collect button, so a card from the wizard is exactly a card from the tab. "Where to save" stays the render's save dialog, as the summary says. The UI end-to-end test walks all five steps, watches the checkerboard flatten and the box turn tall live, applies, checks the tab and the saved default, cancels without effect, and collects a card.*
 - [x] Output presets per kind of asset: one-click export settings suited to a type of asset (a transparent overlay, a full-screen background, a sound-paired wipe), offered when one is chosen, alongside "Save as default for this type" and the guided setup (2-3 h) *Built 2026-11-02. A "Quick setup" row above the preset select, offered only where each fits: **Transparent overlay** (ProRes 4444) and **Web overlay (VP9)** for anything drawn on alpha, **Editor-safe, with matte** (H.264 over black with the gray matte beside it) for pipelines that cannot read alpha, and **Full-screen background** (H.264) for backgrounds. One click sets the controls and nothing more; "Save as default for this type" is how it becomes the standing answer. The catalog is pure (`ASSET_OUTPUT_PRESETS` in `src/core/output-defaults.ts`) and held by tests; the whole flow — click, save, another lower third opening on it, clear — runs in the UI end-to-end test.*
 
-## 16. Audio: stems, variants and pairing (done; 8-14 h, after 1.0)
+## 16. Audio: stems, variants and pairing (done; 8-14 h, after 1.0; GitHub issue #16)
 
 Takes over "audio in templates" from the Later list, and builds on the audio layers and waveform lanes of milestone 48. Manifest additions are optional fields.
 
@@ -740,7 +740,7 @@ Takes over "audio in templates" from the Later list, and builds on the audio lay
 - [x] Music moods (added 2026-11-03): how a sound feels — upbeat, calm, dramatic, epic, tense, playful, melancholy, mysterious — as its own facet beside type and theme. A fixed list with aliases (`MOODS` in `src/core/taxonomy.ts`), inferred from folder names ("Music/Calm") and from the file's own genre, mood or comment tag through the ffprobe pass (`format_tags` joined the probe, `meta.moods` the metadata), so a person's own tagged music browses by feel unrenamed. A **Mood** chip beside For… and Look, shown only while the library holds moods; `mood:` in the query syntax and the free-text split; the Info tab's Mood chips; the semantic text embeds them. The bundled music and ambience are tagged — every music piece at least one mood, stems as their song, held by a test — written into each generated file's genre tag by the generator, the same channel users' files are read by.
 - [x] Stems: layered music as several files or a stem manifest; one lane per layer with waveform and mute and solo in the stage; render the selected mix or one file per stem (4-6 h) *Built 2026-11-02. An audio layer's sound may hold **stems** — the same window, delay, fades and voice, with one file, a gain, a mute and a solo per stem; mute wins inside a solo, as on a desk (`src/core/sound-layer.ts`), and the list travels everywhere a sound does: projects, presets, collections, CSV text and `@layers`. Each stem gets **its own lane** under the scrub bar with its own waveform and M and S on the lane itself; the card lists the stems with gain, remove and "Add stem…", which splits the one sound into stems. The render carries **the mix as ever by default**, and "Music stems: one file per stem" on the Output tab (or `--stems files`) leaves them out of the render's own audio and writes `<name>-<stem>.wav` each, cut to exactly the rendered range, for remixing in an editor — proved end to end with two tones told apart by bandpass in `tests/e2e/render.e2e.test.ts`.*
 
-## 9. Later, after 1.0 (done; 7-16 h)
+## 9. Later, after 1.0 (done; 7-16 h; GitHub issue #9)
 
 - [x] A proper `pulp` command: what already renders without the window (`--render`, `--param` including `@layers`, `--length`, `--collection`, CSV batch) packaged as its own entry point — `pulp render …` and `pulp collection …` — with help text, exit codes and a section in the README, rather than a second interface (2-3 h) *Built 2026-11-02. `pulp render`, `pulp collection`, `pulp sample-media`, `pulp visual-hashes`, `pulp help [command]` and `pulp version`, in place of `--render` and friends as flags on the app — the grammar, the help text and the exit codes (0 done, 1 failed, 2 the command line was wrong) in one pure module (`src/core/cli.ts`), a launcher (`bin/pulp.js`, the package's `bin`) for a checkout and `npm link`, the same arguments on a packaged binary, the older spelling still read, and a README section. Held by unit tests on the grammar and an end-to-end test on the command itself.*
 - [x] Optional local semantic search over the library (on-device embeddings, off by default, no network) (5-13 h) *Built 2026-11-02, ADR 0024. **Search by meaning (local)** in Settings, off by default: "something calm for a podcast intro" finds the calm openers and the podcast end card the words miss. BGE small v1.5 (MIT, 37 MB, 384 dims) run by llama.cpp's `llama-embedding` found on PATH like ffmpeg and whisper-cli; the model fetched from its publisher only after the person says yes, checked against the pinned checksum — the one network request the feature ever makes, with queries and the library embedded locally ever after. Vectors live in `library.sqlite` under each item's stat signature and re-embed when a file changes; the word search and the meaning search fold by reciprocal rank fusion under the relevance sort, with a similarity floor and the query's filters, chips and scope still fencing every hit (`src/core/semantic.ts` pure and tested; `src/main/semantic-service.ts` fetches, runs and stores). The real runner is in the tests where it is installed: a unit test embeds through the actual program, and a gated UI end-to-end test turns the setting on, indexes the bundled library and watches "Listen Next" surface for the words that match nothing.*
@@ -793,7 +793,7 @@ Decided 2026-11-01, from the undecided list in `docs/ideas.md`.
 - [x] **A performance section** in Copy diagnostics: library size, index and search timings, memory (3-5 h) *Built 2026-11-02. `src/core/perf.ts` is the shape and the lines; the main process measures when asked — the library's size, the last scan's numbers, the index built and sized just then, each of Electron's processes' working set — and the window records as it goes what a keystroke's search (results, facets and tree over the whole library), a scroll's window and an arriving index cost it, last and worst with a count (`src/renderer/perf.ts`). The section sits under its own heading before the log's last lines, and a test holds it line for line.*
 
 
-## 59. Languages and locale (22-39 h, after 1.0)
+## 59. Languages and locale (22-39 h, after 1.0; GitHub issue #76)
 
 Decided 2026-11-03. Pulp speaks one language today, with its words written into the code. This moves them out so the interface can be shown in the language a person chooses in Settings: US English by default, British English for those who want colour and centre, and other languages as they are translated. Takes over "Localization" from the undecided list in `docs/ideas.md`.
 
@@ -805,7 +805,7 @@ Decided 2026-11-03. Pulp speaks one language today, with its words written into 
 - [ ] **Checked by a fluent speaker:** the German and the Simplified Chinese each read by someone fluent, before they stop being previews (1-2 h)
 - [x] **For translators:** how to add a language, what a message id means, and how a catalog is checked for missing and unused strings (2-3 h) *Done 2026-11-05: `docs/translating.md` says what is translated and what is not and why, where the words are, what an id means, what a message may hold, how a language and its guide are added, and how a catalog is checked: missing (`I18N_LOCALE=<locale> … -t complete` lists what is left), unused, placeholders, the markup, and British English against `src/core/spelling.ts`.*
 
-## 60. A start screen with a clear way in (done; 12-20 h, after 1.0)
+## 60. A start screen with a clear way in (done; 12-20 h, after 1.0; GitHub issue #77)
 
 Decided 2026-11-03. Milestone 31's start screen does everything it promised, but it shows it all at once: three equal columns of buttons that look the same, sixteen chips for shapes and platforms, examples with empty thumbnails, and nothing that says where to begin. This redesigns it around the few ways a person actually starts, so it looks balanced, clean and modern and the next step is obvious at a glance. Nothing milestone 31 offers is removed; it is placed by importance.
 
@@ -816,7 +816,7 @@ Decided 2026-11-03. Milestone 31's start screen does everything it promised, but
 - [x] **Holds up at every size and in both themes:** at 1280 × 788 the welcome, New project and the first row of every section are visible without scrolling; light and dark themes both read with WCAG AA contrast; the keyboard order follows the visual order (1-2 h) *Built 2026-11-03. The screen carries its own scoped tokens and follows the **system's** light or dark appearance (`prefers-color-scheme`; the working window behind it stays the dark editing surface, as grading tools do) — a unit test computes the WCAG ratio of every text and control pair in both palettes and holds each to AA. The idea gallery is one row that scrolls sideways, so Learn stays above the fold whatever the gallery holds; the e2e measures the lead and every section's first row against the 788 px window; the keyboard order is the DOM order, with no positive tabindex anywhere on the screen, and the lead takes focus when the screen shows.*
 - [x] **Tests:** visual references of the first-run and returning screens in both themes, a unit test that New project is the only primary button, and the UI end-to-end test walking each path from the screen into the window (1 h) *Built 2026-11-03. The references are perceptual hashes (`tests/visual/start-screen.json`) of real window captures — both arrangements under both emulated color schemes, taken over CDP, reduced through the same `frameHash` the template references use — written with `PULP_START_REFS=write` and compared on macOS, where they were made (font metrics differ elsewhere; other platforms assert the four captures differ). The markup test holds New project as the only primary; the e2e walks every path: the lead, Continue, an idea into browse, an example opened as a copy, a shape tile, the platform list, and Help's way back to the checklist.*
 
-## 61. A polished set of bundled art, beside the playful one (done; 26-43 h, after 1.0)
+## 61. A polished set of bundled art, beside the playful one (done; 26-43 h, after 1.0; GitHub issue #78)
 
 Decided 2026-11-03. The bundled objects, icons and design elements (milestone 46 and the shapes, arrows and icon sets before it) are flat, bright and cartoon-like: right for a birthday clip or a children's channel, wrong for a corporate piece, a news package or a product launch. Stock libraries a person already owns cover much of that (milestone 32), but Pulp's own art should be able to look finished too. This adds a second, more sophisticated set **alongside** the existing one; nothing is removed or redrawn, and the current art stays a choice for the work it suits.
 
@@ -827,7 +827,7 @@ Decided 2026-11-03. The bundled objects, icons and design elements (milestone 46
 - [x] **Thumbnails that show the finish:** the polished items' cards are drawn on a neutral studio backdrop with consistent framing, so the grid reads as one set and the difference from the playful art is visible before anything is opened (1-2 h) *Done 2026-11-04: one studio backdrop in both appearances, one poster moment and one centered crop for every polished piece.*
 - [x] **Found first where it fits, and tested:** a **Polished** look in the browse panel's Look filter; within Objects and Design elements the polished items lead under the default sort; visual references for every new item; a test that each carries a look, a CC0 notice and an entrance (3-4 h) *Begun 2026-11-04: the Look filter lists Polished, every new item has its references, and the manifest test holds the look, the license, the entrance and the light, material and shadow parameters; the default-sort lead followed the same day, held by a unit test against the bundled library and an end-to-end test in the window.*
 
-## 62. Light and dark appearance (done; 8-12 h, after 1.0)
+## 62. Light and dark appearance (done; 8-12 h, after 1.0; GitHub issue #79)
 
 Decided 2026-11-03. Pulp's window is dark only, and for an instant at launch it shows light, before its stylesheet has loaded. This adds a light appearance beside the dark one, a setting to choose between them, and a launch that opens in the chosen one from its first frame. It is also what milestone 60's "in both themes" assumes.
 
@@ -837,7 +837,7 @@ Decided 2026-11-03. Pulp's window is dark only, and for an instant at launch it 
 - [x] **Every window follows:** the popped-out stage, the Settings window and dialogs take the same appearance; the editor panels follow the host app's own (1-1.5 h)
 - [x] **Tests:** a unit test of the setting and of System following the operating system; an end-to-end test that switches appearance and finds the window redrawn; visual references of the main window in each; a check that no color is written into the styles outside the token list (1-1.5 h)
 
-## 63. Record a voice with one click (done; 8-13 h, after 1.0)
+## 63. Record a voice with one click (done; 8-13 h, after 1.0; GitHub issue #80)
 
 Decided 2026-11-04. Pulp only reads media a person already has. A voice-over, a scratch narration or a quick sound has to be recorded in another app and brought in. This adds a microphone button: click it, speak, click again, and the recording is in the library, ready to use.
 
@@ -847,7 +847,7 @@ Decided 2026-11-04. Pulp only reads media a person already has. A voice-over, a 
 - [x] **A choice of input, when wanted:** a small menu beside the button lists the inputs and remembers the one chosen; a recording that loses its input mid-take keeps what it has (1-2 h) *Done 2026-11-04: the remembered microphone is asked for as ideal, so one that is unplugged today falls back to the default rather than refusing.*
 - [x] **Tests:** unit tests of naming and saving; an end-to-end test that records from a fake input and finds the file in the library with the right length (2-3 h)
 
-## 64. Record from a camera with one click (done; 10-16 h, after 1.0)
+## 64. Record from a camera with one click (done; 10-16 h, after 1.0; GitHub issue #81)
 
 Decided 2026-11-04. The same idea for picture: a camera button that records from a webcam or any camera connected to the computer, with its sound, straight into the library.
 
@@ -857,7 +857,7 @@ Decided 2026-11-04. The same idea for picture: a camera button that records from
 - [x] **A choice of camera and microphone:** menus in the preview for the camera and the sound input, remembered; mirrored preview for a front-facing camera, never mirrored in the file (1-3 h) *Done 2026-11-05: the Sound menu offers No sound too, remembered apart from the voice recorder's microphone; a camera is mirrored unless it says it faces away, since a computer's camera faces whoever is at it.*
 - [x] **Tests:** unit tests of naming, saving and conversion; an end-to-end test that records from a fake camera and finds a playable clip of the right length in the library (2-3 h) *Done 2026-11-05: the conversion is tested on a real variable-rate WebM wherever FFmpeg is installed.*
 
-## 65. Layouts made for vertical video (done; 25-40 h, after 1.0)
+## 65. Layouts made for vertical video (done; 25-40 h, after 1.0; GitHub issue #82)
 
 Decided 2026-11-04. Nearly every bundled template declares 9:16, but almost all were designed wide first: a lower third in the bottom-left corner, a title across the middle, scaled down to a tall frame. That is where the short-video apps put their own caption, buttons and progress bar. Vertical video has its own conventions: a hook headline in the top third, captions in the middle of the frame or just above the app's caption band, a wide clip framed between a title and captions, two shots stacked, a face in a corner, and small overlays (part tags, list counters, chat bubbles, a follow prompt) placed clear of the controls down the right. This adds a set of templates designed tall first, and makes them easy to find when the work is tall. As with milestone 19's safe zones, nothing is named or drawn after any one app, and no app's logo or interface is copied.
 
@@ -869,7 +869,7 @@ Decided 2026-11-04. Nearly every bundled template declares 9:16, but almost all 
 - [x] **Found first when the work is tall:** a "Made for vertical" tag on these templates and a browse node for it; when the previewed shape or the project is 9:16, the templates made for it lead the results under the default sort, and the stage's vertical safe zones show by default while one is selected (2-3 h) *Done 2026-11-05: a Made for vertical node under Quick access. The work is tall when the session leans tall (the 9:16 tile, a tall platform) or a tall shape is chosen in the Output tab for a template that draws more than one; showing a template with no shape to choose keeps the last answer, so a click never reorders the results under it. They lead under the default order with no words typed, as the polished set does. The stage shows the safe areas for them by default; turned off by hand, they stay off for the session, and the saved preference is never changed.*
 - [x] **Tests:** visual references at 9:16 for every new template; the safe-box test above; the sort test at 9:16 and 16:9; an end-to-end test that starts a vertical project and finds the vertical templates first (2-3 h) *Done 2026-11-05: visual references for all twenty-two; the safe-box check on every platform; the sort at 9:16 and 16:9, within a category, under another sort and with words typed (`tests/vertical-layout.test.ts`); an end-to-end test that starts a 9:16 project from the start screen and finds them first, with their safe areas on, and not first in a wide session.*
 
-## 66. Cards, a dialog and the start screen that read at a glance (done; 5-8 h, after 1.0)
+## 66. Cards, a dialog and the start screen that read at a glance (done; 5-8 h, after 1.0; GitHub issue #83)
 
 Decided 2026-11-04, from a first look at the app. Three places where what is shown is right but hard to read: the facts on a result card run together, a folder picker's button does not say what it does, and the start screen's sections sit too close to tell apart.
 
@@ -878,7 +878,7 @@ Decided 2026-11-04, from a first look at the app. Three places where what is sho
 - [x] **Start screen sections that stand apart:** Continue, Start from an idea and Learn (and the set-up card on a first run) get more room above and below each section and a thin horizontal divider between sections, in the screen's own palette in both appearances, so each reads as its own group. The screen still fits at 1280 × 788, with the lead and the first row of every section visible without scrolling (1-2 h) *Done 2026-11-04. The whole screen still fits at every size the end-to-end test measures, down to 960 × 600; to keep room to spare, the roomy arrangement now starts at 940 px tall rather than 880.*
 - [x] **Tests:** unit tests of the clock reading and the resolution tags; the end-to-end test finds the pill on a clip's card and none on a still's, and the dividers between the start screen's sections; the start screen's visual references rewritten (1-2 h)
 
-## 67. Twice the polished art, and an airliner redone (21-35 h, after 1.0)
+## 67. Twice the polished art, and an airliner redone (done; 21-35 h, after 1.0; GitHub issue #84)
 
 Decided 2026-11-05, from a look at milestone 61's set. The polished pieces read well and are the ones worth reaching for, but there are only 31 of them (24 objects and 7 glass and depth elements), and one of them, the airliner, looks cheap and unrealistic beside the rest. This doubles the set to 62 and redoes the airliner, all to `docs/art-direction.md`, with no recolors of existing pieces. New pieces favor what goes into business, explainer, product, social and news video over generic clip art.
 
@@ -888,7 +888,7 @@ Decided 2026-11-05, from a look at milestone 61's set. The polished pieces read 
 - [x] **One set, checked as a set:** every new piece on the studio backdrop with milestone 61's framing, and a contact sheet of all 62 at the same size (`docs/art-direction.md` names where it is made), so a piece that breaks the look, as the old airliner did, is seen before it ships (1-2 h)
 - [x] **Tests:** visual references for every new and redone piece; the look test holds each to exactly one look; the polished pieces still lead under the default sort in Objects and Design elements (2-3 h)
 
-## 68. Chinese and German (18-32 h, after 1.0)
+## 68. Chinese and German (done; 18-32 h, after 1.0; GitHub issue #85)
 
 Decided 2026-11-05. Milestone 59 takes the interface's words out of the code and offers English (US) and English (UK). This adds the first two languages beyond English, picked to stretch the interface in opposite directions: Simplified Chinese, whose strings are short and need their own fonts and line breaking, and German, which has one standard written form (so one catalog) and long compound words that find any label too narrow for them. It completes milestone 59's "first language beyond English" item twice over.
 
@@ -900,7 +900,7 @@ Decided 2026-11-05. Milestone 59 takes the interface's words out of the code and
 - [x] **Translated with care, and said to be:** a short glossary per language for Pulp's own terms (template, lower third, layer, render, alpha, safe area, pack) so a word is translated the same way everywhere, in the translators' doc from milestone 59; and each catalog checked by a fluent speaker before a release offers it. Until it is, it is available only from a setting marked as a preview (1-2 h)
 - [x] **Tests:** both catalogs complete, with no missing and no unused message ids; an end-to-end test that switches to each language and finds the menus and the start screen translated, nothing clipped and nothing overlapping at 1280 × 788 and 960 × 600; Chinese text drawn with a Chinese face, not boxes; visual references of the start screen and main window in each. The suite itself still runs in US English (2-4 h)
 
-## 69. The library in German and Chinese (done; 12-20 h, after 1.0)
+## 69. The library in German and Chinese (done; 12-20 h, after 1.0; GitHub issue #86)
 
 Decided 2026-11-05. Milestone 68 translated the window, which left the library's words in English around German and Chinese controls. This translates what the library shows, on screen only, so files, renders, exports and saved projects keep the English.
 
@@ -909,7 +909,7 @@ Decided 2026-11-05. Milestone 68 translated the window, which left the library's
 - [x] **Search in both:** a typed English word still finds an item in any language, and so does its translated name (1-2 h)
 - [x] **Tests:** an end-to-end test finds the airliner by its English and translated names in each language and opens it with its parameters translated (2-3 h)
 
-## 70. Right-to-left and complex scripts (done; 12-23 h, after 1.0)
+## 70. Right-to-left and complex scripts (done; 12-23 h, after 1.0; GitHub issue #87)
 
 Decided 2026-11-06, moved out of milestone 59 for later. No right-to-left language is planned yet, and the mirroring is worth doing only alongside one.
 
@@ -917,7 +917,7 @@ Decided 2026-11-06, moved out of milestone 59 for later. No right-to-left langua
 - [x] **The interface mirrored for a right-to-left language:** panels and menus mirrored, with timelines, scrub bars and playback controls decided one by one, since these usually stay left to right. *The window follows `<html dir>`: the stylesheet says start and end wherever it means the interface, carets and disclosure triangles turn, and the browse splitter, the tree, submenus, hung menus, the tour's card and the roving groups follow the eye. Pinned left to right, one by one: the whole transport row (scrub bar, lanes, playback buttons, marks, volume, tabs, status), the picture with its overlays, and a card's hover scrub. English (mirrored), `en-XB`, is a hidden pseudo-locale for looking at it before a right-to-left language exists; docs/translating.md* (6-12 h)
 - [x] **Tests:** a render test of each script's text against its reference, and an end-to-end check of the mirrored window at 1280 × 788 and 960 × 600. *The script render tests landed with the first item — Arabic joining against its ZWNJ-isolated sibling, a conjunct against its plain pair in Devanagari and in each of the seven other Indic scripts, Hebrew points taking no room — each measured against a sibling render, never a stored image. The mirrored window is checked in English (mirrored) at both sizes: the panel on the right, nothing overlapping, the row, the scrub bar, the lanes and the picture reading left to right, the playback cluster in its order at the left, a slider in the panel mirrored, Left widening the panel, and the Add menu hanging from its button's right edge* (3-5 h)
 
-## 71. A security review of templates and packs (8-14 h, after 1.0)
+## 71. A security review of templates and packs (8-14 h, after 1.0; GitHub issue #61)
 
 Decided 2026-11-09. Moved from `docs/ideas.md`. A template is a web page and a pack is someone else's folder of them, so Pulp runs code it did not write. Nobody has yet written down what that code may do or checked the window against it.
 
@@ -926,14 +926,14 @@ Decided 2026-11-09. Moved from `docs/ideas.md`. A template is a web page and a p
 - [ ] **Dependency alerts:** automatic update alerts for what Pulp depends on (1 h)
 - [ ] **Held by tests:** a hostile template that tries to reach the disk, the network or a new window, and is refused (1-2 h)
 
-## 72. Template versions in saved work (4-7 h, after 1.0)
+## 72. Template versions in saved work (4-7 h, after 1.0; GitHub issue #62)
 
 Decided 2026-11-09. Moved from `docs/ideas.md`. Updating a bundled template should never quietly change a project someone saved.
 
 - [ ] **Recorded:** presets, collections and `.pulp` projects note which version of each template they used (2-3 h)
 - [ ] **Opened again:** work whose template has since changed says so, and the person chooses to keep the look they saved or take the update; a test holds both (2-4 h)
 
-## 73. Keyboard shortcuts you can change (6-10 h, after 1.0)
+## 73. Keyboard shortcuts you can change (6-10 h, after 1.0; GitHub issue #63)
 
 Decided 2026-11-09. Moved from `docs/ideas.md`, now that the application menu exists.
 
@@ -941,21 +941,21 @@ Decided 2026-11-09. Moved from `docs/ideas.md`, now that the application menu ex
 - [ ] **One map:** the menus and the window read the same shortcuts, and a key already taken names what has it (2-3 h)
 - [ ] **Tests:** a changed key works and shows in its menu, and survives a restart (1-2 h)
 
-## 74. A high-contrast appearance (4-6 h, after 1.0)
+## 74. A high-contrast appearance (4-6 h, after 1.0; GitHub issue #64)
 
 Decided 2026-11-09. Moved from `docs/ideas.md`. Milestone 62 built light and dark; this adds the third.
 
 - [ ] **High contrast** beside System, Light and Dark, followed when the system asks for it (2-3 h)
 - [ ] **Nothing told by a faint tint alone:** selection, focus and disabled states carry a border or a shape, and a test holds the palette to its contrast (2-3 h)
 
-## 75. Display names for library folders (2-4 h, after 1.0)
+## 75. Display names for library folders (2-4 h, after 1.0; GitHub issue #65)
 
 Decided 2026-11-09. Moved from `docs/ideas.md`.
 
 - [ ] **Renamed in the browse tree only:** a folder can show a name of a person's own, with the folder on disk untouched, kept across rescans (1-3 h)
 - [ ] **Tests:** the name shows in the tree and in search, and clearing it brings the folder's own back (1 h)
 
-## 76. Motion tracking (done; 20-35 h, after 1.0)
+## 76. Motion tracking (done; 20-35 h, after 1.0; GitHub issue #66)
 
 Decided 2026-11-09. Pin a title or a layer to something moving in a clip, without keyframing it by hand. All on the machine.
 
@@ -964,7 +964,7 @@ Decided 2026-11-09. Pin a title or a layer to something moving in a clip, withou
 - [x] **Fix a bad track:** the path drawn on the stage, a wrong frame moved by hand and the track picked up again from there (4-8 h) *Built 2026-11-09. The tracks of the clip under the playhead are drawn over the picture as paths, uncertain frames marked in red, the frame's own point a handle; dragging the handle sets that frame and the track is followed again from there to the cut's end, the frames before it standing, and every layer pinned to the track is baked again. Remove Track takes one off; its layers keep their keys.*
 - [x] **Tests:** a generated clip with a moving target, tracked to within a pixel, and the preview and the render agreeing (3-5 h) *Built 2026-11-09. Units paint the frames themselves — a square at a steady speed, one that speeds up and turns, one that vanishes for two frames — and hold the tracker to within a pixel, forward and back; the pin arithmetic to the letterbox, the cut's speed and a second point's scale and turn. The UI suite generates a clip whose square crosses the frame, tracks it from the stage menu through the real ffmpeg frames to within a clip pixel of the lavfi expression that drew it, pins a shape to it and reads the keys, and drags the frame's handle to see the track picked up again. The render suite bakes keys from the same expression and renders the pinned shape over the square on three frames: the keys are what the preview shows, so the two agree by construction.*
 
-## 77. Auto-reframe for vertical video (done; 15-25 h, after 1.0)
+## 77. Auto-reframe for vertical video (done; 15-25 h, after 1.0; GitHub issue #67)
 
 Decided 2026-11-09. Cutting wide footage to vertical today means placing the crop by hand. This follows the subject instead, on the machine, with nothing sent anywhere. Builds on the vertical layouts of milestone 65.
 
@@ -973,7 +973,7 @@ Decided 2026-11-09. Cutting wide footage to vertical today means placing the cro
 - [x] **Still yours to change:** the crop shown on the stage as keyframes a person can move, for each aspect (3-5 h) *Built 2026-11-09. The cut keeps its reframe by shape (`reframe` on the cut, read and written with the cut track, `@track`), so a project reframed for 9:16 is still letterboxed at 1:1 until that shape is reframed too. While a reframed cut plays, a handle at the frame's middle pans the crop: the picture follows the hand, and letting go writes a key at the cut's clip second — a key within a frame of the moment replaced rather than doubled. Keep the Middle writes a single centered key; Letterbox takes the shape's keys off.*
 - [x] **Tests:** generated clips with a moving subject and a hard cut, the subject kept in frame (3-5 h) *Built 2026-11-09. Units paint the frames: a square moving on a still ground is followed, skin somewhere in the frame wins over a brighter moving thing, a ground that changes begins a shot, a sway inside the dead zone leaves the crop still, a shot boundary snaps rather than eases, keys stay where the path bends; the render plan is held to the crop filter and to letterboxing a cut without one. The UI suite drops a generated wide clip whose subject walks and then jumps at a hard cut onto a 9:16 project, reframes it from the cut's menu through the real ffmpeg frames, holds the subject inside the crop at every key, sees the stage draw it in frame, and drags the handle to write a key. The render suite bakes keys the same way and renders the cut at 9:16, the subject in every frame checked, in both shots.*
 
-## 78. Stabilize shaky clips (done; 6-10 h, after 1.0)
+## 78. Stabilize shaky clips (done; 6-10 h, after 1.0; GitHub issue #68)
 
 Decided 2026-11-09. A clean-up action beside those of milestone 52.
 
@@ -981,7 +981,7 @@ Decided 2026-11-09. A clean-up action beside those of milestone 52.
 - [x] **Strength and edges:** how much to smooth, and whether to zoom or leave the edges; progress and cancel; said plainly when the ffmpeg in use lacks the filter (2-3 h) *Built 2026-11-09. A small dialog: Smoothing (frames of motion averaged away, 1-60) and Edges (zoom in to hide them, or keep them with the borders showing); a progress bar fed by ffmpeg's own `time=` line, pass one as the first half; Stop kills the run and cleans up — and a Stop that lands before ffmpeg has even spawned still cancels, so it is never lost to timing. An ffmpeg built without vid.stab is said plainly when the dialog opens, with how to get one, and nothing is offered it cannot do.*
 - [x] **Tests:** a generated shaky clip measured steadier after (1-2 h) *Built 2026-11-09. Units hold the argument lists, the output name, the settings' ranges, the filter-list probe and the progress parse. The end-to-end suite crops a jittering window from a static texture — camera shake over a scene that does not itself move — runs the dialog, and measures the mean frame-to-frame difference of both files: the steadied clip must come in under 85% of the original's (about half on a Mac, three quarters on Linux). On an ffmpeg without vid.stab the test asserts the plain message and the disabled button instead; a second test cancels a run at its earliest moment and sees nothing made.*
 
-## 79. Spanish and French (30-52 h, after 1.0)
+## 79. Spanish and French (30-52 h, after 1.0; GitHub issue #69)
 
 Decided 2026-11-09. Two more languages, built the way milestones 68 and 69 built German and Chinese, and offered as previews in the same way until someone fluent has read them.
 
@@ -990,7 +990,7 @@ Decided 2026-11-09. Two more languages, built the way milestones 68 and 69 built
 - [ ] **The library:** category names, descriptions and search words in each (12-20 h)
 - [ ] **Tests:** complete catalogs, and the layout check at 1280 × 788 and 960 × 600 in each (2-3 h)
 
-## 80. Music that dips under a voice (done; 4-7 h, after 1.0)
+## 80. Music that dips under a voice (done; 4-7 h, after 1.0; GitHub issue #70)
 
 Decided 2026-11-09. The music in a short drops by hand today, cut by cut. ffmpeg's sidechain compressor can do it from the voice itself.
 
@@ -998,7 +998,7 @@ Decided 2026-11-09. The music in a short drops by hand today, cut by cut. ffmpeg
 - [x] **Heard in the preview:** the same dip while playing, so what is heard is what renders (1-2 h) *Built 2026-11-09. The preview asks for the voice's levels by id, works the dip out by the same `applyDucks` the render runs, and `layerGainAt` multiplies the element's volume by `duckGainAt` each tick — the number the render's expression computes, point for point.*
 - [x] **Tests:** generated music and voice bursts, the music measured lower while the voice speaks and back after (1 h) *Built 2026-11-09. Units hold the setting and its text form, the levels, where a voice speaks through its delay, in point, span and mute, the curve's shape and merging, and evaluate the render's expression against the preview's gain at every 37 ms of eight seconds. The render suite generates a tone bed and a voice burst at 0.6-1.1 s, renders the dip, and reads the music 10-14 dB lower while the voice speaks and back within a decibel after; a muted voice leaves it level. No UI test drives the preview's dip yet: the UI fixture library has no voice with pauses, and adding one shifts the counts other UI tests hold.*
 
-## 81. HDR phone clips made ready to use (done; 6-10 h, after 1.0)
+## 81. HDR phone clips made ready to use (done; 6-10 h, after 1.0; GitHub issue #71)
 
 Decided 2026-11-09. Phones record HDR by default, and HDR footage treated as standard range looks washed out. Needs zimg in the ffmpeg in use.
 
@@ -1007,7 +1007,7 @@ Decided 2026-11-09. Phones record HDR by default, and HDR footage treated as sta
 - [x] **Said plainly:** an ffmpeg without zimg is told so, with what to do, and the clip still plays as it is (1-2 h) *Built 2026-11-09. `zscale` is zimg, which not every build carries: the filter list is read once per ffmpeg path (`src/main/hdr-service.ts`) and the answer rides on the FFmpeg status the window already reads at launch. Without it nothing is attempted — the clip plays and renders exactly as it is — and the Info tab's Range row says what the file is, that it cannot be converted here and why, and to install an FFmpeg built with zimg or let Pulp fetch one; a render that met such a shot warns once in the same words.*
 - [x] **Tests:** a generated HDR-tagged clip converted and its levels measured (1 h) *Built 2026-11-09. Units hold the recognition (real ffprobe output for an iPhone-shaped HLG file and an HDR10 one), the recipe's steps and their order in all three argument lists, the badge and the Range row either way, and that nothing is ever written to the clip. The render suite generates a two-tone clip tagged PQ and a pixel-identical untagged twin, renders both on the cut track and measures the halves: converted, the bright half comes up past the control and the dark half down, with the contrast wider by 40 levels and gray still gray; on an ffmpeg without zimg it asserts the plain warning and a picture written as it is. The UI suite reads the badge and the Range row, drops the clip on the stage and reads the converted picture off the track canvas, so the preview is held to the same arithmetic. The library's own pictures of a clip are **not** converted yet — its thumbnail and hover strip, made during the scan and cached on disk by item id, so doing them needs a cache migration; and the item preview, which plays the file in a `<video>` element with no ffmpeg in the path at all. Everywhere the clip is part of a project — the stage, the cut track, a layer, a media slot, every render — it is.*
 
-## 82. More export formats (8-13 h, after 1.0)
+## 82. More export formats (8-13 h, after 1.0; GitHub issue #72)
 
 Decided 2026-11-09. Formats that reach people Pulp's presets miss: Avid-style editing, and animated pictures on the web that need no editing app at all.
 
@@ -1016,7 +1016,7 @@ Decided 2026-11-09. Formats that reach people Pulp's presets miss: Avid-style ed
 - [ ] **Animated WebP and APNG:** both keeping alpha; WebP needs libwebp in the ffmpeg in use and says so when it is missing (2-4 h)
 - [ ] **Tests:** each format rendered and read back, its alpha and frame count checked (2-3 h)
 
-## 83. Deinterlace old footage (3-6 h, after 1.0)
+## 83. Deinterlace old footage (3-6 h, after 1.0; GitHub issue #73)
 
 Decided 2026-11-09. Old stock discs and archives are often interlaced, which shows as combing on a progressive timeline. Goes with the stock library of milestone 32.
 
@@ -1024,7 +1024,7 @@ Decided 2026-11-09. Old stock discs and archives are often interlaced, which sho
 - [ ] **Fixed:** deinterlaced for the preview and the render, the field order read from the clip, with a way to turn it off (1-3 h)
 - [ ] **Tests:** a generated interlaced clip measured free of combing after, and a progressive one left alone (1 h)
 
-## 84. A flash warning before export (4-7 h, after 1.0)
+## 84. A flash warning before export (4-7 h, after 1.0; GitHub issue #74)
 
 Decided 2026-11-09. Rapid flashing can be unsafe for some viewers. This is a warning to help a person catch it, not a certified broadcast test, and it says so.
 
@@ -1032,7 +1032,7 @@ Decided 2026-11-09. Rapid flashing can be unsafe for some viewers. This is a war
 - [ ] **Softened:** an option to calm those moments, shown before anything is overwritten (1-2 h)
 - [ ] **Tests:** a generated strobe flagged and softened, and steady footage left unmarked (1-2 h)
 
-## 85. Timeline lanes that say what they are (3-5 h, after 1.0)
+## 85. Timeline lanes that say what they are (3-5 h, after 1.0; GitHub issue #75)
 
 Decided 2026-11-10. With cuts on the cut track and nothing on the picture track (milestone 57), the picture track sits under the layer bars as an empty dashed box whose hint is cut short at most widths, which reads as a gap rather than a place for something. Editing apps do it differently: an empty track looks like any other track and is named at its left, and a dashed outline appears only while something is being dragged onto it. This follows them, and milestone 42's rule that nothing empty takes room from the stage.
 
