@@ -102,9 +102,11 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 85. Timeline lanes that say what they are (post-1.0, **done**) | 3-5 h |
 | 86. The docs and pictures caught up (post-1.0, **done**) | 4-7 h |
 | 87. A film strip on the timeline (post-1.0, **done**) | 10-16 h |
+| 88. Features that know what the ffmpeg can do (post-1.0) | 8-13 h |
+| 89. Reframe when the action is wider than the frame (post-1.0) | 2-3 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1196-1970 h** |
+| **Total including post-1.0 items** | **1206-1986 h** |
 
 ## 0. Foundation (done)
 
@@ -1059,3 +1061,20 @@ Decided 2026-11-10. A shot on the cut track (milestone 49) is a thin bar with it
 - [x] **Thumbnails: Off, First frame or Continuous:** a choice kept with the other settings, the cut track taller while frames show, and the stage keeping its room as milestone 42 asks (2-3 h) *Built 2026-11-10. Kept with the player's settings in settings.json (`filmStrip`), Continuous to start with, as editing apps show frames; offered as Settings → Timeline thumbnails and as Thumbnails on a shot's right-click menu. The cut track is 40 px while frames show, 16 px when Off; the transport row keeps its height, so the lanes scroll rather than take the stage's room.*
 - [x] **The other lanes too:** clips on the picture track (milestone 57) drawn the same way, and the layer bars showing their template's own frames (1-2 h) *Built 2026-11-10. A picture-track clip's slots go through `clipMediaTimeAt` — its in point, speed, delay and loop — and the lane is 32 px while they show. The layer bars keep their 12 px (there are many of them) and draw the template's own frames faintly from the hover-scrub strip its card already makes, each moment through `templateTimeAt`, so a stretched hold holds its frame; eight frames, so they are a sketch of the graphic rather than a strip.*
 - [x] **Tests:** a generated clip with its frame number drawn on every frame, read back off the track through a trim, a speed change and a freeze; and a timeline of many shots that stays quick to scroll and trim (2-3 h) *Built 2026-11-10. Units hold the sampling, the layout, the frame lookup, and the slots through a trim, a speed, a ramp, a freeze, widening and narrowing. The UI suite's clip carries its frame number as six bars; the test reads every whole slot off the canvas and holds it within two frames of what the shot's timing says, for the whole clip, a trim from 3 s, twice the speed and a freeze on frame 25; then First frame (one picture, frame 30) and Off (no picture, the lane back to 16 px); the picture track's clip and the layer bars drawn; and sixty shots, all drawn, a trim's redraw about 2 ms (held under 50) and a scroll step held under 16. Also fixed on the way: a drop the picture track took left the lanes' drag highlight on, since the drop never reached them.*
+
+## 88. Features that know what the ffmpeg can do (8-13 h, after 1.0; GitHub issue #90)
+
+Decided 2026-11-10. Pulp uses the person's own ffmpeg, and builds differ: CI's Homebrew one on macOS has no zimg, so HDR clips cannot be converted, and stabilize and animated WebP depend on vid.stab and libwebp. Each feature checks for itself today, and the advice to let Pulp fetch a build does not work for someone who already has an ffmpeg, since a fetched one is looked for last and offered only when there is none.
+
+- [ ] **One check:** the filters and encoders read once per ffmpeg, and every feature asks that one answer (2-3 h)
+- [ ] **One table of needs:** each feature names what it needs, and a test fails when the code uses a filter or encoder the table does not name (1-2 h)
+- [ ] **Missing stays visible:** a feature the build lacks is shown as unavailable, says what is missing and offers the fix; stabilize, HDR and WebP move onto it (1-2 h)
+- [ ] **Settings knows:** what this ffmpeg can do, a way to choose which ffmpeg Pulp uses, and the fetch offered when a feature needs it, not only when there is none, with the switch to the fetched build (2-3 h)
+- [ ] **Held both ways:** a test holds the builds Pulp fetches to the table, and a project that needs what this ffmpeg lacks says so before rendering, the command line exiting with an error rather than leaving it out (2-3 h)
+
+## 89. Reframe when the action is wider than the frame (2-3 h, after 1.0; GitHub issue #91)
+
+Decided 2026-11-10. Auto-reframe (milestone 77) follows one subject. When what matters in a shot is wider than the tall crop — a 9:16 window of 720p footage is 405 px across — something is cut off, and nothing says so.
+
+- [ ] **Noticed and offered:** a shot whose found interest spreads wider than the crop is marked, with Letterbox suggested for it, rather than cut quietly (1-2 h)
+- [ ] **Tests:** two generated markers 557 px apart in a 1280 × 720 shot, the shot marked, and Letterbox keeping both (1 h)
