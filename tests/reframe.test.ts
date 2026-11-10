@@ -5,10 +5,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { cutReframe, reframeCentreAt, sanitizeCutTrack, withCutReframe, withReframeKeyAt } from '../src/core/cut-track';
+import { cutReframe, cutReframeWide, reframeCentreAt, sanitizeCutTrack, withCutReframe, withReframeKeyAt } from '../src/core/cut-track';
 import { buildRenderPlan } from '../src/core/render-plan';
 import {
-  centredReframe, clampCenter, coverWindow, coverWindowSize, findSubject, frameDifference, reframeCropFilter, reframeKeysFrom, steadyPath, subjectPath,
+  centredReframe, clampCenter, coverWindow, coverWindowSize, findSubject, frameDifference, reframeCropFilter, reframeKeysFrom, spreadOverflows, steadyPath, subjectPath, wideShots,
 } from '../src/core/reframe';
 import { rawManifest } from './fixtures';
 import { validateManifest } from '../src/core/manifest';
@@ -148,5 +148,110 @@ describe('a cut keeps its reframe', () => {
     const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
     expect(graph).toContain("[1:v]fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:'clip((if(lt(t,2),0.3+(0.4)*clip((t-0)/2,0,1),0.7))*iw-ow/2,0,iw-ow)'");
     expect(graph).toContain('[2:v]fps=30,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:-1:-1:color=black');
+  });
+});
+
+describe('wider than the frame (milestone 89)', () => {
+  // A 1280 × 720 shot, read at the tracker's 320 × 180 proxy: a quarter in each direction. A 9:16
+  // frame over it takes 405 px of its width; two markers 557 px apart cannot both be in it.
+  const clip = { width: 1280, height: 720 };
+  const frame = { width: 1080, height: 1920 };
+  const PW = 320;
+  const PH = 180;
+  const scale = PW / clip.width;
+  const proxyFrames = (list: Uint8Array[]) => ({ width: PW, height: PH, frames: list, channels: 3 });
+  const white: [number, number, number] = [240, 240, 240];
+  /** Two markers 80 px square, `apart` px between their centers, about the middle of the shot, in source pixels. */
+  const pair = (apart: number, dx = 0) => (x: number, y: number) =>
+    square((640 - apart / 2 + dx) * scale, 360 * scale, 80 * scale, white)(x, y) ?? square((640 + apart / 2 + dx) * scale, 360 * scale, 80 * scale, white)(x, y);
+  const window = coverWindowSize(frame, clip);
+
+  it('knows a 9:16 window of 720p is 405 px across, and measures two markers 557 px apart as wider', () => {
+    expect(window.w * clip.width).toBeCloseTo(405, 0);
+    const p = findSubject(rgb(PW, PH, pair(557)), null, { width: PW, height: PH, channels: 3 });
+    expect(p.spread).toBeDefined();
+    const across = (p.spread!.x1 - p.spread!.x0) * clip.width;
+    // The blocks' centers sit within a block (32 source px) of the markers' outer edges: 637 px end to end.
+    expect(across).toBeGreaterThan(557);
+    expect(across).toBeLessThan(637 + 32);
+    expect(spreadOverflows(p.spread, window)).toBe(true);
+    // One marker is well inside the window.
+    const one = findSubject(rgb(PW, PH, square(160, 90, 20, white)), null, { width: PW, height: PH, channels: 3 });
+    expect(spreadOverflows(one.spread, window)).toBe(false);
+  });
+
+  it('marks the shot, in the clip\'s own seconds, and leaves a shot that fits unmarked', () => {
+    const wide = Array.from({ length: 10 }, () => rgb(PW, PH, pair(557)));
+    expect(wideShots(subjectPath(proxyFrames(wide)), { frame, clip, from: 2, fps: 10 })).toEqual([{ from: 2, to: 3 }]);
+    // Two markers 250 px apart are 330 px end to end, inside the 405: nothing is cut off.
+    const near = Array.from({ length: 10 }, () => rgb(PW, PH, pair(250)));
+    expect(wideShots(subjectPath(proxyFrames(near)), { frame, clip, from: 2, fps: 10 })).toEqual([]);
+    // Nor is a single marker walking across.
+    const walk = Array.from({ length: 10 }, (_, i) => rgb(PW, PH, square(60 + i * 20, 90, 20, white)));
+    expect(wideShots(subjectPath(proxyFrames(walk)), { frame, clip, from: 0, fps: 10 })).toEqual([]);
+  });
+
+  it('marks only the shot that is wide, across a hard cut, and follows a pair that moves', () => {
+    const one = Array.from({ length: 10 }, (_, i) => rgb(PW, PH, square(100 + i * 4, 90, 20, white)));
+    const two = Array.from({ length: 10 }, (_, i) => rgb(PW, PH, (x, y) => pair(557, (i - 5) * 8)(x, y) ?? [30, 30, 30]));
+    const path = subjectPath(proxyFrames([...one, ...two]));
+    expect(path.shots).toEqual([0, 10]);
+    expect(wideShots(path, { frame, clip, from: 0, fps: 10 })).toEqual([{ from: 1, to: 2 }]);
+  });
+
+  it('takes two faces a room apart as wider than the frame', () => {
+    const skin: [number, number, number] = [220, 170, 140];
+    const faces = Array.from({ length: 6 }, () => rgb(PW, PH, (x, y) => square(70, 60, 16, skin)(x, y) ?? square(250, 60, 16, skin)(x, y)));
+    const path = subjectPath(proxyFrames(faces));
+    expect(path.points.every((p) => p.face)).toBe(true);
+    expect(wideShots(path, { frame, clip, from: 0, fps: 30 })).toEqual([{ from: 0, to: 0.2 }]);
+  });
+
+  it('does not take a texture over the whole frame for a subject, and never marks a frame the picture\'s own shape', () => {
+    const checker = Array.from({ length: 6 }, () => rgb(PW, PH, (x, y) => ((Math.floor(x / 4) + Math.floor(y / 4)) % 2 ? [230, 230, 230] : [20, 20, 20])));
+    const path = subjectPath(proxyFrames(checker));
+    expect(path.points.every((p) => p.spread === undefined)).toBe(true);
+    expect(wideShots(path, { frame, clip, from: 0, fps: 30 })).toEqual([]);
+    const wide = subjectPath(proxyFrames(Array.from({ length: 6 }, () => rgb(PW, PH, pair(557)))));
+    expect(wideShots(wide, { frame: { width: 1920, height: 1080 }, clip, from: 0, fps: 30 })).toEqual([]);
+    // A 1:1 frame takes 720 of the 1280: the 557 apart fit, end to end 637.
+    expect(wideShots(wide, { frame: { width: 1080, height: 1080 }, clip, from: 0, fps: 30 })).toEqual([]);
+  });
+
+  it('keeps the mark with the shape\'s keys: through a hand\'s key and Keep the Middle, gone with Letterbox, clipped to the cut\'s window, read back only for a reframed shape', () => {
+    const track = { cuts: [{ id: 'clip-a', from: 0, to: 4 }] };
+    const keys = [{ at: 0, x: 0.3, y: 0.5 }, { at: 3.9, x: 0.6, y: 0.5 }];
+    const marked = withCutReframe(track, 0, '9:16', keys, [{ from: 2, to: 4 }]);
+    expect(cutReframeWide(marked.cuts[0]!, '9:16')).toEqual([{ from: 2, to: 4 }]);
+    expect(cutReframeWide(marked.cuts[0]!, '1:1')).toEqual([]);
+    const keyed = withReframeKeyAt(marked, 0, '9:16', { at: 1, x: 0.5, y: 0.5 }, 30);
+    expect(cutReframeWide(keyed.cuts[0]!, '9:16')).toEqual([{ from: 2, to: 4 }]);
+    const middle = withCutReframe(keyed, 0, '9:16', centredReframe(0));
+    expect(cutReframeWide(middle.cuts[0]!, '9:16')).toEqual([{ from: 2, to: 4 }]);
+    // Letterbox, the suggestion taken: the keys and the mark go together.
+    const boxed = withCutReframe(middle, 0, '9:16', null);
+    expect(boxed.cuts[0]!.reframe).toBeUndefined();
+    expect(boxed.cuts[0]!.reframeWide).toBeUndefined();
+    // Found again with nothing wide: the mark is cleared.
+    expect(withCutReframe(marked, 0, '9:16', keys, []).cuts[0]!.reframeWide).toBeUndefined();
+    // A trim that leaves the wide shot out leaves the mark out; one that cuts into it clips it.
+    expect(cutReframeWide({ ...marked.cuts[0]!, to: 2 }, '9:16')).toEqual([]);
+    expect(cutReframeWide({ ...marked.cuts[0]!, from: 3 }, '9:16')).toEqual([{ from: 3, to: 4 }]);
+    // Read back from a project: spans in order and non-empty, and only for a shape that is reframed.
+    const read = sanitizeCutTrack({ cuts: [{
+      id: 'a', from: 0, to: 4, reframe: { '9:16': keys },
+      reframeWide: { '9:16': [{ from: 3, to: 4 }, { from: 2, to: 1 }, { from: 0.5, to: 1.25 }, 'nope'], '1:1': [{ from: 0, to: 1 }] },
+    }] });
+    expect(read!.cuts[0]!.reframeWide).toEqual({ '9:16': [{ from: 0.5, to: 1.25 }, { from: 3, to: 4 }] });
+    expect(sanitizeCutTrack({ cuts: [{ id: 'a', from: 0, to: 4, reframeWide: { '9:16': [{ from: 0, to: 1 }] } }] })!.cuts[0]!.reframeWide).toBeUndefined();
+  });
+
+  it('letterboxes the marked cut whole: the picture scaled to fit inside the tall frame, padded rather than cropped', () => {
+    const manifest = validateManifest(rawManifest({ fps: 30, duration: 4, width: 1080, height: 1920, aspects: ['9:16'] }));
+    if (!manifest.ok) throw new Error('fixture manifest invalid');
+    const plan = buildRenderPlan({ manifest: manifest.manifest, presetId: 'prores-4444', outputPath: '/o/t', track: { cuts: [{ path: '/lib/pair.mp4', from: 0, to: 4 }] } });
+    const graph = plan.args[plan.args.indexOf('-filter_complex') + 1]!;
+    expect(graph).toContain('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:-1:-1:color=black');
+    expect(graph).not.toContain('crop=');
   });
 });

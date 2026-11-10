@@ -514,6 +514,15 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-filter_complex', "[0][1]concat=n=2:v=1:a=0[g];[g][2]overlay=x='if(lt(t,2),30+120*t,50)':y='if(lt(t,2),80,20+30*(t-2))':shortest=1",
           '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-walker.mp4'),
         ]), { timeoutMs: 60_000 });
+        // Wider than the frame (milestone 89): two white squares 557 px apart over a gray 1280 × 720
+        // ground, so a 9:16 crop of it (405 px across) cannot hold both. mpeg4 and sorted last.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y',
+          '-f', 'lavfi', '-i', 'color=c=0x6e6e6e:s=1280x720:d=2:r=10',
+          '-f', 'lavfi', '-i', 'color=c=white:s=80x80:d=2:r=10',
+          '-filter_complex', '[0][1]overlay=x=322:y=320[a];[a][1]overlay=x=879:y=320:shortest=1',
+          '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-pair.mp4'),
+        ]), { timeoutMs: 60_000 });
         // A shaky take (milestone 78): a 320 × 180 window over allrgb's static texture, jittering
         // by sinusoids — camera shake over a scene that does not itself move, so steadiness can be
         // measured as the frame-to-frame difference. mpeg4 and sorted last, like the fixtures above.
@@ -1957,6 +1966,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         await page.eval(`document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="follow"]').click()`);
         await until(async () => ((await keys())?.length ?? 0) >= 3, 'the reframe keys on the cut', 90_000);
         const found = (await keys())!;
+        // One subject fits the crop: no shot is marked wider than the frame (milestone 89).
+        expect(await page.eval<unknown>(`window.pulpLayerEditor().track().cuts[0].reframeWide ?? null`)).toBeNull();
+        expect(await page.eval<boolean>(`!!document.querySelector('#cut-track .cut.wide')`)).toBe(false);
         // The subject stays inside the crop at every frame of both shots: its center within the
         // window about the crop's center, with its own half-width to spare.
         for (let i = 0; i < 40; i++) {
@@ -1996,6 +2008,71 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(moved.length).toBeGreaterThanOrEqual(before);
         const written = moved.find((k) => Math.abs(k.at - 1.5) < 0.06)!;
         expect(written.x - centreAt(found, 1.5).x).toBeCloseTo(0.1 * windowW, 2);
+      } finally {
+        await page.eval(`(() => { const e = window.pulpLayerEditor(); e.setTrack(null, true); })()`);
+        await openTab('output');
+        await fire('#opt-aspect', '16:9', 'change');
+        await openTab('parameters');
+        await restoreLayers();
+      }
+    }, 240_000);
+
+    it('marks a reframed cut whose two markers are wider than the 9:16 crop, suggests Letterbox, and Letterbox keeps both on the stage (milestone 89)', async () => {
+      await clickResult('Title Card');
+      await openTab('output');
+      await fire('#opt-aspect', '9:16', 'change');
+      await until(() => page.eval<{ width: number; height: number }>(`(() => { const [w, h] = (document.getElementById('preview-frame').style.aspectRatio || '16 / 9').split('/').map(Number); return { width: w, height: h }; })()`).then((f) => f.height > f.width), 'the tall frame');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const pairId = await onResult<string>('zz-pair', '(li) => li.dataset.id');
+      type Cut = { reframe?: Record<string, unknown[]>; reframeWide?: Record<string, { from: number; to: number }[]> };
+      const cut = () => page.eval<Cut | null>(`(() => { const t = window.pulpLayerEditor().track(); return (t && t.cuts[0]) || null; })()`);
+      const openReframe = async () => {
+        await page.eval(`document.querySelector('#cut-track .cut .cut-body').dispatchEvent(new MouseEvent('contextmenu', { clientX: 320, clientY: 320, bubbles: true, cancelable: true }))`);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('.context-menu > button')].some((b) => b.textContent === 'Reframe for 9:16')`), 'the Reframe submenu offered');
+        await page.eval(`[...document.querySelectorAll('.context-menu > button')].find((b) => b.textContent === 'Reframe for 9:16').click()`);
+        await until(() => page.eval<boolean>(`!!document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="off"]')`), 'the submenu open');
+      };
+      const letterboxLabel = () => page.eval<string>(`document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="off"]').textContent`);
+      const closeMenu = () => page.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+      try {
+        await page.eval(`(() => {
+          const el = document.getElementById('preview-frame');
+          const r = el.getBoundingClientRect();
+          const dt = new DataTransfer();
+          dt.setData('application/x-pulp-item', ${JSON.stringify(pairId)});
+          const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+          el.dispatchEvent(new DragEvent('dragover', at));
+          el.dispatchEvent(new DragEvent('drop', at));
+        })()`);
+        await until(() => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`).then((n) => n === 1), 'the clip on the cut track');
+        // Before any reframe, Letterbox is plain: nothing has been found yet.
+        await openReframe();
+        expect(await letterboxLabel()).toBe('Letterbox');
+        await page.eval(`document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="follow"]').click()`);
+        await until(async () => Boolean((await cut())?.reframeWide?.['9:16']), 'the wide shot marked on the cut', 90_000);
+        expect((await cut())!.reframeWide!['9:16']).toEqual([{ from: 0, to: 2 }]);
+        // Marked on the lane, said in its tooltip, and Letterbox suggested in the menu.
+        await until(() => page.eval<boolean>(`!!document.querySelector('#cut-track .cut.wide')`), 'the cut marked on the lane');
+        expect(await page.eval<string>(`document.querySelector('#cut-track .cut .cut-body').title`)).toContain('What matters is wider than the 9:16 frame at 0-2 s of the clip');
+        expect(await page.eval<string>(`document.querySelector('#cut-track .cut .cut-body').getAttribute('aria-label')`)).toContain('Letterbox is suggested.');
+        await openReframe();
+        expect(await letterboxLabel()).toBe('Letterbox (Suggested)');
+        // Taken: the crop and the mark go, and the stage shows the whole picture — both squares in
+        // the letterboxed frame, at 362 and 919 of 1280 across its middle row.
+        await page.eval(`document.querySelector('.context-menu.submenu button[data-command="cut.reframe"][data-arg="off"]').click()`);
+        await until(async () => { const c = await cut(); return !!c && !c.reframe && !c.reframeWide; }, 'the reframe and its mark taken off');
+        await until(() => page.eval<boolean>(`!document.querySelector('#cut-track .cut.wide')`), 'the mark gone from the lane');
+        await page.eval(`(() => { const s = document.getElementById('scrub'); s.value = '15'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        const lit = (fx: number) => `(() => { const c = document.getElementById('track-picture'); if (!c || c.hidden) return false; const d = c.getContext('2d').getImageData(Math.round(c.width * ${fx}), Math.floor(c.height / 2), 1, 1).data; return d[0] > 200 && d[1] > 200 && d[2] > 200; })()`;
+        await until(() => page.eval<boolean>(lit(362 / 1280)), 'the left square on the letterboxed stage', 30_000);
+        expect(await page.eval<boolean>(lit(919 / 1280)), 'the right square on the letterboxed stage').toBe(true);
+        expect(await page.eval<boolean>(lit(0.5)), 'the gray ground between them').toBe(false);
+        // And with nothing found any more, Letterbox is plain again.
+        await openReframe();
+        expect(await letterboxLabel()).toBe('Letterbox');
+        await closeMenu();
+        await until(async () => !(await page.eval<boolean>(`!!document.querySelector('.context-menu button')`)), 'the menu closed by Escape');
       } finally {
         await page.eval(`(() => { const e = window.pulpLayerEditor(); e.setTrack(null, true); })()`);
         await openTab('output');

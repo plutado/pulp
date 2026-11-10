@@ -29,7 +29,7 @@ import { lottieEditables, lottieInfo, lottieManifest, lottieManifestId, parseLot
 import { LOTTIE_TEMPLATE_PLAYER, lottieTemplateFiles } from '../../src/core/lottie-template';
 import { IDENTITY_KEY } from '../../src/core/layer-keys';
 import { splitGrayFrames, TRACK_CHANNELS, trackFramesArgs, trackProxySize, type MotionTrack } from '../../src/core/motion-track';
-import { reframeKeysFrom, steadyPath, subjectPath } from '../../src/core/reframe';
+import { reframeKeysFrom, steadyPath, subjectPath, wideShots } from '../../src/core/reframe';
 import { pinKeys } from '../../src/core/track-pin';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
 
@@ -2923,6 +2923,65 @@ describe.skipIf(!available)('end-to-end render', () => {
       return false;
     };
     for (const frame of [0, 10, 19, 25, 35]) expect(await hasSquare(frame), `frame ${frame}: the subject in the tall frame`).toBe(true);
+  }, 240_000);
+
+  it('marks a shot whose two markers are wider than the 9:16 crop, and letterboxes it with both kept (milestone 89)', async () => {
+    // Two white squares 557 px apart in a 1280 × 720 shot: a 9:16 window of it is 405 px across, so
+    // no crop holds both. Read at the tracker's proxy as the app reads it, the shot is marked; the
+    // letterboxed render keeps both squares, and the crop the reframe would make keeps at most one.
+    const lib = join(out, 'reframe-wide-library');
+    await mkdir(lib, { recursive: true });
+    const clip = join(lib, 'pair.mp4');
+    const built = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y',
+      '-f', 'lavfi', '-i', 'color=c=0x6e6e6e:s=1280x720:d=2:r=10',
+      '-f', 'lavfi', '-i', 'color=c=white:s=80x80:d=2:r=10',
+      '-filter_complex', '[0][1]overlay=x=322:y=320[a];[a][1]overlay=x=879:y=320:shortest=1',
+      '-c:v', 'mpeg4', '-qscale:v', '2', clip,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(built.code, built.stderr).toBe(0);
+    const clipId = itemId(`media:${clip}`);
+    const size = { width: 1280, height: 720 };
+    const proxy = trackProxySize(size);
+    const read = await runBoundedBuffer(ffmpeg, trackFramesArgs(clip, 0, 2, proxy), { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+    expect(read.code, read.stderr).toBe(0);
+    const frames = splitGrayFrames(new Uint8Array(read.stdout.buffer, read.stdout.byteOffset, read.stdout.byteLength), proxy.width, proxy.height, TRACK_CHANNELS);
+    const path = subjectPath(frames);
+    const tall = { width: 180, height: 320 };
+    const wide = wideShots(path, { frame: tall, clip: size, from: 0, fps: 10 });
+    expect(wide, 'the one shot marked, all of it').toEqual([{ from: 0, to: frames.frames.length / 10 }]);
+
+    /** The runs of near-white pixels along the frame's middle row: one per square in view. */
+    const squaresInView = async (file: string): Promise<number> => {
+      const row = await pixels(file, 0, 160, 180);
+      let runs = 0;
+      let inRun = false;
+      for (let x = 0; x < 180; x++) {
+        const lit = row[x * 4]! > 200 && row[x * 4 + 1]! > 200 && row[x * 4 + 2]! > 200;
+        if (lit && !inRun) runs += 1;
+        inRun = lit;
+      }
+      return runs;
+    };
+    // Letterbox, as suggested: the cut with no reframe for 9:16, the whole picture fitted inside.
+    const boxed = await render('pulp.test.reframe-tall', 'png-sequence', 'boxed', {
+      extra: ['--library', FIXTURES, '--library', lib, '--out-point', '9', '--param', `@track=${JSON.stringify({ cuts: [{ id: clipId, from: 0, to: 2 }] })}`],
+    });
+    expect(boxed.code, boxed.stderr).toBe(0);
+    const boxedFile = join(out, 'boxed_00005.png');
+    expect(await probe(boxedFile)).toMatchObject(tall);
+    expect(await squaresInView(boxedFile), 'both squares in the letterboxed frame').toBe(2);
+    // Where they should be: 362 and 919 of 1280 across the 180 px frame, at its middle row.
+    for (const x of [Math.round((362 / 1280) * 180), Math.round((919 / 1280) * 180)]) {
+      expect((await pixels(boxedFile, x, 160))[0], `a square at x ${x}`).toBeGreaterThan(200);
+    }
+    // The reframe it would have been: keys found as the app finds them, and no frame holds both.
+    const keys = reframeKeysFrom(steadyPath(path, { frame: tall, clip: size, window: 5 }), path.shots, 0, 10);
+    const cropped = await render('pulp.test.reframe-tall', 'png-sequence', 'cropped', {
+      extra: ['--library', FIXTURES, '--library', lib, '--out-point', '9', '--param', `@track=${JSON.stringify({ cuts: [{ id: clipId, from: 0, to: 2, reframe: { '9:16': keys } }] })}`],
+    });
+    expect(cropped.code, cropped.stderr).toBe(0);
+    expect(await squaresInView(join(out, 'cropped_00005.png')), 'the crop cannot hold both').toBeLessThan(2);
   }, 240_000);
 
   describe('Lottie animations', () => {

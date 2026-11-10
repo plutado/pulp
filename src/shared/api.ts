@@ -39,8 +39,8 @@ export type SaveCanvasResult =
   | { ok: false; cancelled?: boolean; message: string };
 import type { ImageGrantRequest } from '../core/image-slot';
 import type { TrackSample } from '../core/motion-track';
-import type { ReframeKey } from '../core/cut-track';
-export type ReframeResult = { ok: true; keys: ReframeKey[]; shots: number; faces: number; frames: number } | { ok: false; message: string };
+import type { ReframeKey, ReframeWideSpan } from '../core/cut-track';
+export type ReframeResult = { ok: true; keys: ReframeKey[]; wide: ReframeWideSpan[]; shots: number; faces: number; frames: number } | { ok: false; message: string };
 export type TrackMotionResult =
   | { ok: true; samples: TrackSample[]; fps: number; from: number; to: number; size: { w: number; h: number }; kind: 'point' | 'box'; frames: number }
   | { ok: false; message: string };

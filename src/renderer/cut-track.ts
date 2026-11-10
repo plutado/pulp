@@ -18,13 +18,13 @@
  * lane never keeps a second answer of its own.
  */
 
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import { COLLECTION_DRAG_TYPE } from '../core/collection';
 import {
   cutIndexAt, cutRates, cutSeconds, cutFromClip, cutWindows, DEFAULT_HOLD_SECONDS, DEFAULT_TRANSITION_SECONDS, snapTime, splitAt, trackAudio,
   trackDuration, transitionAt, withCutHold, withCutInserted, withCutMoved, withCutRemoved, withCutSound, withCutSpeed, withCutTransition,
   withCutWindow, withFreezeAt, withSilencesCut, type Cut, type CutSound, type CutSpeed, type CutTransition, type CutTrack,
- cutReframe, withCutReframe } from '../core/cut-track';
+ cutReframe, cutReframeWide, withCutReframe, type ReframeWideSpan } from '../core/cut-track';
 import type { MenuCommand, MenuItemSpec } from '../core/menu';
 import { openContextMenu } from './context-menu';
 import { layerBarPeaks } from '../core/layer-audio';
@@ -127,6 +127,16 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
     } else {
       el.body.title = t('cut-track.cut.title', said);
       el.body.setAttribute('aria-label', t('cut-track.cut.aria-label', said));
+    }
+    // Reframed for this shape with what matters wider than the crop (milestone 89): marked, and said
+    // in its tooltip and its name, with Letterbox suggested.
+    const aspect = stageAspect();
+    const wide = cutReframeWide(cut, aspect);
+    el.root.classList.toggle('wide', wide.length > 0);
+    if (wide.length > 0) {
+      const note = t('cut-track.cut.wide', { aspect, spans: spansText(wide) });
+      el.body.title = [el.body.title, note].join('\n');
+      el.body.setAttribute('aria-label', `${el.body.getAttribute('aria-label') ?? ''}. ${note}`);
     }
     for (const [handle, which, value] of [[el.start, 'start', windows[index]!.start], [el.end, 'end', windows[index]!.end]] as const) {
       handle.setAttribute('aria-label', t(which === 'start' ? 'cut-track.trim.start.aria-label' : 'cut-track.trim.end.aria-label', { number: index + 1 }));
@@ -310,6 +320,11 @@ function mediaFor(id: string): MediaEntry | undefined {
 
 function tidy(seconds: number): number {
   return Math.round(seconds * 100) / 100;
+}
+
+/** Stretches of a clip as a reader reads them: "0-2, 5.5-7". */
+function spansText(spans: readonly ReframeWideSpan[]): string {
+  return spans.map((s) => `${tidy(s.from)}-${tidy(s.to)}`).join(', ');
 }
 
 function indexOfEl(from: EventTarget | null): number {
@@ -571,10 +586,12 @@ function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
   // picture letterboxed as before. Named for the shape on the stage, which is the one it changes.
   const aspect = stageAspect();
   const keys = cutReframe(cut, aspect);
+  // A cut whose interest was found wider than the crop has Letterbox suggested (milestone 89).
+  const suggestLetterbox = cutReframeWide(cut, aspect).length > 0;
   const reframe: MenuItemSpec[] = [
     { command: 'cut.reframe', label: t('cut-track.menu.reframe.follow'), arg: 'follow', type: 'radio', checked: (keys?.length ?? 0) > 1 },
     { command: 'cut.reframe', label: t('cut-track.menu.reframe.center'), arg: 'center', type: 'radio', checked: keys?.length === 1 },
-    { command: 'cut.reframe', label: t('cut-track.menu.reframe.off'), arg: 'off', type: 'radio', checked: !keys },
+    { command: 'cut.reframe', label: t(suggestLetterbox ? 'cut-track.menu.reframe.off-suggested' : 'cut-track.menu.reframe.off'), arg: 'off', type: 'radio', checked: !keys },
   ];
   return [
     ...(last ? [] : [{ label: t('cut-track.menu.transition'), submenu: transition } satisfies MenuItemSpec]),
@@ -644,8 +661,10 @@ function runCutCommand(command: string, arg: string | null, index: number): void
       }
       const now = layerEditor()?.track();
       if (!now || now.cuts[index]?.id !== cut.id) return;
-      setTrack(withCutReframe(now, index, aspect, result.keys), true);
-      say(t(result.faces > 0 ? 'cut-track.reframe.done-faces' : 'cut-track.reframe.done', { shots: result.shots, keys: result.keys.length }));
+      setTrack(withCutReframe(now, index, aspect, result.keys, result.wide), true);
+      // What matters wider than the crop in some shot is said rather than cut quietly (milestone 89).
+      if (result.wide.length > 0) say(t('cut-track.reframe.wide', { count: result.wide.length, aspect }));
+      else say(t(result.faces > 0 ? 'cut-track.reframe.done-faces' : 'cut-track.reframe.done', { shots: result.shots, keys: result.keys.length }));
     });
     return;
   }
@@ -902,6 +921,14 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
   });
   // A wider or narrower lane has more or fewer slots along each cut.
   new ResizeObserver(() => paintFilms()).observe(el);
+  // A cut's wide mark is for the stage's shape (milestone 89): a change of shape draws the lane again.
+  effect(() => {
+    void frameSize.value;
+    // Only the shape is listened for: what the redraw reads besides is not this effect's to follow.
+    untracked(() => {
+      if (lastUpdate) cutTrackUpdate(...lastUpdate);
+    });
+  });
 }
 
 /** The shape the stage shows the picture at, which is the shape a reframe is for. */

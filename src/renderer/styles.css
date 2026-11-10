@@ -1260,6 +1260,8 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .cut .cut-speed[hidden] { display: none; }
 .cut.hold .cut-body { background: var(--cut-hold); background-image: repeating-linear-gradient(90deg, transparent 0 6px, var(--cut-hold-stripe) 6px 8px); }
 .cut.hold.selected .cut-body { background-color: var(--cut-hold-selected); }
+/* Reframed with what matters wider than the crop (milestone 89): a warning edge along the top, Letterbox suggested in the tooltip and the menu. */
+.cut.wide .cut-body { box-shadow: inset 0 3px 0 var(--danger); }
 .cut .cut-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cut .cut-wave[hidden] { display: none; }
 .cut .cut-wave path { stroke: var(--wave); stroke-width: 1; vector-effect: non-scaling-stroke; }

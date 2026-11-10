@@ -22,6 +22,13 @@
  * window is centered on the path, clamped so the window stays inside the
  * picture. The same arithmetic places the stage's drawing and the render's
  * crop expression, so the two agree.
+ *
+ * **Wider than the frame** (milestone 89). One subject followed is one subject
+ * kept; when what matters spreads wider than the window — two people a room
+ * apart, a 9:16 slice of 720p footage being 405 px across — something is cut
+ * off whatever the crop does. Each frame's found interest carries its extent,
+ * and a shot where it is wider than the window for most of its frames is
+ * marked, so Letterbox can be suggested for it rather than the cut made quietly.
  */
 
 import type { ReframeKey } from './cut-track';
@@ -40,6 +47,21 @@ export interface SubjectPoint {
   c: number;
   /** Whether skin was what decided it. */
   face: boolean;
+  /**
+   * How far the interest spreads (milestone 89): the extent of the blocks that
+   * decided the center, as fractions of the picture, the faintest few percent
+   * of their weight trimmed at each end so a stray block does not widen it.
+   * Absent when nothing was found, or when the strong blocks cover so much of
+   * the frame that nothing stands out (a texture, not a subject).
+   */
+  spread?: Spread;
+}
+
+export interface Spread {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
 }
 
 export interface SubjectPath {
@@ -57,6 +79,12 @@ export const SHOT_THRESHOLD = 40;
 export const STEADY_WINDOW = 15;
 /** The crop moves only once the subject has strayed this far from its center, as a fraction of the picture. */
 export const DEAD_ZONE = 0.04;
+/** The share of a spread's weight trimmed at each end, so one stray block does not widen it. */
+export const SPREAD_TRIM = 0.02;
+/** Strong blocks covering more of the frame than this are a texture, not a subject: no spread is measured. */
+export const SPREAD_MAX_COVER = 1 / 3;
+/** A shot is marked wide when its interest is wider than the window in at least this share of its frames. */
+export const WIDE_SHARE = 0.5;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
@@ -125,7 +153,7 @@ export function findSubject(frame: Uint8Array, previous: Uint8Array | null, size
       contrast[i] = n ? Math.sqrt(Math.max(0, sum2 / n - mean * mean)) : 0;
     }
   }
-  const centroid = (weights: Float64Array, floor: number): { x: number; y: number; share: number } | null => {
+  const centroid = (weights: Float64Array, floor: number): { x: number; y: number; share: number; spread?: Spread } | null => {
     let max = 0;
     for (let i = 0; i < weights.length; i++) if (weights[i]! > max) max = weights[i]!;
     if (max <= floor) return null;
@@ -135,20 +163,49 @@ export function findSubject(frame: Uint8Array, previous: Uint8Array | null, size
     let wy = 0;
     let total = 0;
     let all = 0;
+    const strong: number[] = [];
     for (let i = 0; i < weights.length; i++) {
       const w = weights[i]!;
       all += w;
       if (w < cut) continue;
+      strong.push(i);
       wx += w * ((i % cols) + 0.5) * REFRAME_BLOCK;
       wy += w * (Math.floor(i / cols) + 0.5) * REFRAME_BLOCK;
       total += w;
     }
     if (total <= 0) return null;
-    return { x: clamp01(wx / total / width), y: clamp01(wy / total / height), share: all > 0 ? total / all : 0 };
+    const found = { x: clamp01(wx / total / width), y: clamp01(wy / total / height), share: all > 0 ? total / all : 0 };
+    if (strong.length > weights.length * SPREAD_MAX_COVER) return found;
+    // The extent along each axis, by the blocks' centers, the faintest SPREAD_TRIM of the weight
+    // dropped at each end.
+    const extent = (pos: (i: number) => number, span: number): [number, number] => {
+      const sorted = [...strong].sort((a, b) => pos(a) - pos(b));
+      const lowAt = total * SPREAD_TRIM;
+      const highAt = total * (1 - SPREAD_TRIM);
+      let acc = 0;
+      let lo = pos(sorted[0]!);
+      let hi = pos(sorted[sorted.length - 1]!);
+      let loSet = false;
+      for (const i of sorted) {
+        acc += weights[i]!;
+        if (!loSet && acc > lowAt) {
+          lo = pos(i);
+          loSet = true;
+        }
+        if (acc >= highAt) {
+          hi = pos(i);
+          break;
+        }
+      }
+      return [clamp01(lo / span), clamp01(hi / span)];
+    };
+    const [x0, x1] = extent((i) => ((i % cols) + 0.5) * REFRAME_BLOCK, width);
+    const [y0, y1] = extent((i) => (Math.floor(i / cols) + 0.5) * REFRAME_BLOCK, height);
+    return { ...found, spread: { x0, x1, y0, y1 } };
   };
   // Skin first: a block over half skin, somewhere, is a face or a hand, and that is the subject.
   const face = centroid(skin, 0.5);
-  if (face) return { x: face.x, y: face.y, c: Math.min(1, face.share + 0.5), face: true };
+  if (face) return { x: face.x, y: face.y, c: Math.min(1, face.share + 0.5), face: true, ...(face.spread ? { spread: face.spread } : {}) };
   // Else what moves and what stands out, each on its own scale, together.
   const combined = new Float64Array(cols * rows);
   let maxMotion = 0;
@@ -162,7 +219,7 @@ export function findSubject(frame: Uint8Array, previous: Uint8Array | null, size
   }
   const found = centroid(combined, 0.05);
   if (!found) return { x: 0.5, y: 0.5, c: 0, face: false };
-  return { x: found.x, y: found.y, c: Math.min(1, found.share), face: false };
+  return { x: found.x, y: found.y, c: Math.min(1, found.share), face: false, ...(found.spread ? { spread: found.spread } : {}) };
 }
 
 /** The subject through every frame, and where the shots begin. */
@@ -217,6 +274,45 @@ export function coverWindow(frame: Size, clip: Size, center: { x: number; y: num
   const size = coverWindowSize(frame, clip);
   const c = clampCenter(center, size);
   return { x: (c.x - size.w / 2) * clip.width, y: (c.y - size.h / 2) * clip.height, width: size.w * clip.width, height: size.h * clip.height };
+}
+
+/** A stretch of a clip, in its own seconds: where a shot's interest is wider than the frame (milestone 89). */
+export interface WideSpan {
+  from: number;
+  to: number;
+}
+
+/** Whether a frame's interest is wider (or taller) than the window the frame cuts from the picture. */
+export function spreadOverflows(spread: Spread | undefined, window: { w: number; h: number }): boolean {
+  if (!spread) return false;
+  return (window.w < 1 && spread.x1 - spread.x0 > window.w) || (window.h < 1 && spread.y1 - spread.y0 > window.h);
+}
+
+/**
+ * The shots whose found interest spreads wider than the crop (milestone 89):
+ * those where it overflows the window in at least `WIDE_SHARE` of the shot's
+ * frames, as stretches of the clip in its own seconds — a shot from its first
+ * frame to the next shot's first, so a span reads as the shot itself. Whatever
+ * the crop does to such a shot, something that matters is cut off; Letterbox
+ * keeps all of it.
+ */
+export function wideShots(path: SubjectPath, options: { frame: Size; clip: Size; from: number; fps: number; share?: number }): WideSpan[] {
+  const window = coverWindowSize(options.frame, options.clip);
+  if (window.w >= 1 && window.h >= 1) return [];
+  const share = options.share ?? WIDE_SHARE;
+  const fps = Math.max(1e-6, options.fps);
+  const at = (i: number): number => Math.round((options.from + i / fps) * 1000) / 1000;
+  const out: WideSpan[] = [];
+  const bounds = [...path.shots, path.points.length];
+  for (let s = 0; s < bounds.length - 1; s++) {
+    const lo = bounds[s]!;
+    const hi = bounds[s + 1]!;
+    if (hi <= lo) continue;
+    let wide = 0;
+    for (let i = lo; i < hi; i++) if (spreadOverflows(path.points[i]!.spread, window)) wide += 1;
+    if (wide / (hi - lo) >= share) out.push({ from: at(lo), to: at(hi) });
+  }
+  return out;
 }
 
 /**

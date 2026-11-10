@@ -133,6 +133,55 @@ export interface Cut {
    * wherever a hand moved it.
    */
   reframe?: Record<string, ReframeKey[]>;
+  /**
+   * Where a reframe found what matters wider than the crop (milestone 89), by
+   * aspect: stretches of the clip in its own seconds. Found with Follow the
+   * Subject, kept while the shape stays reframed, and gone with its keys when
+   * the shape is letterboxed — which is what is suggested for it.
+   */
+  reframeWide?: Record<string, ReframeWideSpan[]>;
+}
+
+/** A stretch of a clip, in its own seconds, whose interest is wider than the shape's crop. */
+export interface ReframeWideSpan {
+  from: number;
+  to: number;
+}
+
+export const REFRAME_WIDE_LIMITS = { spans: 64 } as const;
+
+/** Wide spans in order, in range and non-empty, or undefined for nothing usable. */
+export function sanitizeReframeWide(raw: unknown): ReframeWideSpan[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const spans: ReframeWideSpan[] = [];
+  for (const s of raw) {
+    if (typeof s !== 'object' || s === null) continue;
+    const r = s as Record<string, unknown>;
+    if (typeof r.from !== 'number' || typeof r.to !== 'number' || !Number.isFinite(r.from) || !Number.isFinite(r.to)) continue;
+    const from = ms(Math.max(0, r.from));
+    const to = ms(Math.max(0, r.to));
+    if (to <= from) continue;
+    spans.push({ from, to });
+  }
+  spans.sort((a, b) => a.from - b.from);
+  return spans.length > 0 ? spans.slice(0, REFRAME_WIDE_LIMITS.spans) : undefined;
+}
+
+/**
+ * The stretches of a cut's own window where a reframe for a shape found what
+ * matters wider than the crop — clipped to the window, so a trim that leaves a
+ * wide shot out leaves its mark out too. Empty when the shape is not reframed.
+ */
+export function cutReframeWide(cut: Pick<Cut, 'reframe' | 'reframeWide' | 'from' | 'to'>, aspect: string): ReframeWideSpan[] {
+  if (!cutReframe(cut, aspect)) return [];
+  const spans = cut.reframeWide?.[aspect] ?? [];
+  const out: ReframeWideSpan[] = [];
+  for (const s of spans) {
+    const from = Math.max(s.from, cut.from);
+    const to = Math.min(s.to, cut.to);
+    if (to - from > 1e-6) out.push({ from: ms(from), to: ms(to) });
+  }
+  return out;
 }
 
 /** One moment of a reframe: the clip's second, and the crop's center as fractions of the clip's picture. */
@@ -190,8 +239,14 @@ export function cutReframe(cut: Pick<Cut, 'reframe'>, aspect: string): ReframeKe
   return keys && keys.length > 0 ? keys : undefined;
 }
 
-/** The track with one cut's reframe for a shape replaced; null takes it off, and an empty record goes with it. */
-export function withCutReframe(track: CutTrack, index: number, aspect: string, keys: readonly ReframeKey[] | null): CutTrack {
+/**
+ * The track with one cut's reframe for a shape replaced; null takes it off, and
+ * an empty record goes with it. `wide` replaces the shape's wide spans
+ * (milestone 89) — an empty list clears them; left out, they stay as they were
+ * while the shape keeps keys (a hand moving the crop does not change what is in
+ * the shot) and go with the keys when the shape is letterboxed.
+ */
+export function withCutReframe(track: CutTrack, index: number, aspect: string, keys: readonly ReframeKey[] | null, wide?: readonly ReframeWideSpan[]): CutTrack {
   const cut = track.cuts[index];
   if (!cut) return track;
   const reframe: Record<string, ReframeKey[]> = { ...cut.reframe };
@@ -201,6 +256,12 @@ export function withCutReframe(track: CutTrack, index: number, aspect: string, k
   const next: Cut = { ...cut };
   if (Object.keys(reframe).length > 0) next.reframe = reframe;
   else delete next.reframe;
+  const marks: Record<string, ReframeWideSpan[]> = { ...cut.reframeWide };
+  const spans = !clean ? undefined : wide !== undefined ? sanitizeReframeWide(wide) : marks[aspect];
+  if (spans) marks[aspect] = spans;
+  else delete marks[aspect];
+  if (Object.keys(marks).length > 0) next.reframeWide = marks;
+  else delete next.reframeWide;
   const cuts = [...track.cuts];
   cuts[index] = next;
   return { cuts };
@@ -726,6 +787,16 @@ export function sanitizeCutTrack(input: unknown): CutTrack | null {
         if (clean) reframe[aspect] = clean;
       }
       if (Object.keys(reframe).length > 0) cut.reframe = reframe;
+    }
+    // Where a reframe found what matters wider than the crop (milestone 89): only for shapes still reframed.
+    if (cut.reframe && typeof r.reframeWide === 'object' && r.reframeWide !== null) {
+      const marks: Record<string, ReframeWideSpan[]> = {};
+      for (const [aspect, spans] of Object.entries(r.reframeWide as Record<string, unknown>)) {
+        if (!cut.reframe[aspect]) continue;
+        const clean = sanitizeReframeWide(spans);
+        if (clean) marks[aspect] = clean;
+      }
+      if (Object.keys(marks).length > 0) cut.reframeWide = marks;
     }
     const sp = r.speed as Record<string, unknown> | undefined;
     if (typeof sp === 'object' && sp !== null && typeof sp.rate === 'number' && Number.isFinite(sp.rate)) {

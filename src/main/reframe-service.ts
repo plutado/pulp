@@ -9,8 +9,8 @@
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
 import { tr } from '../core/i18n';
 import { splitGrayFrames, TRACK_CHANNELS, TRACK_LIMITS, trackFramesArgs, trackProxySize } from '../core/motion-track';
-import { reframeKeysFrom, steadyPath, subjectPath } from '../core/reframe';
-import type { ReframeKey } from '../core/cut-track';
+import { reframeKeysFrom, steadyPath, subjectPath, wideShots } from '../core/reframe';
+import type { ReframeKey, ReframeWideSpan } from '../core/cut-track';
 import { lookupMedia } from './library-service';
 
 export interface ReframeRequest {
@@ -21,7 +21,8 @@ export interface ReframeRequest {
   frame: unknown;
 }
 
-export type ReframeResult = { ok: true; keys: ReframeKey[]; shots: number; faces: number; frames: number } | { ok: false; message: string };
+/** `wide`: the shots whose interest spreads wider than the crop (milestone 89), in the clip's own seconds. */
+export type ReframeResult = { ok: true; keys: ReframeKey[]; wide: ReframeWideSpan[]; shots: number; faces: number; frames: number } | { ok: false; message: string };
 
 const REFRAME_TIMEOUT_MS = 10 * 60 * 1000;
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -55,5 +56,7 @@ export async function reframeCut(request: ReframeRequest): Promise<ReframeResult
   const path = subjectPath(frames);
   const steady = steadyPath(path, { frame, clip: { width, height }, window: Math.round(fps / 2) });
   const keys = reframeKeysFrom(steady, path.shots, from, fps);
-  return { ok: true, keys, shots: path.shots.length, faces: path.points.filter((p) => p.face).length, frames: frames.frames.length };
+  // A shot whose interest spreads wider than the crop is marked, so Letterbox can be suggested for it.
+  const wide = wideShots(path, { frame, clip: { width, height }, from, fps }).map((s) => ({ from: s.from, to: Math.min(s.to, to) }));
+  return { ok: true, keys, wide, shots: path.shots.length, faces: path.points.filter((p) => p.face).length, frames: frames.frames.length };
 }
