@@ -2206,7 +2206,11 @@ describe.skipIf(!electron)('inspector UI', () => {
         expect(await page.eval<boolean>(`${lane}.hidden`)).toBe(true);
         await dropOn(`document.getElementById('transport-lanes')`, 0.5, clipId!);
         await until(async () => (await cuts()) === 1, 'the shot on the cut track');
-        await until(() => page.eval<boolean>(`!${lane}.hidden`), 'the picture track\'s lane, now there is a shot to sit over');
+        // Empty, the lane takes no room at rest (milestone 85): it comes while a clip is dragged over the lanes.
+        expect(await page.eval<boolean>(`${lane}.hidden`), 'no empty lane at rest').toBe(true);
+        await page.eval(`(() => { const dt = new DataTransfer(); dt.setData('application/x-pulp-item', ${JSON.stringify(tallId)}); dt.setData('application/x-pulp-clip', '');
+          document.getElementById('transport-lanes').dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true })); return true; })()`);
+        await until(() => page.eval<boolean>(`!${lane}.hidden`), 'the picture track\'s lane, now a clip is coming over a shot');
         expect(await page.eval<boolean>(`${lane}.classList.contains('empty')`)).toBe(true);
 
         // A clip dropped on the lane is a video layer starting there — not another shot.
@@ -2246,6 +2250,98 @@ describe.skipIf(!electron)('inspector UI', () => {
       } finally {
         await restoreLayers();
         await page.eval(`(() => { const u = document.getElementById('undo'); for (let i = 0; i < 6; i++) u.click(); })()`);
+      }
+    }, 120_000);
+
+    it('names each lane at its left, and shows the empty picture track only while a clip is dragged over the lanes (milestone 85)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const clipId = await onResult<string>('clip', '(li) => li.dataset.id');
+      const tinyId = await onResult<string>('tiny', '(li) => li.dataset.id');
+      const lane = `document.getElementById('overlay-track')`;
+      const cuts = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      /** A drag event on the lanes carrying a library item, marked a clip or not, as a drag from a result card is. */
+      const drag = (type: string, id: string, clip: boolean) => page.eval<boolean>(
+        `(() => { const el = document.getElementById('transport-lanes'); const r = el.getBoundingClientRect(); const dt = new DataTransfer();
+          dt.setData('application/x-pulp-item', ${JSON.stringify(id)}); ${clip ? "dt.setData('application/x-pulp-clip', '');" : ''}
+          el.dispatchEvent(new DragEvent(${JSON.stringify(type)}, { clientX: r.left + r.width / 2, clientY: r.top + 2, dataTransfer: dt, bubbles: true, cancelable: true, relatedTarget: null }));
+          return true; })()`,
+      );
+      type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      const box = (sel: string) => page.eval<Box | null>(
+        `(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect();
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height }; })()`,
+      );
+      /** A lane's name as drawn: its words, its box, and whether all of them fit. */
+      const label = (which: string) => page.eval<{ text: string; shown: boolean; whole: boolean; tip: string } | null>(
+        `(() => { const el = document.querySelector('.lane-label.for-${which}'); if (!el) return null; const r = el.getBoundingClientRect();
+          return { text: el.textContent, shown: getComputedStyle(el).display !== 'none' && r.width > 0, whole: el.scrollWidth <= el.clientWidth + 0.5, tip: el.dataset.tip || '' }; })()`,
+      );
+      /** The name sits left of its lane, at its top, and inside the window. */
+      const besideItsLane = async (which: string, laneSel: string, at: string) => {
+        const [name, of] = [await box(`.lane-label.for-${which}`), await box(laneSel)];
+        expect(name!.right, `the ${which} name is left of its lane ${at}`).toBeLessThanOrEqual(of!.left + 0.5);
+        expect(name!.left, `and inside the window ${at}`).toBeGreaterThanOrEqual(0);
+        expect(Math.abs(name!.top - of!.top), `at its lane's top ${at}`).toBeLessThan(6);
+      };
+      try {
+        // From a clean project, whatever the test before left: no shots, nothing over them.
+        await restoreLayers();
+        await until(async () => (await cuts()) === 0 && (await page.eval<number>(`document.querySelectorAll('#overlay-track .pip').length`)) === 0, 'a project with no shots');
+        // A shot on the cut track, and nothing over it.
+        await drag('dragover', clipId!, true);
+        await page.eval(`(() => { const el = document.getElementById('transport-lanes'); const r = el.getBoundingClientRect(); const dt = new DataTransfer();
+          dt.setData('application/x-pulp-item', ${JSON.stringify(clipId)}); dt.setData('application/x-pulp-clip', '');
+          el.dispatchEvent(new DragEvent('drop', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true })); return true; })()`);
+        await until(async () => (await cuts()) === 1, 'the shot on the cut track');
+
+        for (const [width, height] of [[1280, 788], [960, 600]] as const) {
+          await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+          await until(() => page.eval<boolean>(`window.innerHeight === ${height} && window.innerWidth === ${width}`), `the ${width} × ${height} window`);
+          const at = `at ${width} × ${height}`;
+
+          // At rest the empty picture track takes no height at all, and its name goes with it.
+          await until(() => page.eval<boolean>(`${lane}.hidden`), `no empty lane at rest ${at}`);
+          expect((await box('#overlay-track'))!.height, `the empty lane takes no height ${at}`).toBe(0);
+          expect((await label('overlay'))!.shown, `nor its name ${at}`).toBe(false);
+
+          // The lanes there are, named at their left, whole, with the full name as the tooltip.
+          const cutsName = (await label('cuts'))!;
+          expect(cutsName).toMatchObject({ text: 'Cuts', shown: true, whole: true, tip: 'The cut track' });
+          await besideItsLane('cuts', '#cut-track', at);
+          if (!(await page.eval<boolean>(`document.getElementById('layer-bars').hidden`))) {
+            expect(await label('bars')).toMatchObject({ text: 'Layers', shown: true, whole: true });
+            await besideItsLane('bars', '#layer-bars', at);
+          }
+          // The names take the room left of the scrub bar: the lanes are still exactly under it.
+          const [scrub, cut] = [await box('#scrub-line .scrub-wrap'), await box('#cut-track')];
+          expect(Math.abs(cut!.left - scrub!.left), `the cut track starts under the scrub bar ${at}`).toBeLessThan(1);
+          expect(Math.abs(cut!.width - scrub!.width), `and is its width ${at}`).toBeLessThan(1);
+
+          // A still dragged over the lanes is not for the picture track: nothing comes.
+          await drag('dragenter', tinyId!, false);
+          expect(await page.eval<boolean>(`${lane}.hidden`), `no lane for a still ${at}`).toBe(true);
+
+          // A clip dragged over them brings the lane, highlighted, saying what a drop there does, named.
+          await drag('dragenter', clipId!, true);
+          await until(() => page.eval<boolean>(`!${lane}.hidden`), `the drop lane while a clip is over the lanes ${at}`);
+          expect(await page.eval<boolean>(`${lane}.classList.contains('drop-lane')`)).toBe(true);
+          expect((await box('#overlay-track'))!.height, `with height ${at}`).toBeGreaterThan(10);
+          expect(await page.eval<string>(`${lane}.querySelector('.drop-hint').textContent`)).toBe('Drop here to play the clip over the shots, picture-in-picture');
+          expect(await page.eval<boolean>(`!${lane}.querySelector('.drop-hint').hidden`)).toBe(true);
+          expect(await label('overlay')).toMatchObject({ text: 'Picture', shown: true, whole: true });
+          await besideItsLane('overlay', '#overlay-track', at);
+          // Over one of the lanes' own children it stays; out of the lanes it goes.
+          await page.eval(`(() => { const el = document.getElementById('transport-lanes'); el.dispatchEvent(new DragEvent('dragleave', { bubbles: true, relatedTarget: document.getElementById('cut-track') })); return true; })()`);
+          expect(await page.eval<boolean>(`${lane}.hidden`), `still there moving within the lanes ${at}`).toBe(false);
+          await drag('dragleave', clipId!, true);
+          await until(() => page.eval<boolean>(`${lane}.hidden`), `the lane gone when the drag leaves ${at}`);
+        }
+      } finally {
+        await page.send('Emulation.clearDeviceMetricsOverride', {});
+        await restoreLayers();
+        await page.eval(`(() => { const u = document.getElementById('undo'); for (let i = 0; i < 3; i++) u.click(); })()`);
       }
     }, 120_000);
 
@@ -5382,7 +5478,11 @@ describe.skipIf(!electron)('inspector UI', () => {
           `(() => { const r = (el) => { const b = el.getBoundingClientRect(); return { id: el.id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; };
             const c = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return [b.left + parseFloat(s.paddingLeft), b.right - parseFloat(s.paddingRight)]; };
             return { row: document.getElementById('region-transport').getBoundingClientRect().height, scrub: r(document.querySelector('#region-transport .scrub-wrap')),
-              play: r(document.getElementById('play')), tabs: r(document.getElementById('tab-info')), lanes: c(document.querySelector('#region-transport .transport-lanes')), status: r(document.getElementById('region-status')) }; })()`,
+              play: r(document.getElementById('play')), tabs: r(document.getElementById('tab-info')),
+              // A lane's own box (milestone 85: the lanes' box holds their names too, left of them). The cut
+              // track is shown for the measuring if it is not, and put back in the same breath, unpainted.
+              lanes: (() => { const lane = document.getElementById('cut-track'); const was = lane.hidden; lane.hidden = false; const box = c(lane); lane.hidden = was; return box; })(),
+              status: r(document.getElementById('region-status')) }; })()`,
         );
         // The row keeps its lanes' room and gives up the line: its setting read 36 px shorter.
         expect(oneLine.row, 'the row a line shorter than on two lines').toBeLessThanOrEqual(rowAtRest!.bottom - rowAtRest!.top - 30);
@@ -5627,10 +5727,13 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(row.right).toBeCloseTo(app.right, 0);
 
       // The lanes for the bars per layer share the scrub bar's grid column, so they line up with its time by
-      // construction: the lanes' content box (their padding is room for the end handles) is the scrub bar's box.
+      // construction: a lane's box is the scrub bar's box. (The lanes' own box is wider since milestone 85: it
+      // holds each lane's name, left of it, in the room beside the scrub bar.)
       const edges = await page.eval<{ scrub: Box; lanes: Box }>(
         `(() => { const r = (el) => { const b = el.getBoundingClientRect(); const c = getComputedStyle(el); return { left: b.left + parseFloat(c.paddingLeft), right: b.right - parseFloat(c.paddingRight) }; };
-          return { scrub: r(document.querySelector('#region-transport .scrub-wrap')), lanes: r(document.querySelector('#region-transport .transport-lanes')) }; })()`,
+          // The cut track is shown for the measuring if it is not, and put back in the same breath, unpainted.
+          const lane = document.getElementById('cut-track'); const was = lane.hidden; lane.hidden = false; const box = r(lane); lane.hidden = was;
+          return { scrub: r(document.querySelector('#region-transport .scrub-wrap')), lanes: box }; })()`,
       );
       expect(edges.lanes.left).toBeCloseTo(edges.scrub.left, 0);
       expect(edges.lanes.right).toBeCloseTo(edges.scrub.right, 0);

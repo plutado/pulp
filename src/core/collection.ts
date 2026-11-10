@@ -22,6 +22,14 @@ export const COLLECTION_FORMAT_VERSION = 1;
 /** Drag type for dropping a library item into the tray; a library id travels, not a file. */
 export const COLLECTION_DRAG_TYPE = 'application/x-pulp-item';
 
+/**
+ * Set beside `COLLECTION_DRAG_TYPE` when the item dragged is a clip
+ * (milestone 85). A drag's data cannot be read until the drop, but its types
+ * can, so this is how the lanes know, while the drag is still over them,
+ * that what is coming could go on the picture track.
+ */
+export const CLIP_DRAG_TYPE = 'application/x-pulp-clip';
+
 export interface CollectionItem {
   /** Unique within the collection, so the same item can be in it twice with different settings. */
   uid: string;

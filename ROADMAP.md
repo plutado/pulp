@@ -99,7 +99,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 82. More export formats (post-1.0, **done**) | 8-13 h |
 | 83. Deinterlace old footage (post-1.0) | 3-6 h |
 | 84. A flash warning before export (post-1.0) | 4-7 h |
-| 85. Timeline lanes that say what they are (post-1.0) | 3-5 h |
+| 85. Timeline lanes that say what they are (post-1.0, **done**) | 3-5 h |
 | 86. The docs and pictures caught up (post-1.0) | 4-7 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
@@ -1033,13 +1033,13 @@ Decided 2026-11-09. Rapid flashing can be unsafe for some viewers. This is a war
 - [ ] **Softened:** an option to calm those moments, shown before anything is overwritten (1-2 h)
 - [ ] **Tests:** a generated strobe flagged and softened, and steady footage left unmarked (1-2 h)
 
-## 85. Timeline lanes that say what they are (3-5 h, after 1.0; GitHub issue #75)
+## 85. Timeline lanes that say what they are (done; 3-5 h, after 1.0; GitHub issue #75)
 
 Decided 2026-11-10. With cuts on the cut track and nothing on the picture track (milestone 57), the picture track sits under the layer bars as an empty dashed box whose hint is cut short at most widths, which reads as a gap rather than a place for something. Editing apps do it differently: an empty track looks like any other track and is named at its left, and a dashed outline appears only while something is being dragged onto it. This follows them, and milestone 42's rule that nothing empty takes room from the stage.
 
-- [ ] **No empty box at rest, a drop lane while dragging:** the empty picture track is hidden until a clip is dragged over the lanes, then shown as a highlighted lane that says it takes the clip as picture-in-picture (1-2 h)
-- [ ] **Each lane named:** a short label at the left of the layer bars, the picture track and the cut track, so the rows read as tracks in every language and in the mirrored window (1-2 h)
-- [ ] **Translated and held by tests:** the hint moves out of the stylesheet into the message catalog, and an end-to-end check that the empty track takes no height at rest, appears on a drag and shows its label at 1280 × 788 and 960 × 600 (1 h)
+- [x] **No empty box at rest, a drop lane while dragging:** the empty picture track is hidden until a clip is dragged over the lanes, then shown as a highlighted lane that says it takes the clip as picture-in-picture (1-2 h) *Built 2026-11-10. A drag's data cannot be read before the drop, but its types can: a result card dragging a clip now sets `application/x-pulp-clip` beside the item's id, so the lanes know while the drag is still over them that it could go on the picture track. The lane comes in a project with shots to sit over (as before, a first clip still lands on the cut track), as an accent-dashed lane carrying the hint, and goes when the drag leaves the lanes — a move onto one of their own children is still over them — or ends anywhere, after a drop on the lane has measured where it landed. A still dragged over the lanes brings nothing.*
+- [x] **Each lane named:** a short label at the left of the layer bars, the picture track and the cut track, so the rows read as tracks in every language and in the mirrored window (1-2 h) *Built 2026-11-10. Layers, Picture, Cuts (Ebenen, Bild, Schnitte; 图层, 画面, 剪辑), muted, at each lane's top, the full name as the tooltip, gone with its lane. The lanes became a two-column grid — the names in the room left of the scrub bar, the lanes still exactly under it — scrolling together so a name stays by its lane; in the one-line row the lanes are a subgrid spanning the playback buttons' column, so the names sit under the buttons. The lanes run left to right in every language, so the names stay at the left in the mirrored window, by construction.*
+- [x] **Translated and held by tests:** the hint moves out of the stylesheet into the message catalog, and an end-to-end check that the empty track takes no height at rest, appears on a drag and shows its label at 1280 × 788 and 960 × 600 (1 h) *Built 2026-11-10. `overlay-track.drop-hint` in the catalog in English, German and Chinese. The UI suite, at 1280 × 788 and 960 × 600, with a shot and nothing over it: the empty lane has no height and no name; the Cuts and Layers names are whole, beside their lanes and at their tops; the cut track still starts under the scrub bar at its width; a still dragged over brings nothing; a clip brings the highlighted lane with the hint and its whole Picture name; moving within the lanes keeps it, leaving takes it away. Milestone 57's test drags a clip over the lanes before dropping on the lane.*
 
 ## 86. The docs and pictures caught up (4-7 h, after 1.0; GitHub issue #88)
 

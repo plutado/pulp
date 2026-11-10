@@ -18,14 +18,14 @@
  * writes through the layer editor, so nothing here is a second answer.
  */
 
-import { COLLECTION_DRAG_TYPE } from '../core/collection';
+import { CLIP_DRAG_TYPE, COLLECTION_DRAG_TYPE } from '../core/collection';
 import type { CutTrack } from '../core/cut-track';
 import { spanWindow } from '../core/layer-time';
 import type { Layer, LayerValues } from '../core/layers';
 import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
 import { layerEditor, selectedLayer } from './layer-edit';
-import { bindAttr, t } from './i18n';
+import { bindAttr, bindText, t } from './i18n';
 import { appState } from './store';
 
 /** A dropped clip's height as a fraction of the frame's short side: a corner's worth, not the frame's. */
@@ -43,6 +43,11 @@ let host: HTMLDivElement | null = null;
 let say: (text: string) => void = () => undefined;
 const els = new Map<string, PipEl>();
 let current: { length: number } = { length: 0 };
+/** The arguments of the last update, so a drag starting or ending can draw the lane again. */
+let last: Parameters<typeof overlayTrackUpdate> | null = null;
+/** A clip is being dragged over the lanes (milestone 85): the empty lane shows, to be dropped on. */
+let dragging = false;
+let hint: HTMLSpanElement | null = null;
 
 /** The video layers with a clip, in the stack's order: what the lane shows. */
 function rows(manifest: TemplateManifest | null, layers: LayerValues): { block: string; layer: Layer }[] {
@@ -57,17 +62,23 @@ function rows(manifest: TemplateManifest | null, layers: LayerValues): { block: 
 
 /**
  * Draw the lane: a block per clip over the shots, at its span on the scrub
- * bar's own scale. Shown while the project has a cut track to sit over or a
- * clip already on it, so there is something to drop on; hidden otherwise,
- * since a lane with nothing to do is room taken from the stage.
+ * bar's own scale. Shown while a clip is on it. **Empty, it takes no room at
+ * rest** (milestone 85): it appears only while a clip is dragged over the
+ * lanes of a project with shots to sit over, as a highlighted lane saying
+ * what a drop there does — the way an editing app draws a drop target, and
+ * milestone 42's rule that nothing empty takes room from the stage.
  */
 export function overlayTrackUpdate(manifest: TemplateManifest | null, layers: LayerValues, chosenLength: number | undefined, showing: boolean, track: CutTrack | null): void {
+  last = [manifest, layers, chosenLength, showing, track];
   if (!host) return;
   current = { length: manifest ? resolveLength(manifest.duration, manifest.structure ?? null, chosenLength) : 0 };
   const list = rows(manifest, layers);
-  const show = showing && current.length > 0 && (list.length > 0 || Boolean(track && track.cuts.length > 0));
+  const ready = list.length === 0 && dragging && Boolean(track && track.cuts.length > 0);
+  const show = showing && current.length > 0 && (list.length > 0 || ready);
   host.hidden = !show;
   host.classList.toggle('empty', list.length === 0);
+  host.classList.toggle('drop-lane', show && ready);
+  if (hint) hint.hidden = !(show && ready);
   if (!show) {
     for (const el of els.values()) el.root.remove();
     els.clear();
@@ -163,6 +174,36 @@ export function overlayTrackTakeDrop(id: string, time: number): boolean {
 export function mountOverlayTrack(el: HTMLDivElement, note: (text: string) => void): void {
   host = el;
   say = note;
+  // What the empty lane says while a clip is dragged over it, from the message catalog.
+  hint = document.createElement('span');
+  hint.className = 'drop-hint';
+  hint.hidden = true;
+  bindText(hint, 'overlay-track.drop-hint');
+  el.append(hint);
+  // The lanes say when a clip comes over them and when it goes: the drag's types are readable
+  // before the drop, and a clip is marked among them (CLIP_DRAG_TYPE, set where the drag starts).
+  const lanes = el.parentElement;
+  const setDragging = (next: boolean) => {
+    if (dragging === next) return;
+    dragging = next;
+    if (last) overlayTrackUpdate(...last);
+  };
+  if (lanes) {
+    const over = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes(CLIP_DRAG_TYPE)) setDragging(true);
+    };
+    lanes.addEventListener('dragenter', over);
+    lanes.addEventListener('dragover', over);
+    // Leaving for one of the lanes' own children is still over them; leaving them is not.
+    lanes.addEventListener('dragleave', (e) => {
+      const to = e.relatedTarget;
+      if (!(to instanceof Node) || !lanes.contains(to)) setDragging(false);
+    });
+  }
+  // However the drag ends — dropped here, on the cut track, anywhere, or given up — the lane goes,
+  // unless it now holds the clip. Heard in capture, since the lane's own drop stops the event from
+  // bubbling; acted on after it, since that drop measures the lane where the clip landed.
+  for (const type of ['drop', 'dragend'] as const) document.addEventListener(type, () => setTimeout(() => setDragging(false), 0), true);
   el.addEventListener('dragover', (e) => {
     if (!e.dataTransfer?.types.includes(COLLECTION_DRAG_TYPE)) return;
     e.preventDefault();

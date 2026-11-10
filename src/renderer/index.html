@@ -409,9 +409,12 @@
         </span>
       </div>
       <div id="transport-lanes" class="transport-lanes" dir="ltr">
-        <div id="layer-bars" class="layer-bars" role="group" hidden data-i18n-attr="aria-label:ui.layer-bars.aria-label"></div>
-        <div id="overlay-track" class="overlay-track" role="group" hidden data-i18n-attr="aria-label:ui.overlay-track.aria-label"></div>
-        <div id="cut-track" class="cut-track" role="group" hidden data-i18n-attr="aria-label:ui.cut-track.aria-label"></div>
+        <span class="lane-label for-bars" aria-hidden="true" data-i18n="ui.lane-label.layers" data-i18n-attr="data-tip:ui.layer-bars.aria-label"></span>
+        <div id="layer-bars" class="layer-bars lane" role="group" hidden data-i18n-attr="aria-label:ui.layer-bars.aria-label"></div>
+        <span class="lane-label for-overlay" aria-hidden="true" data-i18n="ui.lane-label.picture" data-i18n-attr="data-tip:ui.overlay-track.aria-label"></span>
+        <div id="overlay-track" class="overlay-track lane" role="group" hidden data-i18n-attr="aria-label:ui.overlay-track.aria-label"></div>
+        <span class="lane-label for-cuts" aria-hidden="true" data-i18n="ui.lane-label.cuts" data-i18n-attr="data-tip:ui.cut-track.aria-label"></span>
+        <div id="cut-track" class="cut-track lane" role="group" hidden data-i18n-attr="aria-label:ui.cut-track.aria-label"></div>
       </div>
       <div class="buttons-line">
         <div class="transport-buttons" role="group" data-i18n-attr="aria-label:ui.region-transport.playback.aria-label">

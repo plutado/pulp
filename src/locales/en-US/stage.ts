@@ -161,6 +161,7 @@ export const stage = {
   'overlay-track.pip.title': '{name}: {from}-{to} s over the shots',
   'overlay-track.pip.aria-label': 'Picture-in-picture {number}, {name}: {from}-{to} s over the shots',
   'overlay-track.added': '{name} is on the picture track from {start} s: move and size it on the stage.',
+  'overlay-track.drop-hint': 'Drop here to play the clip over the shots, picture-in-picture',
 
   // ---- the loudness meter (src/renderer/loudness.ts)
   'loudness.aria-label': 'Mix loudness {lufs} LUFS',

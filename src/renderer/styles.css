@@ -1032,19 +1032,37 @@ button > .icon + .label, button > .icon-wrap + .label { margin-inline-start: 6px
   .transport-status { grid-row: 1; grid-column: 5; max-width: 200px; justify-content: flex-start; }
   .transport-status #library-summary, .transport-status #status-diagnostics { display: none; }
   /* Named with the row: the lanes' own rule, below, would otherwise win by coming later. */
-  .transport-row .transport-lanes { grid-row: 2; grid-column: 2; margin: 0 -4px; width: auto; align-self: stretch; }
+  /* The lanes take the buttons' column too, as a subgrid: the names under the buttons, each lane in
+     the scrub bar's own column, exactly its width; 4 px spare on the right for a bar's end handle. */
+  .transport-row .transport-lanes { grid-row: 2; grid-column: 1 / 3; grid-template-columns: subgrid; margin-right: -4px; padding-right: 4px; width: auto; align-self: stretch; }
+  .transport-row .transport-lanes > .lane { margin-inline: 0; }
   .transport-tabs .tab .label { display: none; }
   .transport-row .transport-tools #volume { width: 56px; }
 }
 /* The lanes sit under the scrub bar at its width. They clip what scrolls out of them, and a bar's
-   end handles reach 3 px past its ends, so the lanes are 4 px wider on each side as padding: the
-   bars' own box stays exactly the scrub bar's. */
+   end handles reach 3 px past its ends, so each lane has 4 px either side inside the box: the
+   bars' own box stays exactly the scrub bar's. Each lane is named at its left (milestone 85), in
+   the room left of the scrub bar, as an editing app names its tracks: a grid of two columns, the
+   names in the first and the lanes in the second, scrolling together so a name stays by its lane. */
 .transport-lanes {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  margin-left: calc(var(--scrub-left, 16px) - 4px);
-  width: calc(var(--scrub-w, calc(100% - 32px)) + 8px);
-  padding: 0 4px;
+  display: grid; align-content: start;
+  grid-template-columns: max(0px, calc(var(--scrub-left, 16px) - 4px)) calc(var(--scrub-w, 400px) + 8px);
+  width: calc(var(--scrub-left, 16px) + var(--scrub-w, 400px) + 4px);
 }
+.transport-lanes > .lane { grid-column: 2; margin-inline: 4px; min-width: 0; }
+/* A lane's name: muted, at the lane's top, against the lane's edge, cut short with its full name in
+   the tooltip; and gone with its lane. The lanes run left to right in every language — time does —
+   so the names stay at the left in the mirrored window too. */
+.lane-label {
+  grid-column: 1; justify-self: end; align-self: start; max-width: 100%; box-sizing: border-box;
+  padding-inline-end: var(--space-2); font-size: var(--font-caption); line-height: 16px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lane-label:has(+ .lane[hidden]) { display: none; }
+.lane-label.for-bars { margin-top: 4px; }
+.lane-label.for-overlay { margin-top: 2px; }
+.lane-label.for-cuts { margin-top: 3px; }
 .transport-button { padding: 4px 8px; }
 .transport-row .icon-button { color: var(--muted); background: none; border-color: transparent; }
 .transport-row .icon-button:hover:not(:disabled) { color: var(--text); }
@@ -1204,8 +1222,11 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    a block per clip at its span, selecting its layer; empty, a thin strip that says it takes a drop. */
 .overlay-track { position: relative; height: 16px; margin: 2px 0; border-radius: 3px; background: var(--lane); }
 .overlay-track[hidden] { display: none; }
-.overlay-track.empty { border: 1px dashed var(--lane-edge); }
-.overlay-track.empty::after { content: 'Picture track: drop a clip here for picture-in-picture or b-roll'; position: absolute; inset: 0; padding: 0 6px; font-size: var(--font-caption); line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+/* Empty, the lane shows only while a clip is dragged over the lanes (milestone 85): a highlighted
+   drop target saying, from the message catalog, what a drop there does. */
+.overlay-track.drop-lane { border: 1px dashed var(--accent); background: var(--drop); }
+.overlay-track .drop-hint { position: absolute; inset: 0; padding: 0 6px; font-size: var(--font-caption); line-height: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.overlay-track .drop-hint[hidden] { display: none; }
 .overlay-track.drop-target { background: var(--drop); border-color: var(--accent); }
 .overlay-track .pip { position: absolute; top: 0; bottom: 0; min-width: 6px; }
 .overlay-track .pip-body { position: absolute; inset: 0; width: 100%; margin: 0; padding: 0 6px; border: 1px solid var(--ink); border-radius: 3px; background: var(--pip); cursor: pointer; overflow: hidden; text-align: left; }

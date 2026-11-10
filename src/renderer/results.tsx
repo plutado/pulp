@@ -34,7 +34,7 @@ import {
   type ResultBadge,
 } from '../core/results-view';
 import { categoryOfEntry } from '../core/categories';
-import { COLLECTION_DRAG_TYPE } from '../core/collection';
+import { CLIP_DRAG_TYPE, COLLECTION_DRAG_TYPE } from '../core/collection';
 import { emptyResults, type EmptyActionId } from '../core/results-empty';
 import { setQuery } from '../core/app-state';
 import { virtualWindow } from '../core/virtual-list';
@@ -124,6 +124,8 @@ function Card({ entry, selected, onSelect, gridRatio }: ItemProps & { gridRatio:
       onDragStart={(e: DragEvent) => {
         // Into the collection tray. Not a file drag — that is a finished render's job.
         e.dataTransfer?.setData(COLLECTION_DRAG_TYPE, entry.id);
+        // A clip says so in the drag's types, which the lanes can read before the drop (milestone 85).
+        if (entry.kind === 'media' && entry.mediaKind === 'video') e.dataTransfer?.setData(CLIP_DRAG_TYPE, '');
         if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
       }}
       onClick={() => onSelect(entry)}
