@@ -3,6 +3,7 @@
  * Types only; both sides import it.
  */
 
+import type { FfmpegFeature } from '../core/ffmpeg-needs';
 import type { LayoutState } from '../core/layout';
 import type { MainPerformance } from '../core/perf';
 import type { LibraryIndex } from '../core/library-types';
@@ -129,7 +130,23 @@ export interface FfmpegInfo {
   encoders?: string[];
   /** Whether this build can convert HDR to standard range (milestone 81): zimg's zscale and tonemap. */
   tonemap?: boolean;
+  /** Every feature that depends on the build, against this one (milestone 88, src/core/ffmpeg-needs.ts). */
+  features?: FfmpegFeatureInfo[];
+  /** Which ffmpeg Settings chose; the first one found unless the person chose otherwise. */
+  choice?: FfmpegChoiceInfo;
+  /** Set when PULP_FFMPEG_PATH names an ffmpeg, which is used whatever is chosen. */
+  envOverride?: string;
 }
+
+/** One feature against one build: whether it runs, what it lacks, and the library that would bring it. */
+export interface FfmpegFeatureInfo {
+  id: FfmpegFeature;
+  ok: boolean;
+  missing: string[];
+  library?: string;
+}
+
+export type FfmpegChoiceInfo = { kind: 'auto' } | { kind: 'fetched' } | { kind: 'file'; path: string };
 
 /**
  * What the download helper would fetch for this machine (milestone 17, ADR
@@ -152,6 +169,8 @@ export interface FfmpegDownloadInfo {
   /** True when a build Pulp fetched is on this machine; an ffmpeg of your own is `ffmpegStatus`. */
   installed: boolean;
   path?: string;
+  /** What the fetched build can do, read from the build itself, when it is here (milestone 88). */
+  features?: FfmpegFeatureInfo[];
 }
 
 export interface RenderRequest {
@@ -358,7 +377,7 @@ export interface PulpApi {
   /** Split footage at its cuts into clips in a folder beside it, by stream copy, and rescan. */
   splitScenes(id: string): Promise<{ ok: true; clips: number; folder: string } | { ok: false; message: string }>;
   /** Whether Stabilize can run here (milestone 78): ffmpeg found and built with vid.stab, or why not, plainly. */
-  stabilizeStatus(): Promise<{ ok: true } | { ok: false; message: string }>;
+  stabilizeStatus(): Promise<{ ok: true } | { ok: false; message: string; missing?: true }>;
   /** Smooth a shaky clip (milestone 78): two passes, the steadier clip beside the original, and a rescan. */
   stabilizeClip(id: string, settings: { smoothing: number; edges: 'zoom' | 'keep' }): Promise<{ ok: true; path: string } | { ok: false; cancelled?: boolean; message: string }>;
   /** Stop the stabilization in flight; its own promise answers with `cancelled`. */
@@ -582,7 +601,14 @@ export interface PulpApi {
    * the settings, and an ffmpeg of your own still comes first.
    */
   ffmpegDownloadStatus(): Promise<FfmpegDownloadInfo>;
-  fetchFfmpeg(): Promise<{ ok: true; path: string; version: string } | { ok: false; message: string }>;
+  fetchFfmpeg(): Promise<{ ok: true; path: string; version: string; lacks: FfmpegFeatureInfo[] } | { ok: false; message: string }>;
+  /**
+   * Which ffmpeg Pulp uses (milestone 88): automatic, the fetched build, or a
+   * file — `chooseFfmpegFile` asks for one with the system's file dialog. A
+   * file is held to running as ffmpeg before it is kept.
+   */
+  chooseFfmpeg(choice: FfmpegChoiceInfo): Promise<{ ok: true; choice: FfmpegChoiceInfo } | { ok: false; message: string }>;
+  chooseFfmpegFile(): Promise<{ ok: true; choice: FfmpegChoiceInfo } | { ok: false; message: string; cancelled?: true }>;
   /** How the fetch is going, for the Settings line of status. */
   onFfmpegProgress(listener: (progress: { note: string; fraction: number | null }) => void): () => void;
   /** Opens a save dialog, then adds the render to the queue. Jobs run one after another. */

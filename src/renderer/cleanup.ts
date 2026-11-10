@@ -18,6 +18,7 @@
 import { KEY_DEFAULTS, sanitizeChromaKey, STABILIZE_DEFAULTS, type ChromaKeySettings, type StabilizeSettings } from '../core/clip-clean';
 import { playheadSeconds } from './store';
 import { bindText } from './i18n';
+import { showSettings as showFfmpegSettings } from './settings';
 import type { MessageId, MessageValues } from '../core/i18n';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -210,6 +211,8 @@ let stabEls: {
   make: HTMLButtonElement;
   cancel: HTMLButtonElement;
   close: HTMLButtonElement;
+  /** Settings → FFmpeg, offered where this build lacks vid.stab (milestone 88): the fix, one click away. */
+  fix: HTMLButtonElement;
 } | null = null;
 
 const stab = {
@@ -277,6 +280,7 @@ export function openStabilize(id: string): void {
     if (!stabEls || stab.id !== id) return;
     if (status.ok) stabEls.make.disabled = false;
     else stabStatusText(status.message, true);
+    stabEls.fix.hidden = status.ok || !('missing' in status && status.missing);
   });
 }
 
@@ -290,7 +294,12 @@ export function initStabilize(): void {
     make: $('stab-make'),
     cancel: $('stab-cancel'),
     close: $('stab-close'),
+    fix: $('stab-fix'),
   };
+  stabEls.fix.addEventListener('click', () => {
+    stabEls?.dialog.close();
+    void showFfmpegSettings();
+  });
   stabEls.make.addEventListener('click', () => void runStabilize());
   stabEls.cancel.addEventListener('click', () => void window.pulp.cancelStabilize());
   stabEls.close.addEventListener('click', () => stabEls?.dialog.close());

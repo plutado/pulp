@@ -6,38 +6,28 @@
  * wherever a clip's pixels are read — the preview's proxy frames, the
  * render's cut track, an item rendered on its own. What cannot be pure is
  * **whether this build carries zimg**: that is a fact about a program on this
- * machine, read from its filter list once per ffmpeg and remembered, since
- * the list costs a process and a clip is read many times over.
+ * machine, which the one reading of the build answers (src/main/ffmpeg-caps.ts).
  */
 
 import { nodeRunner } from '../core/ffmpeg';
+import { ffmpegHas } from './ffmpeg-caps';
 import { ffprobePathFor, probeMedia } from '../core/media-probe';
-import { hasTonemapping } from '../core/hdr';
 import type { HdrFormat } from '../core/hdr';
 import type { MediaEntry } from '../core/library-types';
 
-/** What each ffmpeg path answered, so the filter list is read once per build. */
-const known = new Map<string, Promise<boolean>>();
-
 /**
  * Whether this ffmpeg can convert HDR to standard range: zimg's `zscale` and
- * the `tonemap` filter. A listing that fails is a no, like a build without
- * them — the clip is then read as it is, and said to be.
+ * the `tonemap` filter, as the feature table names them (milestone 88), from
+ * the one reading of the build every feature shares. A build whose filter
+ * list could not be read is not held to it; one that lacks them is a no — the
+ * clip is then read as it is, and said to be.
  */
 export function canTonemap(ffmpegPath: string): Promise<boolean> {
-  if (ffmpegPath === '') return Promise.resolve(false);
-  const asked = known.get(ffmpegPath);
-  if (asked) return asked;
-  const work = nodeRunner(ffmpegPath, ['-hide_banner', '-filters'])
-    .then((result) => result.code === 0 && hasTonemapping(result.stdout))
-    .catch(() => false);
-  known.set(ffmpegPath, work);
-  return work;
+  return ffmpegHas(ffmpegPath, 'hdr');
 }
 
 /** Forget what was learned, for a test that changes the ffmpeg or a file under it. */
 export function forgetTonemapping(): void {
-  known.clear();
   files.clear();
 }
 

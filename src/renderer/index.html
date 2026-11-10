@@ -204,6 +204,7 @@
       </label>
       <p id="preset-note" class="note"></p>
       <p id="preset-unavailable" class="note" hidden></p>
+      <p id="ffmpeg-needs-note" class="note warn" role="status" hidden></p>
       <div class="type-default" id="type-default-row" hidden>
         <button id="type-default-save" type="button" class="ghost" data-i18n="ui.type-default-save" data-i18n-attr="data-tip:ui.type-default-save.data-tip"></button>
         <button id="type-default-clear" type="button" class="ghost" hidden data-i18n="ui.type-default-clear"></button>
@@ -638,9 +639,16 @@
       <h3 class="settings-head" data-i18n="ui.settings-dialog.ffmpeg"></h3>
       <p id="settings-ffmpeg" class="note" role="status"></p>
       <p class="note" data-i18n="ui.settings-dialog.pulp-finds-ffmpeg-on-your"></p>
+      <p id="settings-ffmpeg-env" class="note" hidden></p>
+      <h4 id="settings-ffmpeg-can-head" class="settings-subhead" hidden></h4>
+      <ul id="settings-ffmpeg-features" class="ffmpeg-features" aria-labelledby="settings-ffmpeg-can-head" hidden></ul>
+      <h4 id="settings-ffmpeg-choice-head" class="settings-subhead"></h4>
+      <div id="settings-ffmpeg-choice" class="settings-appearance" role="radiogroup" aria-labelledby="settings-ffmpeg-choice-head"></div>
       <p id="settings-ffmpeg-offer" class="note" hidden></p>
       <div class="key-controls">
         <button id="settings-ffmpeg-get" type="button" class="ghost" hidden data-i18n="ui.settings-ffmpeg-get"></button>
+        <button id="settings-ffmpeg-use-fetched" type="button" class="ghost" hidden></button>
+        <button id="settings-ffmpeg-choose-file" type="button" class="ghost"></button>
       </div>
       <h3 class="settings-head" data-i18n="ui.settings-dialog.render-cache"></h3>
       <p id="settings-cache-summary" class="note"></p>
@@ -812,6 +820,7 @@
       <div class="render-actions">
         <button id="stab-make" type="button" class="primary" data-i18n="ui.stab-make"></button>
         <button id="stab-cancel" type="button" hidden data-i18n="ui.stab-cancel"></button>
+        <button id="stab-fix" type="button" class="ghost" hidden data-i18n="ui.ffmpeg-fix"></button>
         <span class="dialog-spacer"></span>
         <button id="stab-close" type="button" data-i18n="ui.stab-close"></button>
       </div>

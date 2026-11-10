@@ -1192,6 +1192,16 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
    clothes, since a window of settings on a desktop is a dialog over the window that has them. */
 .settings-dialog .field.inline { margin: var(--space-2) 0; }
 .settings-head { margin: var(--space-3) 0 var(--space-1); font-size: var(--font-body); font-weight: 600; }
+/* FFmpeg's own parts (milestone 88): what the build in use can do, and which build to use. */
+.settings-subhead { margin: var(--space-2) 0 var(--space-1); font-size: var(--font-secondary); font-weight: 600; color: var(--muted); }
+.settings-subhead[hidden] { display: none; }
+.ffmpeg-features { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px var(--space-3); font-size: var(--font-secondary); }
+.ffmpeg-features[hidden] { display: none; }
+.ffmpeg-features li { display: flex; gap: var(--space-1); align-items: baseline; }
+.ffmpeg-features .mark { width: 1em; flex: 0 0 auto; text-align: center; }
+.ffmpeg-features .has .mark { color: var(--accent); }
+.ffmpeg-features .lacks { color: var(--muted); }
+.ffmpeg-features .lacks .mark { color: var(--danger); }
 .notices-body { max-height: 60vh; overflow-y: auto; font-size: var(--font-secondary); }
 /* The user guide (milestone 8): the same page in a dialog, with a strip of its sections across
    the top — it is long, and a dialog is a small window onto it. */

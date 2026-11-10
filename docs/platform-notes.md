@@ -106,6 +106,12 @@ Measured on ffmpeg 8.0 (macOS):
 
 `tile` flushes a padded, part-blank image when its input ends short of a full grid, and `fps=N/duration` can give one frame fewer than asked on a clip that ends a hair early (the hover-scrub note above). The timeline's film strips therefore decode in one run to **raw** tiles of a known size — so the number of frames is exactly the bytes over a tile's — and tile them in a second run from a pipe, with the grid sized to that number. A short last row is still padded, but the strip says how many tiles are real, and nothing reads past them.
 
+### What a build carries, and how Pulp reads it (milestone 88)
+
+`detectFfmpeg` reads five things of a build: `-version`, `-encoders`, `-decoders`, `-filters`, and `-h filter=setparams` for the alpha mode. The filter list's lines are a flag column (two characters on the ffmpeg 8.0 measured here, though its own legend lists three; the parser takes either), the name, and the pads (`V->V`, `|->V` for a source); the legend before them has ` = ` in it and is skipped. A listing that fails is **unknown** — null — and held against no feature: refusing a stabilize because a filter list would not print would be worse than trying. The answer is kept per path, size and mtime, so a `brew upgrade` is seen and nothing else costs another process.
+
+To test what Pulp does with a build that lacks something, without uninstalling anything: a shell wrapper that runs the real ffmpeg and pipes one listing through `grep -v` (the render suite's milestone 88 test does exactly this, with the real ffprobe linked beside it). The wrapper must `exit 0` after the pipe itself, rather than pass on `grep`'s status, which is 1 whenever it prints nothing.
+
 ### VideoToolbox from BGRA leaves the matrix untagged
 
 `hevc_videotoolbox` accepts BGRA and converts internally with BT.709, but writes `colr` with matrix 0 (unspecified). A decoder falling back to BT.601 then reads pure red as (233, 0, 1). Feeding `ayuv` (4:4:4 Y'CbCr with alpha) that the Rec.709 steps converted and tagged gives `nclc` 1/1/1 and an exact round trip (ADR 0005). The encoder exists only in macOS builds.

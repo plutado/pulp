@@ -6,7 +6,9 @@
  * person has pressed the button**, checks every archive against its published
  * checksum as it arrives, takes the two programs out of it, proves the
  * encoder runs, and only then moves it into `ffmpeg/` beside the settings —
- * where `candidatePaths` looks last, so an ffmpeg of your own still wins.
+ * where `candidatePaths` looks last unless the person chose it — which a
+ * fetch does for them, since it was asked for (ADR 0026); Settings switches
+ * back to the first one found in one click.
  *
  * Nothing is left behind by a fetch that fails: the staging folder is inside
  * the same folder as the end place, so moving in is a rename rather than a
@@ -24,7 +26,9 @@ import {
   downloadBytes, FFMPEG_DIR_NAME, ffmpegBinaryName, ffmpegBuildFor, ffmpegDownloadNote,
   type FfmpegArchive, type FfmpegBuild,
 } from '../core/ffmpeg-download';
-import { nodeRunner, parseFfmpegVersion, setManagedFfmpeg } from '../core/ffmpeg';
+import { capabilitiesOf, detectFfmpeg, forgetFfmpegBuilds, nodeRunner, parseFfmpegVersion, setChosenFfmpeg, setManagedFfmpeg, type FfmpegStatus } from '../core/ffmpeg';
+import { featureStatuses, type FfmpegFeatureStatus } from '../core/ffmpeg-needs';
+import { loadSettings, updateSettings, type FfmpegChoice } from './settings';
 import { tr } from '../core/i18n';
 import { readZip } from '../core/zip';
 // What the window is told — the build on offer for this machine, and whether it is already
@@ -70,6 +74,66 @@ async function installed(): Promise<boolean> {
  */
 export async function registerManagedFfmpeg(): Promise<void> {
   setManagedFfmpeg((await installed()) ? managedPath('ffmpeg') : null);
+  applyFfmpegChoice((await loadSettings()).ffmpegChoice);
+}
+
+// ---------------------------------------------------------------- which ffmpeg (milestone 88)
+
+/** Put a choice into effect: the chosen file first among the candidates, and every build read again. */
+function applyFfmpegChoice(choice: FfmpegChoice): void {
+  setChosenFfmpeg(choice.kind === 'file' ? choice.path : choice.kind === 'fetched' ? managedPath('ffmpeg') : null);
+  forgetFfmpegBuilds();
+}
+
+export async function ffmpegChoice(): Promise<FfmpegChoice> {
+  return (await loadSettings()).ffmpegChoice;
+}
+
+export type FfmpegChoiceResult = { ok: true; choice: FfmpegChoice } | { ok: false; message: string };
+
+/**
+ * Choose which ffmpeg Pulp uses, from Settings: automatic, the fetched build,
+ * or a file. A file is held to running as an ffmpeg before it is kept — a
+ * choice that cannot start would leave every render to find out — and the
+ * fetched build to being here. Kept in settings, in effect at once.
+ */
+export async function chooseFfmpeg(raw: unknown): Promise<FfmpegChoiceResult> {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  let choice: FfmpegChoice;
+  if (r.kind === 'fetched') {
+    if (!(await installed())) return { ok: false, message: tr('settings.ffmpeg.choice.no-fetched') };
+    choice = { kind: 'fetched' };
+  } else if (r.kind === 'file' && typeof r.path === 'string' && r.path.trim() !== '') {
+    const version = await runsAsFfmpeg(r.path);
+    if (version === null) return { ok: false, message: tr('settings.ffmpeg.choice.not-ffmpeg', { path: r.path }) };
+    choice = { kind: 'file', path: r.path };
+  } else {
+    choice = { kind: 'auto' };
+  }
+  await updateSettings((s) => {
+    s.ffmpegChoice = choice;
+  });
+  applyFfmpegChoice(choice);
+  return { ok: true, choice };
+}
+
+async function runsAsFfmpeg(path: string): Promise<string | null> {
+  try {
+    const result = await nodeRunner(path, ['-hide_banner', '-version']);
+    return result.code === 0 ? parseFfmpegVersion(result.stdout) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What a build that is not in use can do — the fetched one, before it is
+ * switched to — read the way the build in use is, so Settings can say what a
+ * switch would gain.
+ */
+async function featuresOf(path: string): Promise<FfmpegFeatureStatus[]> {
+  const status: FfmpegStatus = await detectFfmpeg(nodeRunner, { PULP_FFMPEG_PATH: path });
+  return status.ok && status.path === path ? featureStatuses(capabilitiesOf(status), process.platform) : [];
 }
 
 export async function ffmpegDownloadStatus(): Promise<FfmpegDownloadInfo> {
@@ -89,12 +153,13 @@ export async function ffmpegDownloadStatus(): Promise<FfmpegDownloadInfo> {
         }
       : null,
     installed: here,
-    ...(here ? { path: managedPath('ffmpeg') } : {}),
+    ...(here ? { path: managedPath('ffmpeg'), features: await featuresOf(managedPath('ffmpeg')) } : {}),
   };
 }
 
 export type FfmpegFetchResult =
-  | { ok: true; path: string; version: string }
+  /** `lacks`: what the table needs that the fetched build turned out not to have, read from the build itself. */
+  | { ok: true; path: string; version: string; lacks: FfmpegFeatureStatus[] }
   | { ok: false; message: string };
 
 /** One fetch at a time: a second would race the first into the same folder. */
@@ -214,8 +279,17 @@ async function run(): Promise<FfmpegFetchResult> {
       await rename(join(staging, name), join(dir, name));
     }
     setManagedFfmpeg(managedPath('ffmpeg'));
-    report(tr('fetch.ffmpeg.ready', { version }), 1);
-    return { ok: true, path: managedPath('ffmpeg'), version };
+    // Fetched because it was asked for — by someone with none, or with one that lacks a feature —
+    // so it is the one used from now on; Settings switches back to automatic in one click.
+    await updateSettings((s) => {
+      s.ffmpegChoice = { kind: 'fetched' };
+    });
+    applyFfmpegChoice({ kind: 'fetched' });
+    // The build is held to the feature table as it really is, not as it was described: whatever
+    // it lacks is said now, by name, rather than at the first render that needs it.
+    const lacks = (await featuresOf(managedPath('ffmpeg'))).filter((f) => !f.ok);
+    report(tr(lacks.length === 0 ? 'fetch.ffmpeg.ready' : 'fetch.ffmpeg.ready-lacking', { version, lacks: lacks.map((f) => f.library ?? f.missing.join(', ')).join(', ') }), 1);
+    return { ok: true, path: managedPath('ffmpeg'), version, lacks };
   } finally {
     await rm(staging, { recursive: true, force: true }).catch(() => undefined);
   }

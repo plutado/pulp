@@ -35,6 +35,8 @@ export const inspector = {
   // ---------------------------------------------------------------- preset availability (src/core/ffmpeg-presets.ts)
   'preset.unavailable.no-encoder': 'no "{encoder}" encoder in this ffmpeg',
   'preset.unavailable.no-encoder.note': 'no "{encoder}" encoder in this ffmpeg ({note})',
+  'preset.unavailable.no-library': 'needs an FFmpeg built with {library} (no "{encoder}" encoder in this one); Settings → FFmpeg can fetch one',
+  'output.ffmpeg-needs.hdr': { one: 'A clip in this project is HDR and will render as it is, washed out. {sentence}', other: '{count} clips in this project are HDR and will render as they are, washed out. {sentence}' },
   // ---------------------------------------------------------------- output presets by asset (src/core/output-defaults.ts)
   'output.asset.transparent-overlay': 'Transparent overlay',
   'output.asset.transparent-overlay.tip': 'ProRes 4444 with the alpha kept: drops straight onto footage in Premiere Pro, Resolve or Final Cut.',
@@ -151,7 +153,6 @@ export const inspector = {
   'preset.gif.description': 'An animated GIF for a page or a chat, looping forever, with a palette made for this clip so its colors hold. Flattened over the background: a GIF\'s transparency has hard edges. 15 frames a second and 480 pixels wide to start with, since a GIF at a video\'s size is very large.',
   'preset.webp-animated': 'Animated WebP (alpha)',
   'preset.webp-animated.description': 'An animated WebP with alpha, looping forever: far smaller than a GIF at the same size, and shown by every current browser. Quality 85.',
-  'preset.webp-animated.platform-note': 'needs an FFmpeg built with libwebp',
   'preset.apng': 'APNG (alpha)',
   'preset.apng.description': 'An animated PNG with full alpha, looping forever, lossless. Larger than a WebP; shown by every current browser, and as its first frame anywhere that does not animate it.',
   'render-plan.error.fps': 'frame rate must be one of {rates}, got {got}',

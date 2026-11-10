@@ -1,7 +1,7 @@
 # 0022. FFmpeg fetched on request, not bundled in the installers
 
 Date: 2026-11-02
-Status: Accepted
+Status: Accepted. Amended by [0026](0026-features-ask-one-table-of-what-the-ffmpeg-can-do.md): the fetch is also offered where the ffmpeg in use lacks a feature, and the person can choose which ffmpeg Pulp uses.
 
 ## Context
 

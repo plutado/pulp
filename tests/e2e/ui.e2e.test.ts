@@ -4799,9 +4799,44 @@ describe.skipIf(!electron)('inspector UI', () => {
       expect(download.build!.bytes).toBeGreaterThan(1_000_000);
       // Which build, from whom, how big and under what license, in the line beside the button.
       for (const said of [download.build!.label, 'GPL', 'MB', 'checksum']) expect(download.build!.note).toContain(said);
-      // The button is there exactly when there is something to fetch and nothing already found.
-      const ffmpegFound = await page.eval<boolean>(`window.pulp.ffmpegStatus().then((s) => s.ok)`);
-      expect(await page.eval<boolean>(`document.getElementById('settings-ffmpeg-get').hidden`)).toBe(ffmpegFound || download.installed);
+      // The button is there when there is something to fetch and Pulp has not fetched it: no FFmpeg at
+      // all, or — since milestone 88 — one that lacks a feature the table names.
+      const ffmpeg = await page.eval<{ ok: boolean; path?: string; features?: { id: string; ok: boolean; library?: string }[]; choice?: { kind: string } }>(`window.pulp.ffmpegStatus()`);
+      const lacking = (ffmpeg.features ?? []).filter((f) => !f.ok);
+      expect(await page.eval<boolean>(`document.getElementById('settings-ffmpeg-get').hidden`)).toBe(download.installed || (ffmpeg.ok && lacking.length === 0));
+
+      // What this FFmpeg can do (milestone 88): one line per feature of the table, from the one reading
+      // of the build, each lacking one naming the library that would bring it.
+      if (ffmpeg.ok) {
+        const lines = await page.eval<{ feature: string; lacks: boolean; text: string }[]>(
+          `[...document.querySelectorAll('#settings-ffmpeg-features li')].map((li) => ({ feature: li.dataset.feature, lacks: li.classList.contains('lacks'), text: li.textContent }))`,
+        );
+        expect(lines.map((l) => l.feature)).toEqual((ffmpeg.features ?? []).map((f) => f.id));
+        for (const f of lacking) {
+          const line = lines.find((l) => l.feature === f.id)!;
+          expect(line.lacks, f.id).toBe(true);
+          if (f.library) expect(line.text, f.id).toContain(f.library);
+        }
+        // Which FFmpeg to use: the first one found, to start with.
+        expect(ffmpeg.choice?.kind).toBe('auto');
+        expect(await page.eval<boolean>(`document.getElementById('settings-ffmpeg-choice-auto').checked`)).toBe(true);
+        // A file that is not an FFmpeg is refused, and nothing changes; the one in use, chosen as a
+        // file, is kept, written to settings.json and shown as the choice; automatic puts it back.
+        const notFfmpeg = join(userData, 'not-ffmpeg.sh');
+        await writeFile(notFfmpeg, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+        const refused = await page.eval<{ ok: boolean; message?: string }>(`window.pulp.chooseFfmpeg({ kind: 'file', path: ${JSON.stringify(notFfmpeg)} })`);
+        expect(refused.ok).toBe(false);
+        expect(refused.message).toContain('did not run as FFmpeg');
+        const chosen = await page.eval<{ ok: boolean }>(`window.pulp.chooseFfmpeg({ kind: 'file', path: ${JSON.stringify(ffmpeg.path)} })`);
+        expect(chosen.ok).toBe(true);
+        const ffmpegChoice = async () => (JSON.parse(await readFile(join(userData, 'settings.json'), 'utf8')) as { ffmpegChoice?: { kind: string; path?: string } }).ffmpegChoice;
+        expect(await ffmpegChoice()).toEqual({ kind: 'file', path: ffmpeg.path });
+        expect((await page.eval<{ path?: string; choice?: { kind: string } }>(`window.pulp.ffmpegStatus()`)).choice?.kind).toBe('file');
+        expect((await page.eval<{ ok: boolean }>(`window.pulp.chooseFfmpeg({ kind: 'auto' })`)).ok).toBe(true);
+        expect(await ffmpegChoice()).toEqual({ kind: 'auto' });
+        // The fetched build cannot be chosen while there is none.
+        if (!download.installed) expect((await page.eval<{ ok: boolean }>(`window.pulp.chooseFfmpeg({ kind: 'fetched' })`)).ok).toBe(false);
+      }
       expect(await page.eval<string>(`document.getElementById('settings-cache-summary').textContent`)).not.toBe('');
       const startAt = await page.eval<boolean>(`document.getElementById('settings-start-screen').checked`);
       await page.eval(`(() => { const c = document.getElementById('settings-start-screen'); c.checked = ${!startAt}; c.dispatchEvent(new Event('change')); })()`);
@@ -6473,6 +6508,9 @@ describe.skipIf(!electron)('inspector UI', () => {
             'the missing filter said plainly',
           );
           expect(await page.eval<boolean>(`document.getElementById('stab-make').disabled`), 'nothing offered it cannot do').toBe(true);
+          // What is missing is named by the library that brings it, and the fix is one click away (milestone 88).
+          expect(await page.eval<string>(`document.getElementById('stab-status').textContent`)).toContain('libvidstab');
+          expect(await page.eval<boolean>(`document.getElementById('stab-fix').hidden`), 'FFmpeg Settings offered').toBe(false);
           console.info('This ffmpeg has no vid.stab; the Stabilize run itself was not tested.');
           return;
         }

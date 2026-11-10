@@ -40,6 +40,8 @@ import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { hdrLabel } from '../core/display';
 import { hdrOf, tonemapFor } from './hdr-service';
+import { ffmpegFeature, planLacks } from './ffmpeg-caps';
+import { missingSentence } from '../core/ffmpeg-needs';
 import { tr } from '../core/i18n';
 import { CAPTURE_PROBE_SIZE, CAPTURE_PROBE_URL, classifyCapture, describeCaptureFormat, describeProbePixels, type CaptureFormat } from '../core/capture-format';
 import { buildRenderPlan, coverArgs, type FrameFormat, type RenderOptions, type RenderPlan, type RenderPlanInput } from '../core/render-plan';
@@ -93,6 +95,14 @@ export interface RenderJob {
   /** How frames travel to ffmpeg. Default raw BGRA; 'png' is the slower reference path. */
   frameFormat?: FrameFormat;
   onProgress?: (progress: RenderProgress) => void;
+  /**
+   * Refuse to render what this ffmpeg cannot do rather than render without it
+   * (milestone 88): the command line sets it, so a script gets an error and an
+   * exit code instead of a file quietly missing a conversion. The window
+   * leaves it off — it has already said so on the Output tab — and renders
+   * with a warning.
+   */
+  requireFeatures?: boolean;
 }
 
 export { offscreenDeviceScaleFactor } from './capture-window';
@@ -241,9 +251,13 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // delivering a washed-out picture. The file itself is only ever read.
     const hdr = await hdrOf(ffmpeg.path, found.entry);
     const tonemap = await tonemapFor(ffmpeg.path, found.entry);
-    if (hdr && !tonemap && !hdrWarned) {
-      hdrWarned = true;
-      warnings.push(tr('render.warning.hdr-unconverted', { format: hdrLabel(hdr) }));
+    if (hdr && !tonemap) {
+      const lacking = await ffmpegFeature('hdr');
+      if (job.requireFeatures && lacking) return { ok: false, message: missingSentence(lacking) };
+      if (!hdrWarned) {
+        hdrWarned = true;
+        warnings.push(tr('render.warning.hdr-unconverted', { format: hdrLabel(hdr) }));
+      }
     }
     trackCuts.push({
       path, from: cut.from, to: cut.to,
@@ -338,6 +352,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     if (item?.kind === 'media' && !hdrWarned) {
       const hdr = await hdrOf(ffmpeg.path, item.entry);
       if (hdr && !(await tonemapFor(ffmpeg.path, item.entry))) {
+        const lacking = await ffmpegFeature('hdr');
+        if (job.requireFeatures && lacking) return { ok: false, message: missingSentence(lacking) };
         hdrWarned = true;
         warnings.push(tr('render.warning.hdr-unconverted', { format: hdrLabel(hdr) }));
       }
@@ -434,6 +450,10 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   if (audioLayers.length > 0) plan = applyLayerAudio(plan, audioLayers, await mixLoudnessFor(ffmpeg.path, plan, audioLayers, job.options?.platform, warnings));
   // One WAV per stem beside the render (milestone 16), cut to exactly the rendered range.
   if (stemFiles.length > 0) plan = applyStemAudio(plan, stemFiles);
+  // The finished plan against the build (milestone 88): a codec or a filter this ffmpeg lacks is said
+  // now, by the feature it belongs to, rather than as ffmpeg's own error at the end of the frames.
+  const lacks = await planLacks(plan.args);
+  if (lacks.length > 0) return { ok: false, message: lacks.map((l) => missingSentence(l)).join(' ') };
 
   // The captions (milestone 50) ride in the same bag. A caption style rendering on its own — the
   // alpha caption track, or the style chosen as the project's template — is handed the line per

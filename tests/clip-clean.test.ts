@@ -6,11 +6,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { featureStatus } from '../src/core/ffmpeg-needs';
 import {
   chromaKeyArgs, chromaKeyFilter, chromaKeyStillArgs, despillType, filterQuoted, isCubeFile, KEY_DEFAULTS,
   keyedClipPath, lutFilter, MIN_SCENE_SECONDS, parseSceneCuts, sanitizeChromaKey, sceneDetectArgs, sceneFolder,
   scenePattern, sceneSplitArgs,
-  hasStabilizer, passSeconds, sanitizeStabilize, STABILIZE_DEFAULTS, stabilizeDetectArgs, stabilizedClipPath, stabilizeTransformArgs,
+  passSeconds, sanitizeStabilize, STABILIZE_DEFAULTS, stabilizeDetectArgs, stabilizedClipPath, stabilizeTransformArgs,
 } from '../src/core/clip-clean';
 
 describe('the LUT filter', () => {
@@ -120,10 +121,11 @@ describe('stabilization (milestone 78)', () => {
     expect(stabilizedClipPath('/media/no-extension')).toBe('/media/no-extension steady.mov');
   });
 
-  it('knows an ffmpeg with vid.stab from one without, off the filter list', () => {
-    expect(hasStabilizer(' .. vidstabdetect     V->V\n .. vidstabtransform  V->V\n')).toBe(true);
-    expect(hasStabilizer(' .. vidstabdetect     V->V\n')).toBe(false);
-    expect(hasStabilizer(' .. deshake           V->V\n')).toBe(false);
+  it('knows an ffmpeg with vid.stab from one without, through the feature table (milestone 88)', () => {
+    const caps = (filters: string[]) => ({ filters, encoders: null, decoders: null });
+    expect(featureStatus(caps(['vidstabdetect', 'vidstabtransform']), 'stabilize').ok).toBe(true);
+    expect(featureStatus(caps(['vidstabdetect']), 'stabilize')).toMatchObject({ ok: false, missing: ['vidstabtransform'], library: 'libvidstab' });
+    expect(featureStatus(caps(['deshake']), 'stabilize').missing).toEqual(['vidstabdetect', 'vidstabtransform']);
   });
 
   it('reads how far a pass has reached off ffmpeg\'s own progress line, the newest mention winning', () => {

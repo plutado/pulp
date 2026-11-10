@@ -282,7 +282,6 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     pixelFormat: 'bgra',
     color: 'rgb',
     codecArgs: ['-c:v', 'libwebp_anim', '-quality', '85', '-loop', '0', '-f', 'webp'],
-    get platformNote() { return tr('preset.webp-animated.platform-note'); },
     animatedImage: {},
   },
   apng: {

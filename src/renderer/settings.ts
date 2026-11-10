@@ -14,6 +14,8 @@ import { formatBytes } from '../core/app-state';
 import noticesText from '../../THIRD_PARTY_NOTICES.md?raw';
 import { docSections, isDocTable } from '../core/doc-page';
 import { downloadSizeText } from '../core/ffmpeg-download';
+import { needFor } from '../core/ffmpeg-needs';
+import type { FfmpegFeatureInfo } from '../shared/api';
 import { semanticSetAvailable } from './semantic';
 import type { PlayerState } from '../core/player';
 import { showCacheStats } from './tray';
@@ -23,7 +25,7 @@ import { FILM_STRIP_MODES } from '../core/film-strip';
 import { chooseFilmStrip, filmStripMode } from './film-strip';
 import { appearanceChoice, chooseAppearance } from './appearance';
 import { bindAttr, bindText, chooseLanguage, languageState, locale, t, whenLocaleChanges } from './i18n';
-import { isLocaleId, LOCALES, resolveLocale } from '../core/i18n';
+import { isLocaleId, LOCALES, resolveLocale, type MessageId } from '../core/i18n';
 
 /**
  * How audition is set: the stage registers its own setter at mount, so the dialog changes the
@@ -77,37 +79,134 @@ function showCache(stats: { files: number; bytes: number; dir: string; maxMB: nu
 }
 
 /**
- * Where FFmpeg was found, and the offer to fetch one where it was not
- * (milestone 17, ADR 0022). The offer says what would be fetched, from whom,
- * how big it is and under what license **before** the button is pressed:
- * Pulp ships no FFmpeg and what arrives is GPL software from its publisher,
- * and neither of those is something to find out afterwards.
+ * FFmpeg (milestone 17, ADR 0022; milestone 88): which one is in use and what
+ * it can do — every feature in the table (src/core/ffmpeg-needs.ts), each
+ * with what it lacks — which one to use, and the offer to fetch a build.
+ *
+ * The offer says what would be fetched, from whom, how big it is and under
+ * what license **before** the button is pressed: Pulp ships no FFmpeg and what
+ * arrives is GPL software from its publisher, and neither of those is
+ * something to find out afterwards. It is made where there is no FFmpeg, and
+ * now also where the one in use lacks a feature — the case milestone 88 is
+ * for, since someone who already has an FFmpeg was never offered a better one.
+ * A fetched build that would add what this one lacks is offered as a switch.
  */
 async function showFfmpeg(): Promise<void> {
   const [ffmpeg, download] = await Promise.all([window.pulp.ffmpegStatus(), window.pulp.ffmpegDownloadStatus()]);
   const line = $('settings-ffmpeg');
   if (!ffmpeg.ok) bindText(line, 'settings.ffmpeg.not-found');
+  else if (ffmpeg.version && ffmpeg.path) bindText(line, 'settings.ffmpeg.found.at', { version: ffmpeg.version, path: ffmpeg.path });
   else if (ffmpeg.version) bindText(line, 'settings.ffmpeg.found', { version: ffmpeg.version });
   else bindText(line, 'settings.ffmpeg.found.no-version');
-  if (ffmpeg.ok && ffmpeg.path) line.dataset.tip = ffmpeg.path;
-  else delete line.dataset.tip;
+  delete line.dataset.tip;
+
+  const env = $('settings-ffmpeg-env');
+  env.hidden = !ffmpeg.envOverride;
+  if (ffmpeg.envOverride) bindText(env, 'settings.ffmpeg.env-override', { path: ffmpeg.envOverride });
+
+  // What this one can do: every feature that depends on the build, a tick or what it lacks.
+  const features = ffmpeg.ok ? ffmpeg.features ?? [] : [];
+  const head = $('settings-ffmpeg-can-head');
+  const list = $('settings-ffmpeg-features');
+  head.hidden = features.length === 0;
+  list.hidden = features.length === 0;
+  bindText(head, 'settings.ffmpeg.can.head');
+  list.replaceChildren(...features.map((f) => {
+    const li = document.createElement('li');
+    li.className = f.ok ? 'has' : 'lacks';
+    li.dataset.feature = f.id;
+    const mark = document.createElement('span');
+    mark.className = 'mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = f.ok ? '✓' : '✕'; // i18n-exempt(technical): a mark, said in the line's label
+    const text = document.createElement('span');
+    const feature = needFor(f.id).label;
+    if (f.ok) bindText(text, 'settings.ffmpeg.feature.has', { feature });
+    else if (f.library) bindText(text, 'settings.ffmpeg.feature.lacks', { feature, library: f.library });
+    else bindText(text, 'settings.ffmpeg.feature.lacks.names', { feature, names: f.missing.join(', ') });
+    bindAttr(li, 'aria-label', f.ok ? 'settings.ffmpeg.feature.has.aria' : 'settings.ffmpeg.feature.lacks.aria', { feature });
+    li.append(mark, text);
+    return li;
+  }));
+  const lacking = features.filter((f) => !f.ok);
+
+  // Which one to use: the first found, the fetched build where there is one, a file of one's own.
+  const choice = ffmpeg.choice ?? { kind: 'auto' as const };
+  bindText($('settings-ffmpeg-choice-head'), 'settings.ffmpeg.choice.head');
+  const group = $('settings-ffmpeg-choice');
+  const radio = (kind: 'auto' | 'fetched' | 'file', words: () => void, hint?: MessageId) => {
+    const label = document.createElement('label');
+    label.className = 'field inline';
+    if (hint) bindAttr(label, 'data-tip', hint);
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'settings-ffmpeg-choice';
+    input.id = `settings-ffmpeg-choice-${kind}`;
+    input.value = kind;
+    input.checked = choice.kind === kind;
+    const text = document.createElement('span');
+    label.append(input, text);
+    words.call(text);
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      // A file is chosen by its button; its radio, once there, goes back to that file.
+      const next = kind === 'file' && choice.kind === 'file' ? choice : kind === 'file' ? null : { kind };
+      if (next) void window.pulp.chooseFfmpeg(next).then((r) => afterChoice(r));
+    });
+    return { label, text };
+  };
+  const rows = [radio('auto', function (this: HTMLElement) { bindText(this, 'settings.ffmpeg.choice.auto'); }, 'settings.ffmpeg.choice.auto.hint').label];
+  if (download.installed) rows.push(radio('fetched', function (this: HTMLElement) { bindText(this, 'settings.ffmpeg.choice.fetched'); }).label);
+  if (choice.kind === 'file') rows.push(radio('file', function (this: HTMLElement) { bindText(this, 'settings.ffmpeg.choice.file', { path: choice.path }); }).label);
+  group.replaceChildren(...rows);
+  bindText($('settings-ffmpeg-choose-file'), 'settings.ffmpeg.choose-file');
+
+  // The offer. Fetch where there is no FFmpeg, or where this one lacks something; switch where the
+  // fetched build is here and would add what this one lacks.
   const offer = $('settings-ffmpeg-offer');
-  const button = $<HTMLButtonElement>('settings-ffmpeg-get');
-  // There is something to fetch only where nothing was found, there is a build for this
-  // machine, and Pulp has not already fetched one. Someone who has FFmpeg is offered
-  // nothing: the helper is a way out of having none, not a second way to have one.
-  const canFetch = !ffmpeg.ok && download.build !== null && !download.installed;
-  offer.hidden = !canFetch && !download.installed;
-  if (download.installed) {
+  const get = $<HTMLButtonElement>('settings-ffmpeg-get');
+  const use = $<HTMLButtonElement>('settings-ffmpeg-use-fetched');
+  const names = (fs: readonly { id: FfmpegFeatureInfo['id'] }[]) => fs.map((f) => needFor(f.id).label).join(', ');
+  const fetchedAdds = download.installed && choice.kind !== 'fetched'
+    ? lacking.filter((f) => download.features?.find((d) => d.id === f.id)?.ok)
+    : [];
+  const canFetch = download.build !== null && !download.installed && (!ffmpeg.ok || lacking.length > 0);
+  offer.hidden = true;
+  get.hidden = true;
+  use.hidden = true;
+  delete offer.dataset.tip;
+  if (canFetch && !ffmpeg.ok) {
+    offer.hidden = false;
+    sayPlain(offer, download.build!.note);
+    get.hidden = false;
+    bindText(get, 'settings.ffmpeg.download', { size: downloadSizeText(download.build!.bytes) });
+  } else if (canFetch) {
+    offer.hidden = false;
+    bindText(offer, 'settings.ffmpeg.offer-better', { features: names(lacking), note: download.build!.note });
+    get.hidden = false;
+    bindText(get, 'settings.ffmpeg.download-better', { size: downloadSizeText(download.build!.bytes) });
+  } else if (fetchedAdds.length > 0) {
+    offer.hidden = false;
+    bindText(offer, 'settings.ffmpeg.fetched-would-add', { features: names(fetchedAdds) });
+    use.hidden = false;
+    bindText(use, 'settings.ffmpeg.use-fetched');
+  } else if (download.installed) {
+    offer.hidden = false;
     bindText(offer, 'settings.ffmpeg.fetched');
     offer.dataset.tip = download.path ?? '';
-  } else if (canFetch) {
-    delete offer.dataset.tip;
-    sayPlain(offer, download.build!.note);
   }
-  button.hidden = !canFetch;
-  button.disabled = false;
-  if (canFetch) bindText(button, 'settings.ffmpeg.download', { size: downloadSizeText(download.build!.bytes) });
+  get.disabled = false;
+}
+
+/** A choice made: the rest of the window reads the FFmpeg again, and Settings says what it now is. */
+async function afterChoice(result: { ok: true } | { ok: false; message: string; cancelled?: true }): Promise<void> {
+  refreshFfmpeg();
+  await showFfmpeg();
+  if (!result.ok && !result.cancelled) {
+    const offer = $('settings-ffmpeg-offer');
+    offer.hidden = false;
+    sayPlain(offer, result.message);
+  }
 }
 
 /**
@@ -338,11 +437,23 @@ export function initSettings(): void {
         sayPlain(offer, result.message);
         return;
       }
-      // Renders work from here on, with no restart: the status bar and the Output tab are
-      // told exactly as they were at launch.
+      // Renders work from here on, with no restart, and with the fetched build — it was fetched to
+      // be used: the status bar and the Output tab are told exactly as they were at launch.
       refreshFfmpeg();
       await showFfmpeg();
+      // What the fetched build turned out to lack, read from the build itself (milestone 88).
+      if (result.lacks.length > 0) {
+        offer.hidden = false;
+        bindText(offer, 'fetch.ffmpeg.ready-lacking', { version: result.version, lacks: result.lacks.map((f) => f.library ?? f.missing.join(', ')).join(', ') });
+      }
     });
+  });
+  // The switch to the fetched build, and a file of one's own (milestone 88).
+  $<HTMLButtonElement>('settings-ffmpeg-use-fetched').addEventListener('click', () => {
+    void window.pulp.chooseFfmpeg({ kind: 'fetched' }).then((r) => afterChoice(r));
+  });
+  $<HTMLButtonElement>('settings-ffmpeg-choose-file').addEventListener('click', () => {
+    void window.pulp.chooseFfmpegFile().then((r) => afterChoice(r));
   });
 
   // Semantic search: the toggle writes the setting; the model button is the asking (ADR 0024).

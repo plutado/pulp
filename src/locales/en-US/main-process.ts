@@ -80,6 +80,19 @@ export const mainProcess = {
   'svg.limit.fonts': 'fonts the file carries or names are not loaded; its text draws in a default face',
   // ---------------------------------------------------------------- ffmpeg discovery (src/core/ffmpeg.ts)
   'ffmpeg.missing': 'ffmpeg was not found. Pulp needs ffmpeg to encode renders. Install it (macOS: "brew install ffmpeg"; Windows: "winget install Gyan.FFmpeg"; Linux: your package manager), or set PULP_FFMPEG_PATH to the full path of the ffmpeg executable, then restart Pulp. In the window, Settings → FFmpeg will fetch a build from its publisher for you, after saying what it would fetch.',
+  'ffmpeg.feature.hdr': 'Converting HDR clips',
+  'ffmpeg.feature.stabilize': 'Stabilize',
+  'ffmpeg.feature.webp': 'Animated WebP',
+  'ffmpeg.feature.h264': 'H.264',
+  'ffmpeg.feature.vp9': 'WebM VP9',
+  'ffmpeg.feature.webm-alpha': 'Reading WebM with alpha',
+  'ffmpeg.feature.opus': 'Opus sound in WebM',
+  'ffmpeg.feature.mp3': 'MP3',
+  'ffmpeg.feature.hevc-alpha': 'HEVC with alpha',
+  'ffmpeg.feature.take': 'Saving camera takes',
+  'ffmpeg.feature.set-preview': 'Previewing clip sets',
+  'ffmpeg.feature.missing': '{feature} needs an FFmpeg built with {library}, and this one has no {names}. Settings → FFmpeg can fetch a build that has it, or choose another FFmpeg.',
+  'ffmpeg.feature.missing.no-library': '{feature} needs {names}, which this FFmpeg does not have. Settings → FFmpeg can fetch a build that has it, or choose another FFmpeg.',
   'ffmpeg.encoder-missing': 'The installed ffmpeg ({path}, version {version}) has no "{encoder}" encoder, which {preset} needs. Install a full ffmpeg build or choose another preset.',
   // ---------------------------------------------------------------- the library scan (src/core/library-scan.ts)
   'library.problem.manifest-unreadable': 'could not read manifest: {reason}',
@@ -135,7 +148,6 @@ export const mainProcess = {
   'cleanup.split.no-ffmpeg': 'FFmpeg was not found, so nothing can be split.',
   'cleanup.split.no-cuts': 'No cuts were found: the footage reads as one scene.',
   'cleanup.stabilize.no-ffmpeg': 'FFmpeg was not found, so nothing can be stabilized.',
-  'cleanup.stabilize.no-filter': 'This FFmpeg was built without vid.stab, which does the stabilizing. Install one that has it (macOS: "brew install ffmpeg"), or point Settings at one, then try again.',
   'cleanup.stabilize.exists': 'There is already a steadied clip beside it ({file}); move or rename it first.',
   // ---------------------------------------------------------------- rendering (src/main/render.ts)
   'render.warning.hdr-unconverted': 'A shot was recorded in {format} and the FFmpeg in use cannot convert it to standard range — it was built without zimg — so it is rendered as it is, which looks washed out. Install an FFmpeg built with zimg, or let Pulp fetch one in Settings.',
@@ -225,6 +237,7 @@ export const mainProcess = {
   'fetch.ffmpeg.checking': 'Checking it runs…',
   'fetch.ffmpeg.would-not-run': 'The fetched FFmpeg would not run on this machine, so it was thrown away.',
   'fetch.ffmpeg.ready': 'FFmpeg {version} is ready.',
+  'fetch.ffmpeg.ready-lacking': 'FFmpeg {version} is ready, and in use — but it was built without {lacks}, so what needs that is still off.',
   // ---------------------------------------------------------------- imported fonts (src/main/font-service.ts)
   'dialog.font.title': 'Import a font',
   'dialog.font.filter': 'Fonts',

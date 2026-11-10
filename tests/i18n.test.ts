@@ -355,5 +355,6 @@ describe('the catalog has nothing unused', () => {
     const prefixes = [...corpus.matchAll(/`([a-z][\w-]*(?:\.[\w-]+)*\.)\$\{/g)].map((m) => m[1]!);
     const read = (id: string) => corpus.includes(`'${id}'`) || corpus.includes(`"${id}"`) || corpus.includes(`:${id}`) || prefixes.some((p) => id.startsWith(p));
     expect(Object.keys(enUS).filter((id) => !read(id))).toEqual([]);
-  });
+    // Every source file read and every id looked for: past vitest's 5 s default under a full parallel run.
+  }, 30_000);
 });

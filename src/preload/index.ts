@@ -54,6 +54,8 @@ const api: PulpApi = {
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
   ffmpegDownloadStatus: () => ipcRenderer.invoke('ffmpeg:download-status'),
   fetchFfmpeg: () => ipcRenderer.invoke('ffmpeg:fetch'),
+  chooseFfmpeg: (choice) => ipcRenderer.invoke('ffmpeg:choose', choice),
+  chooseFfmpegFile: () => ipcRenderer.invoke('ffmpeg:choose-file'),
   onFfmpegProgress: (listener) => {
     const handler = (_event: unknown, progress: Parameters<typeof listener>[0]) => listener(progress);
     ipcRenderer.on('ffmpeg:progress', handler);

@@ -24,11 +24,11 @@ import { exportEdit } from './edit-export-service';
 import { trackSilences } from './track-silence';
 import { fetchSpeechModel, setSpeechProgressWindow, speechStatus, transcribe } from './speech-service';
 import { fetchSemanticModel, semanticSearch, semanticStatus, setSemanticProgressWindow, setSemanticSearch } from './semantic-service';
-import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
+import { chooseFfmpeg, fetchFfmpeg, ffmpegChoice, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
+import { allFeatures } from './ffmpeg-caps';
 import { voicePreview } from './voice-service';
 import { voiceLevels } from './voice-levels';
 import { filmStrip } from './film-strip-service';
-import { canTonemap } from './hdr-service';
 import { cancelStabilize, chromaKeyClip, chromaKeyPreview, setStabilizeProgressWindow, splitScenes, stabilizeClip, stabilizeStatus } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
@@ -363,14 +363,28 @@ function registerIpc(): void {
 
   ipcMain.handle('ffmpeg:status', async (): Promise<FfmpegInfo> => {
     const status = await detectFfmpeg();
-    return status.ok
-      ? { ok: true, path: status.path, version: status.version, encoders: status.encoders, tonemap: await canTonemap(status.path) }
-      : { ok: false, message: status.message };
+    // The one reading of the build, against the one table (milestone 88): Settings, the Output tab,
+    // the Info tab and the stabilize dialog all read this answer.
+    const choice = await ffmpegChoice();
+    const envOverride = process.env.PULP_FFMPEG_PATH ? { envOverride: process.env.PULP_FFMPEG_PATH } : {};
+    if (!status.ok) return { ok: false, message: status.message, choice, ...envOverride };
+    const features = allFeatures(status);
+    return {
+      ok: true, path: status.path, version: status.version, encoders: status.encoders,
+      tonemap: features.find((f) => f.id === 'hdr')?.ok ?? false, features, choice, ...envOverride,
+    };
   });
   // The download helper (milestone 17, ADR 0022). The status says what would be fetched and
   // from whom; the fetch is the person's yes, and the only request either one ever makes.
   ipcMain.handle('ffmpeg:download-status', () => ffmpegDownloadStatus());
   ipcMain.handle('ffmpeg:fetch', () => fetchFfmpeg());
+  // Which ffmpeg Pulp uses (milestone 88): a choice from Settings, or a file picked there.
+  ipcMain.handle('ffmpeg:choose', (_event, choice: unknown) => chooseFfmpeg(choice));
+  ipcMain.handle('ffmpeg:choose-file', async () => {
+    const pick = await dialog.showOpenDialog({ title: tr('dialog.ffmpeg.title'), properties: ['openFile'] });
+    if (pick.canceled || !pick.filePaths[0]) return { ok: false, message: '', cancelled: true };
+    return chooseFfmpeg({ kind: 'file', path: pick.filePaths[0] });
+  });
 
   ipcMain.handle('queue:add', (_event, request: RenderRequest) => enqueueRender(request));
   ipcMain.handle('queue:add-batch', (_event, request: BatchRequest) => enqueueBatch(request));
@@ -1033,6 +1047,8 @@ async function runCliRender(cli: CliRender): Promise<number> {
     presetId: cli.presetId,
     outputPath: resolve(cli.out),
     overwrite: true,
+    // A script is told, with an exit code, rather than handed a file missing a conversion (milestone 88).
+    requireFeatures: true,
     options: cli.options,
     ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
     ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),
@@ -1114,7 +1130,7 @@ async function runCliCollection(cli: CliRender): Promise<number> {
         console.warn(`skipped ${item.name}: ${facts ? 'it is not in the library, or its folder is offline' : `unknown preset "${item.presetId}"`}`);
         continue;
       }
-      const result = await renderMedia({ entry: found.entry, params: item.params, presetId: item.presetId, outputPath: join(folder, `${slug(item.name, 'render')}${facts.extension}`), overwrite: true, options: item.options });
+      const result = await renderMedia({ entry: found.entry, params: item.params, presetId: item.presetId, outputPath: join(folder, `${slug(item.name, 'render')}${facts.extension}`), overwrite: true, options: item.options, requireFeatures: true });
       if (result.ok) {
         rendered += 1;
         console.log(`wrote ${result.output} (${item.name})`);
@@ -1140,6 +1156,7 @@ async function runCliCollection(cli: CliRender): Promise<number> {
       presetId: item.presetId,
       outputPath: join(folder, `${slug(item.name, 'render')}${preset.extension}`),
       overwrite: true,
+      requireFeatures: true,
       options: item.options,
       ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
       ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),
@@ -1193,6 +1210,7 @@ async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnT
       presetId: cli.presetId,
       outputPath: join(folder, `${row.fileName}${preset.extension}`),
       overwrite: true,
+      requireFeatures: true,
       options: cli.options,
       ...(cli.frameTimeoutMs ? { frameTimeoutMs: cli.frameTimeoutMs } : {}),
       ...(cli.frameFormat !== undefined ? { frameFormat: cli.frameFormat as FrameFormat } : {}),

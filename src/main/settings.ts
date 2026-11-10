@@ -69,6 +69,21 @@ export interface Settings {
   recordingInput?: { id: string; label: string };
   /** The camera preview's camera, microphone and sound (milestone 64); absent is the defaults, sound on. */
   videoInputs?: VideoInputs;
+  /**
+   * Which ffmpeg Pulp uses (milestone 88): the first one found (automatic,
+   * the default), the build Pulp fetched, or a file the person chose.
+   * `PULP_FFMPEG_PATH` still comes before any of them, for scripts and CI.
+   */
+  ffmpegChoice: FfmpegChoice;
+}
+
+export type FfmpegChoice = { kind: 'auto' } | { kind: 'fetched' } | { kind: 'file'; path: string };
+
+function sanitizeFfmpegChoice(raw: unknown): FfmpegChoice {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  if (r.kind === 'fetched') return { kind: 'fetched' };
+  if (r.kind === 'file' && typeof r.path === 'string' && r.path.trim() !== '') return { kind: 'file', path: r.path };
+  return { kind: 'auto' };
 }
 
 const DEFAULTS: Settings = {
@@ -94,6 +109,7 @@ const DEFAULTS: Settings = {
   editorPanel: false,
   appearance: DEFAULT_APPEARANCE,
   language: DEFAULT_LANGUAGE,
+  ffmpegChoice: { kind: 'auto' },
 };
 
 /** Only string-to-string entries, and only for paths the recent list still holds. */
@@ -149,6 +165,7 @@ function sanitize(raw: Partial<Settings>): Settings {
     editorPanel: raw.editorPanel === true,
     appearance: sanitizeAppearance(raw.appearance),
     language: sanitizeLanguage(raw.language),
+    ffmpegChoice: sanitizeFfmpegChoice(raw.ffmpegChoice),
     ...(raw.recordingInput && typeof raw.recordingInput === 'object' && typeof raw.recordingInput.id === 'string' && typeof raw.recordingInput.label === 'string'
       ? { recordingInput: { id: raw.recordingInput.id, label: raw.recordingInput.label } }
       : {}),

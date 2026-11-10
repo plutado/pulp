@@ -18,6 +18,8 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { detectFfmpeg, runForBuffer, type FfmpegStatus } from '../core/ffmpeg';
 import { canTonemap } from './hdr-service';
+import { ffmpegFeature, planLacks } from './ffmpeg-caps';
+import { missingSentence } from '../core/ffmpeg-needs';
 import { clipSetLayersStitchArgs, stitchHasSound } from '../core/clip-set';
 import { stitchLayersFor } from './clip-set-service';
 import { tr } from '../core/i18n';
@@ -45,6 +47,8 @@ export interface MediaRenderJob {
   overwrite?: boolean;
   signal?: AbortSignal;
   onProgress?: (progress: RenderProgress) => void;
+  /** Refuse what this ffmpeg cannot do rather than render without it, as a template render does (milestone 88). */
+  requireFeatures?: boolean;
 }
 
 /** What the planner needs to know about an item: the library's measurements, or a probe now; a layered file as its collected composite. */
@@ -205,7 +209,16 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
   const scratch = await mkdtemp(join(tmpdir(), 'pulp-media-'));
   try {
     const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) }, job.options);
-    const plan = buildMediaRenderPlan({ source, presetId: job.presetId, outputPath: job.outputPath, options: job.options, overwrite: job.overwrite, scratchDir: scratch, tonemap: await canTonemap(ffmpeg.path) });
+    const tonemap = await canTonemap(ffmpeg.path);
+    // An HDR item this ffmpeg cannot convert (milestone 88): refused where asked to be, written as it is with a warning otherwise.
+    if (source.hdr && !tonemap && job.requireFeatures) {
+      const lacking = await ffmpegFeature('hdr');
+      if (lacking) return { ok: false, message: missingSentence(lacking) };
+    }
+    const plan = buildMediaRenderPlan({ source, presetId: job.presetId, outputPath: job.outputPath, options: job.options, overwrite: job.overwrite, scratchDir: scratch, tonemap });
+    // Every stage against the build: what only ffmpeg would refuse is said first, by its feature.
+    const lacks = (await Promise.all(plan.stages.map((stage) => planLacks(stage.args)))).flat();
+    if (lacks.length > 0) return { ok: false, message: [...new Map(lacks.map((l) => [l.id, missingSentence(l)])).values()].join(' ') };
     await mkdir(dirname(plan.output), { recursive: true });
     const total = plan.timing.totalFrames;
     for (let i = 0; i < plan.stages.length; i += 1) {

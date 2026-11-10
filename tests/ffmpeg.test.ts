@@ -73,8 +73,9 @@ describe('detectFfmpeg', () => {
   it('prefers PULP_FFMPEG_PATH', async () => {
     const run = fakeRunner('/custom/ffmpeg');
     const status = await detectFfmpeg(run, { PULP_FFMPEG_PATH: '/custom/ffmpeg' });
+    // The filter and decoder lists this runner does not answer are unknown, not empty (milestone 88).
     expect(status).toEqual({
-      ok: true, path: '/custom/ffmpeg', version: '7.1.1', encoders: ['libx264', 'png', 'prores_ks', 'aac'], alphaModeAware: false,
+      ok: true, path: '/custom/ffmpeg', version: '7.1.1', encoders: ['libx264', 'png', 'prores_ks', 'aac'], filters: null, decoders: null, alphaModeAware: false,
     });
     expect(run.calls[0]).toBe('/custom/ffmpeg');
   });
@@ -131,7 +132,8 @@ describe('checkPresetSupport', () => {
     expect(presetUnavailableReason(have, OUTPUT_PRESETS['hevc-alpha'])).toBe(
       'no "hevc_videotoolbox" encoder in this ffmpeg (macOS only: Apple VideoToolbox)',
     );
-    expect(presetUnavailableReason(have, OUTPUT_PRESETS['webm-vp9-alpha'])).toBe('no "libvpx-vp9" encoder in this ffmpeg');
+    // An encoder from a library says which library, and where the fix is (milestone 88).
+    expect(presetUnavailableReason(have, OUTPUT_PRESETS['webm-vp9-alpha'])).toBe('needs an FFmpeg built with libvpx (no "libvpx-vp9" encoder in this one); Settings → FFmpeg can fetch one');
     // An empty list means the encoder listing failed; nothing is marked unavailable.
     expect(presetUnavailableReason([], OUTPUT_PRESETS['hevc-alpha'])).toBeNull();
   });

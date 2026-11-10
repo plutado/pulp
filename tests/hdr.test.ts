@@ -7,7 +7,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { hasTonemapping, hdrFromTransfer, HDR_TRANSFERS, TONEMAP_PEAK_NITS, tonemapPrefix, tonemapSteps } from '../src/core/hdr';
+import { featureStatus } from '../src/core/ffmpeg-needs';
+import { hdrFromTransfer, HDR_TRANSFERS, TONEMAP_PEAK_NITS, tonemapPrefix, tonemapSteps } from '../src/core/hdr';
 import { parseFfprobe } from '../src/core/media-meta';
 import { ffprobeArgs } from '../src/core/media-probe';
 import { clipFramesArgs } from '../src/main/clip-grant';
@@ -101,10 +102,11 @@ describe('the conversion itself', () => {
     expect(tonemapPrefix('pq')).toBe(`${tonemapSteps('pq').join(',')},`);
   });
 
-  it('is offered only by an ffmpeg that carries zimg and the curve', () => {
-    expect(hasTonemapping('... scale ... zscale ... tonemap ...')).toBe(true);
-    expect(hasTonemapping('... scale V->V Scale the input video size.')).toBe(false);
-    expect(hasTonemapping('... tonemap ... (no zimg here)')).toBe(false);
+  it('is offered only by an ffmpeg that carries zimg and the curve, through the feature table (milestone 88)', () => {
+    const caps = (filters: string[]) => ({ filters, encoders: null, decoders: null });
+    expect(featureStatus(caps(['scale', 'zscale', 'tonemap']), 'hdr').ok).toBe(true);
+    expect(featureStatus(caps(['scale']), 'hdr')).toMatchObject({ ok: false, missing: ['zscale', 'tonemap'], library: 'libzimg' });
+    expect(featureStatus(caps(['tonemap']), 'hdr').missing).toEqual(['zscale']);
   });
 });
 

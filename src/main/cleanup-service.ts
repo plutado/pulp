@@ -16,13 +16,15 @@ import { tmpdir } from 'node:os';
 import { dirname, extname, join } from 'node:path';
 import type { BrowserWindow } from 'electron';
 import {
-  chromaKeyArgs, chromaKeyStillArgs, hasStabilizer, keyedClipPath, parseSceneCuts, passSeconds, PREVIEW_SECONDS,
+  chromaKeyArgs, chromaKeyStillArgs, keyedClipPath, parseSceneCuts, passSeconds, PREVIEW_SECONDS,
   sanitizeChromaKey, sceneDetectArgs, sceneFolder, scenePattern, sceneSplitArgs, stabilizeDetectArgs,
   stabilizedClipPath, stabilizeTransformArgs, type ChromaKeySettings,
 } from '../core/clip-clean';
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
 import { sanitizeStabilize } from '../core/clip-clean';
 import { tr } from '../core/i18n';
+import { missingSentence } from '../core/ffmpeg-needs';
+import { ffmpegFeature } from './ffmpeg-caps';
 import { lookupMedia, rescan, prepareForUse } from './library-service';
 import { clipSetFile } from './clip-set-service';
 
@@ -215,20 +217,14 @@ function runPass(ffmpeg: string, args: string[], pass: 1 | 2, duration: number |
 }
 
 /**
- * Whether Stabilize can run here: ffmpeg found, and built with vid.stab. Read
- * from the filter list each time the dialog opens — cheap, and true of the
- * ffmpeg actually in use, which Settings can change.
+ * Whether Stabilize can run here: ffmpeg found, and built with vid.stab — the
+ * feature table's answer for the build in use (milestone 88), which Settings
+ * can change. Missing, it says what is missing and where the fix is.
  */
-export async function stabilizeStatus(): Promise<{ ok: true } | { ok: false; message: string }> {
-  const ffmpeg = await ffmpegPath();
-  if (!ffmpeg) return { ok: false, message: tr('cleanup.stabilize.no-ffmpeg') };
-  try {
-    const filters = await run(ffmpeg, ['-hide_banner', '-filters']);
-    if (filters.code === 0 && hasStabilizer(filters.stdout.toString('utf8'))) return { ok: true };
-  } catch {
-    // Listing failed: treated as a build without the filter, said below.
-  }
-  return { ok: false, message: tr('cleanup.stabilize.no-filter') };
+export async function stabilizeStatus(): Promise<{ ok: true } | { ok: false; message: string; missing?: true }> {
+  const status = await ffmpegFeature('stabilize');
+  if (!status) return { ok: false, message: tr('cleanup.stabilize.no-ffmpeg') };
+  return status.ok ? { ok: true } : { ok: false, message: missingSentence(status), missing: true };
 }
 
 /** Stop the stabilization in flight, if one is; the run itself answers with `cancelled`. */

@@ -14,6 +14,7 @@
  */
 
 import { createWriteStream, type WriteStream } from 'node:fs';
+import { needFor } from './ffmpeg-needs';
 import { mkdir, rm, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -128,7 +129,8 @@ export function takeBitrate(width: number, height: number, fps: number, bitsPerP
  * a machine without the hardware; the next is then tried.
  */
 export function h264EncodersFor(encoders: readonly string[]): string[] {
-  return ['libx264', 'h264_videotoolbox', 'h264_mf', 'h264_nvenc', 'h264_amf'].filter((e) => encoders.includes(e));
+  // The choices, in order, are the feature table's (milestone 88): one list, which Settings reads too.
+  return (needFor('take').anyEncoder ?? []).filter((e) => encoders.includes(e));
 }
 
 export interface TakeConversion {

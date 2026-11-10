@@ -20,7 +20,9 @@ import { browsedHiddenChoice } from './psd-state';
 import { formatTimecode, parseTimecode, STANDARD_FRAME_RATES, TimecodeError, timecodePattern } from '../core/timecode';
 import type { TemplateEntry } from '../core/library-types';
 import { currentRawParams } from './inspector-params';
-import { captionsIn, LAYERS_KEY } from '../core/params';
+import { captionsIn, LAYERS_KEY, trackIn } from '../core/params';
+import { missingSentence } from '../core/ffmpeg-needs';
+import type { FfmpegFeatureInfo } from '../shared/api';
 import { lengthIn } from '../core/params';
 import { layersHaveStems, soundIdsInLayers } from '../core/sound-layer';
 import { lengthFrameCount, resolveLength } from '../core/timing';
@@ -55,6 +57,7 @@ const els = {
   preset: $<HTMLSelectElement>('preset'),
   presetNote: $<HTMLParagraphElement>('preset-note'),
   presetUnavailable: $<HTMLParagraphElement>('preset-unavailable'),
+  ffmpegNeeds: $<HTMLParagraphElement>('ffmpeg-needs-note'),
   optAspectField: $<HTMLLabelElement>('opt-aspect-field'),
   optAspect: $<HTMLSelectElement>('opt-aspect'),
   optResolution: $<HTMLSelectElement>('opt-resolution'),
@@ -843,8 +846,50 @@ function noteEdits(): void {
     els.optBitDepth.value === '24';
 }
 
+/**
+ * What this project needs of the ffmpeg in use that it lacks, said before the
+ * render (milestone 88): an HDR clip with no zimg to convert it. The window
+ * still renders — the clip as it is, with a warning — and the command line
+ * refuses; either way it is known before anything starts.
+ */
+let ffmpegFeatures: readonly FfmpegFeatureInfo[] = [];
+
+export function outputSetFfmpegFeatures(features: readonly FfmpegFeatureInfo[]): void {
+  ffmpegFeatures = features;
+  showFfmpegNeeds();
+}
+
+/** The library clips this project plays: the cut track's shots and the video layers', by id. */
+function projectClipIds(): string[] {
+  if (o.media) return [o.media.id];
+  const raw = currentRawParams();
+  const ids = new Set<string>();
+  for (const cut of trackIn(raw)?.cuts ?? []) ids.add(cut.id);
+  const stacks = raw[LAYERS_KEY];
+  if (stacks && typeof stacks === 'object') {
+    for (const stack of Object.values(stacks as Record<string, unknown>)) {
+      if (!Array.isArray(stack)) continue;
+      for (const layer of stack as { clip?: unknown }[]) {
+        const clip = layer?.clip;
+        const id = typeof clip === 'string' ? clip.split(/\s+/)[0] : clip && typeof clip === 'object' ? (clip as { id?: unknown }).id : undefined;
+        if (typeof id === 'string' && id !== '') ids.add(id);
+      }
+    }
+  }
+  return [...ids];
+}
+
+function showFfmpegNeeds(): void {
+  const hdr = ffmpegFeatures.find((f) => f.id === 'hdr');
+  const media = appState.value.index?.media ?? [];
+  const hdrClips = hdr && !hdr.ok ? projectClipIds().filter((id) => media.find((m) => m.id === id)?.meta?.hdr) : [];
+  els.ffmpegNeeds.hidden = hdrClips.length === 0;
+  if (hdrClips.length > 0) els.ffmpegNeeds.textContent = t('output.ffmpeg-needs.hdr', { count: hdrClips.length, sentence: missingSentence(hdr!) });
+}
+
 function updateOptionsNote(): void {
   noteEdits();
+  showFfmpegNeeds();
   const m = selectedTemplate.value?.manifest;
   if (!m && o.media) {
     updateMediaOptionsNote(o.media);

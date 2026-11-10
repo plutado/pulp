@@ -21,7 +21,7 @@
  * file, and the HDR is still there if the clip is used somewhere else.
  *
  * **Needs zimg.** `zscale` is libavfilter's binding to zimg, which not every
- * ffmpeg build carries; `hasTonemapping` reads the filter list for it, and
+ * ffmpeg build carries; the feature table (src/core/ffmpeg-needs.ts) names it, and
  * without it the clip is read as it is and the person is told why rather than
  * being handed a silently darker picture.
  */
@@ -91,11 +91,3 @@ export function tonemapPrefix(hdr: HdrFormat | undefined): string {
   return hdr ? `${tonemapSteps(hdr).join(',')},` : '';
 }
 
-/**
- * Whether this ffmpeg can convert HDR at all, from `ffmpeg -hide_banner
- * -filters`: zimg's `zscale` for the color conversions and `tonemap` for the
- * curve. Read from the build actually in use, which Settings can change.
- */
-export function hasTonemapping(filtersOutput: string): boolean {
-  return /\bzscale\b/.test(filtersOutput) && /\btonemap\b/.test(filtersOutput);
-}

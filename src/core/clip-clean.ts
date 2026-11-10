@@ -222,8 +222,8 @@ export function scenePattern(input: string): string {
  * the camera's motion into a transforms file, `vidstabtransform` smooths it
  * and renders the steadier clip, which joins the library beside the original
  * as `<name> steady.mov`. The filters come from libvidstab, which not every
- * ffmpeg is built with; `hasStabilizer` reads the filter list so the window
- * can say so plainly instead of failing mid-run.
+ * ffmpeg is built with; the feature table (src/core/ffmpeg-needs.ts) names
+ * them, so the window can say so plainly instead of failing mid-run.
  */
 export interface StabilizeSettings {
   /**
@@ -285,11 +285,6 @@ export function stabilizedClipPath(input: string): string {
   const file = input.slice(slash + 1);
   const dot = file.lastIndexOf('.');
   return `${dir}${dot > 0 ? file.slice(0, dot) : file} steady.mov`; // i18n-exempt(content)
-}
-
-/** Whether this ffmpeg carries vid.stab, from `ffmpeg -hide_banner -filters`. */
-export function hasStabilizer(filtersOutput: string): boolean {
-  return /\bvidstabdetect\b/.test(filtersOutput) && /\bvidstabtransform\b/.test(filtersOutput);
 }
 
 /**

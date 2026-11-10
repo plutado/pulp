@@ -420,6 +420,7 @@ export const markup = {
   'ui.stab-edges.keep': 'Keep them (borders show)',
   'ui.stab-make': 'Stabilize clip',
   'ui.stab-cancel': 'Stop',
+  'ui.ffmpeg-fix': 'FFmpeg Settings…',
   'ui.stab-close': 'Close',
   'ui.shortcuts-dialog.keyboard-shortcuts': 'Keyboard shortcuts',
   'ui.shortcuts-dialog.the-same-keys-the-menu': 'The same keys the menu shows, read from the menu itself.',

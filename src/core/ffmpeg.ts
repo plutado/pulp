@@ -4,8 +4,10 @@
  */
 
 import { execFile, spawn } from 'node:child_process';
+import { statSync } from 'node:fs';
 import { tr } from './i18n';
 import type { OutputPreset } from './render-plan';
+import { featureForEncoder, featureStatus, missingSentence } from './ffmpeg-needs';
 
 export { presetUnavailableReason } from './ffmpeg-presets';
 
@@ -23,6 +25,13 @@ export type FfmpegStatus =
       path: string;
       version: string;
       encoders: string[];
+      /**
+       * The filters and decoders it carries (milestone 88), which every feature
+       * asks through src/core/ffmpeg-needs.ts; null where the list could not be
+       * read, which is held against nothing.
+       */
+      filters: string[] | null;
+      decoders: string[] | null;
       /** True if filter links carry an alpha mode (ffmpeg 8.1 and later): raw input must then be tagged. */
       alphaModeAware: boolean;
     }
@@ -38,14 +47,28 @@ export function ffmpegMissingMessage(): string {
  * helper registers it at startup and again the moment a fetch lands
  * (src/main/ffmpeg-service.ts), so nothing has to be restarted.
  *
- * It goes **last** among the candidates below. "Use your own ffmpeg" stays the
- * rule: the one on your PATH wins over the one Pulp fetched, which is only
- * ever there because there was none.
+ * It goes **last** among the candidates below unless it is chosen (ADR 0026):
+ * "use your own ffmpeg" stays the default, and the one on your PATH wins over
+ * the one Pulp fetched until the person picks the fetched one in Settings —
+ * which a fetch does for them, having been asked for.
  */
 let managedFfmpeg: string | null = null;
 
 export function setManagedFfmpeg(path: string | null): void {
   managedFfmpeg = path;
+}
+
+/**
+ * The ffmpeg the person chose in Settings (milestone 88): a file of their
+ * own, or the build Pulp fetched. It goes **first** — after the
+ * `PULP_FFMPEG_PATH` override, which is for scripts and CI — so a choice is a
+ * choice; with none, the order below stands and the fetched build is looked
+ * for last, as before. The settings module sets it at startup and on a change.
+ */
+let chosenFfmpeg: string | null = null;
+
+export function setChosenFfmpeg(path: string | null): void {
+  chosenFfmpeg = path;
 }
 
 export const nodeRunner: ProcessRunner = (command, args) =>
@@ -145,6 +168,27 @@ export function parseEncoders(output: string): string[] {
   return names;
 }
 
+/**
+ * Filter names from `ffmpeg -hide_banner -filters`, or null when the output is
+ * not that list. Each line is a flag column and the name; the header ends at
+ * the legend, which is the lines with " = ".
+ */
+export function parseFilters(output: string): string[] | null {
+  if (!/^Filters:/m.test(output)) return null;
+  const names: string[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const m = /^\s[T.|][S.|]?[C.|]?\s+([a-z0-9_]+)\s+\S+->\S+/.exec(line);
+    if (m?.[1]) names.push(m[1]);
+  }
+  return names;
+}
+
+/** Decoder names from `ffmpeg -hide_banner -decoders`, laid out as the encoders are; null when the output is not that list. */
+export function parseDecoders(output: string): string[] | null {
+  if (!/^Decoders:/m.test(output)) return null;
+  return parseEncoders(output);
+}
+
 /** True if `ffmpeg -h filter=setparams` lists an alpha_mode option, which arrived with alpha mode negotiation in 8.1. */
 export function parseAlphaModeSupport(output: string): boolean {
   return /^\s*alpha_mode\s+<int>/m.test(output);
@@ -153,9 +197,11 @@ export function parseAlphaModeSupport(output: string): boolean {
 export function candidatePaths(
   env: Record<string, string | undefined>,
   managed: string | null = managedFfmpeg,
+  chosen: string | null = chosenFfmpeg,
 ): string[] {
   const list: string[] = [];
   if (env.PULP_FFMPEG_PATH) list.push(env.PULP_FFMPEG_PATH);
+  if (chosen) list.push(chosen);
   list.push('ffmpeg');
   // GUI apps on macOS do not inherit the shell PATH, so check the usual Homebrew locations too.
   list.push('/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg');
@@ -163,42 +209,98 @@ export function candidatePaths(
   return [...new Set(list)];
 }
 
+/**
+ * What one ffmpeg was found to be, kept for as long as the file is unchanged
+ * (milestone 88): the version, the encoders, decoders and filters, and the
+ * alpha mode. Five processes, so they are run once per build rather than on
+ * every render, every clip read and every dialog that asks — which is also
+ * what makes every feature's answer the same one. Kept only for the real
+ * runner: a test's runner answers what it is told, every time.
+ */
+const readBuilds = new Map<string, Promise<FfmpegStatus | null>>();
+
+function fileStamp(command: string): string {
+  // A bare name on PATH has no file to stamp; it is read once per run, which is what a PATH lookup is.
+  if (!command.includes('/') && !command.includes('\\')) return '';
+  try {
+    const st = statSync(command);
+    return `${st.size}|${st.mtimeMs}`;
+  } catch {
+    return 'gone';
+  }
+}
+
+async function readBuild(run: ProcessRunner, candidate: string): Promise<FfmpegStatus | null> {
+  let result: RunResult;
+  try {
+    result = await run(candidate, ['-hide_banner', '-version']);
+  } catch {
+    return null;
+  }
+  if (result.code !== 0) return null;
+  const version = parseFfmpegVersion(result.stdout) ?? 'unknown';
+  /** One listing, read or not: a listing that fails is reported as unknown, never as empty. */
+  const list = async <T>(args: string[], parse: (out: string) => T, fallback: T): Promise<T> => {
+    try {
+      const r = await run(candidate, args);
+      return r.code === 0 ? parse(r.stdout) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  // Version worked but a listing did not: report what there is.
+  const encoders = await list(['-hide_banner', '-encoders'], parseEncoders, [] as string[]);
+  const decoders = await list(['-hide_banner', '-decoders'], parseDecoders, null);
+  const filters = await list(['-hide_banner', '-filters'], parseFilters, null);
+  // Treated as an older ffmpeg, with no alpha mode tagging, when the help cannot be read.
+  const alphaModeAware = await list(['-hide_banner', '-h', 'filter=setparams'], parseAlphaModeSupport, false);
+  return { ok: true, path: candidate, version, encoders, filters, decoders, alphaModeAware };
+}
+
 export async function detectFfmpeg(
   run: ProcessRunner = nodeRunner,
   env: Record<string, string | undefined> = process.env,
 ): Promise<FfmpegStatus> {
   for (const candidate of candidatePaths(env)) {
-    let result: RunResult;
-    try {
-      result = await run(candidate, ['-hide_banner', '-version']);
-    } catch {
-      continue;
+    let found: FfmpegStatus | null;
+    if (run === nodeRunner) {
+      const key = `${candidate}|${fileStamp(candidate)}`;
+      let work = readBuilds.get(key);
+      if (!work) {
+        work = readBuild(run, candidate);
+        readBuilds.set(key, work);
+      }
+      found = await work;
+      // A candidate that is not there now may be there later (a fetch lands, a brew install runs).
+      if (!found) readBuilds.delete(key);
+    } else {
+      found = await readBuild(run, candidate);
     }
-    if (result.code !== 0) continue;
-    const version = parseFfmpegVersion(result.stdout) ?? 'unknown';
-    let encoders: string[] = [];
-    try {
-      const enc = await run(candidate, ['-hide_banner', '-encoders']);
-      if (enc.code === 0) encoders = parseEncoders(enc.stdout);
-    } catch {
-      // Version worked but encoder listing did not; report what we have.
-    }
-    let alphaModeAware = false;
-    try {
-      const help = await run(candidate, ['-hide_banner', '-h', 'filter=setparams']);
-      if (help.code === 0) alphaModeAware = parseAlphaModeSupport(help.stdout);
-    } catch {
-      // Treated as an older ffmpeg: no alpha mode tagging.
-    }
-    return { ok: true, path: candidate, version, encoders, alphaModeAware };
+    if (found) return found;
   }
   return { ok: false, message: ffmpegMissingMessage() };
+}
+
+/** Forget what was read of every build: after a fetch, or a change of the chosen ffmpeg. */
+export function forgetFfmpegBuilds(): void {
+  readBuilds.clear();
+}
+
+/** The status as the feature table reads it (src/core/ffmpeg-needs.ts). */
+export function capabilitiesOf(status: FfmpegStatus): { filters: string[] | null; encoders: string[] | null; decoders: string[] | null } {
+  if (!status.ok) return { filters: [], encoders: [], decoders: [] };
+  // An encoder list that came back empty was not read: say unknown, as before, rather than "nothing".
+  return { filters: status.filters, encoders: status.encoders.length > 0 ? status.encoders : null, decoders: status.decoders };
 }
 
 /** Returns an error message if the detected ffmpeg cannot encode this preset, otherwise null. */
 export function checkPresetSupport(status: FfmpegStatus, preset: OutputPreset): string | null {
   if (!status.ok) return status.message;
   if (status.encoders.length > 0 && !status.encoders.includes(preset.encoder)) {
+    // An encoder a library brings is said as the feature table says it (milestone 88): the library,
+    // and where the fix is — the same sentence the preset list and Settings use.
+    const feature = featureForEncoder(preset.encoder);
+    if (feature && !preset.platformNote) return missingSentence(featureStatus(capabilitiesOf(status), feature));
     return tr('ffmpeg.encoder-missing', { path: status.path, version: status.version, encoder: preset.encoder, preset: preset.label });
   }
   return null;

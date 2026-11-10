@@ -9,14 +9,14 @@
  */
 
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
+import { detectFfmpeg, nodeRunner, parseFilters } from '../../src/core/ffmpeg';
 import { probeMedia } from '../../src/core/media-probe';
-import { hasTonemapping } from '../../src/core/hdr';
+import { featureStatus } from '../../src/core/ffmpeg-needs';
 import { readWebp } from '../webp-anim';
 import { SEQUENCE_FPS, sequenceMetadata, sequencePatternName } from '../../src/core/media-sequence';
 import { sequenceStripArgs } from '../../src/core/hover-scrub';
@@ -1622,6 +1622,54 @@ describe.skipIf(!available)('end-to-end render', () => {
     }
   }, 300_000);
 
+  // An ffmpeg that lacks what a project needs, made from the real one (milestone 88): a wrapper that
+  // runs it but leaves a filter or an encoder out of what it lists — to Pulp, a build without it.
+  it.skipIf(process.platform === 'win32')('refuses on the command line what this ffmpeg cannot do, naming what is missing, rather than leaving it out (milestone 88)', async () => {
+    const lib = join(out, 'needs-library');
+    await mkdir(lib, { recursive: true });
+    // A clip tagged as a phone tags HDR, as milestone 81's test makes one.
+    const clip = join(lib, 'phone-hdr.mp4');
+    const made = await runBounded(ffmpeg, ffmpegArgs([
+      '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x808080:s=160x160:d=1:r=30',
+      '-vf', 'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc', '-pix_fmt', 'yuv420p', '-c:v', 'libx264', clip,
+    ]), { timeoutMs: TOOL_TIMEOUT_MS });
+    expect(made.code, made.stderr).toBe(0);
+    const hdrId = itemId(`media:${clip}`);
+
+    /** An ffmpeg that hides `hidden` from the list `-hide_banner <list>` prints, with the real ffprobe beside it. */
+    const without = async (name: string, list: '-filters' | '-encoders', hidden: string) => {
+      const dir = join(out, `ffmpeg-without-${name}`);
+      await mkdir(dir, { recursive: true });
+      const wrapper = join(dir, 'ffmpeg');
+      await writeFile(wrapper, `#!/bin/sh\nif [ "$2" = "${list}" ]; then "${ffmpeg}" "$@" | grep -v ' ${hidden} '; exit 0; fi\nexec "${ffmpeg}" "$@"\n`, { mode: 0o755 });
+      await rm(join(dir, 'ffprobe'), { force: true });
+      await symlink(ffprobe.includes('/') ? ffprobe : (await runBounded('/bin/sh', ['-c', 'command -v ffprobe'], { timeoutMs: 5000 })).stdout.trim(), join(dir, 'ffprobe'));
+      return wrapper;
+    };
+
+    // No zimg: an HDR shot cannot be converted, so the command line refuses, by the library's name.
+    const noZimg = await without('zimg', '-filters', 'zscale');
+    const track = ['--param', `@track=${JSON.stringify({ cuts: [{ id: hdrId, from: 0, to: 1 }] })}`];
+    const refused = await render('pulp.test.video-layer', 'png-sequence', 'needs-hdr', { extra: ['--library', FIXTURES, '--library', lib, ...track], env: { PULP_FFMPEG_PATH: noZimg } });
+    expect(refused.code, 'an error, not a washed-out file').toBe(1);
+    expect(refused.stderr).toContain('libzimg');
+    expect(refused.stderr).toContain('zscale');
+    expect(existsSync(join(out, 'needs-hdr_00000.png')), 'nothing written').toBe(false);
+    // The same project on the real ffmpeg renders, where it carries zimg; the wrapper is the only difference.
+    const filters = await runBounded(ffmpeg, ['-hide_banner', '-filters'], { timeoutMs: TOOL_TIMEOUT_MS });
+    if (featureStatus({ filters: parseFilters(filters.stdout), encoders: null, decoders: null }, 'hdr').ok) {
+      const rendered = await render('pulp.test.video-layer', 'png-sequence', 'needs-hdr-ok', { extra: ['--library', FIXTURES, '--library', lib, ...track] });
+      expect(rendered.code, rendered.stderr).toBe(0);
+    }
+
+    // No libwebp: the animated WebP preset is refused, naming the library and the fix.
+    const noWebp = await without('webp', '-encoders', 'libwebp_anim');
+    const webp = await render('pulp.test.alpha-check', 'webp-animated', 'needs-webp', { extra: ['--library', FIXTURES, '--size', '320x180'], env: { PULP_FFMPEG_PATH: noWebp } });
+    expect(webp.code).not.toBe(0);
+    expect(webp.stderr).toContain('libwebp');
+    expect(webp.stderr).toContain('Settings → FFmpeg');
+  }, 180_000);
+
   it('converts an HDR clip to standard range for the render and leaves the file alone, or says why it cannot (milestone 81)', async () => {
     // Two clips of the same two-tone picture — a dark half and a bright half — one tagged as a
     // phone tags HDR (PQ, BT.2020) and one left standard range. The pixels are identical; only
@@ -1678,7 +1726,7 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(control.bright).toBeLessThan(215);
 
     const filters = await runBounded(ffmpeg, ['-hide_banner', '-filters'], { timeoutMs: TOOL_TIMEOUT_MS });
-    if (hasTonemapping(filters.stdout)) {
+    if (featureStatus({ filters: parseFilters(filters.stdout), encoders: null, decoders: null }, 'hdr').ok) {
       // Taken at face value, HDR code values are a flat picture in the middle of the range; read
       // as the light they mean, the dark half settles down and the bright half comes up to white,
       // so what was washed out has its contrast back.

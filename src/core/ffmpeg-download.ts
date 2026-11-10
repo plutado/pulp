@@ -22,6 +22,7 @@
  * unpacking and the checking are src/main/ffmpeg-service.ts.
  */
 
+import type { FfmpegFeature } from './ffmpeg-needs';
 import { tr } from './i18n';
 
 /**
@@ -54,7 +55,24 @@ export interface FfmpegBuild {
   /** The license of what arrives — not of Pulp, which ships none of it. */
   license: string;
   archives: readonly FfmpegArchive[];
+  /**
+   * The features of the table (src/core/ffmpeg-needs.ts) the build carries,
+   * by its publisher's own configure line (milestone 88): the libraries it is
+   * built with. tests/ffmpeg-needs.test.ts holds every build to every feature
+   * of its platform, so a feature added to the table that a pinned build
+   * would not carry fails there; and the fetch reads the build itself when it
+   * lands and says what it lacks, so a description that was wrong is found
+   * by the first person to fetch it rather than by their first render.
+   */
+  carries: readonly FfmpegFeature[];
 }
+
+/** What a static macOS build from Martin Riedl's server is configured with (zimg, vid.stab, libwebp, x264, libvpx, Opus, LAME; VideoToolbox). */
+const RIEDL_MAC: readonly FfmpegFeature[] = ['hdr', 'stabilize', 'webp', 'h264', 'vp9', 'webm-alpha', 'opus', 'mp3', 'hevc-alpha', 'take', 'set-preview'];
+/** The same server's Linux builds: the same libraries, and no VideoToolbox, which is Apple's. */
+const RIEDL_LINUX: readonly FfmpegFeature[] = ['hdr', 'stabilize', 'webp', 'h264', 'vp9', 'webm-alpha', 'opus', 'mp3', 'take', 'set-preview'];
+/** Gyan's "essentials" configure line: --enable-libzimg, --enable-libvidstab, --enable-libwebp, --enable-libx264, --enable-libvpx, --enable-libopus, --enable-libmp3lame. */
+const GYAN_ESSENTIALS: readonly FfmpegFeature[] = ['hdr', 'stabilize', 'webp', 'h264', 'vp9', 'webm-alpha', 'opus', 'mp3', 'take', 'set-preview'];
 
 /**
  * Where the builds come from (ADR 0022). Two publishers, both of them listed
@@ -65,8 +83,8 @@ export interface FfmpegBuild {
  *   macOS binaries signed with a Developer ID — so a fetched ffmpeg is not
  *   itself something Gatekeeper has to be argued with.
  * - **Gyan Doshi's builds** for Windows: the release "essentials" build, which
- *   carries x264, VP9 and LAME — everything Pulp's presets name — in a third
- *   less download than a full build.
+ *   carries x264, VP9, LAME, Opus, libwebp, zimg and vid.stab — every feature
+ *   of the table (milestone 88) — in a third less download than a full build.
  *
  * Every URL here is a versioned one that keeps its bytes; the rolling
  * "latest" names the same publishers offer would break the checksum the
@@ -93,6 +111,7 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
     get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
+    carries: RIEDL_MAC,
     archives: [
       {
         binary: 'ffmpeg',
@@ -117,6 +136,7 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
     get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
+    carries: RIEDL_MAC,
     archives: [
       {
         binary: 'ffmpeg',
@@ -141,6 +161,7 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
     get publisher() { return tr('ffmpeg-download.publisher.gyan'); },
     ...GYAN,
     license: FFMPEG_DOWNLOAD_LICENSE,
+    carries: GYAN_ESSENTIALS,
     archives: [
       {
         binary: 'ffmpeg',
@@ -167,6 +188,7 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
     get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
+    carries: RIEDL_LINUX,
     archives: [
       {
         binary: 'ffmpeg',
@@ -191,6 +213,7 @@ export const FFMPEG_BUILDS: readonly FfmpegBuild[] = [
     get publisher() { return tr('ffmpeg-download.publisher.martin-riedl'); },
     ...MARTIN_RIEDL,
     license: FFMPEG_DOWNLOAD_LICENSE,
+    carries: RIEDL_LINUX,
     archives: [
       {
         binary: 'ffmpeg',

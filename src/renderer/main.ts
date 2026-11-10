@@ -13,7 +13,7 @@ import { initShell } from './shell';
 import { closeInspectorUnlessPinned, initInspectorTabs, openInspector, showInspectorTab } from './inspector-tabs';
 import { mountCaptions } from './captions';
 import { chosenLibraryItems, currentCaptions, currentLayers, currentRawParams, currentSound, currentTrack, exposeLayerProperty, initInspectorParams, paramsClear, paramsRelabel, paramsShow } from './inspector-params';
-import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
+import { currentOptions, currentPresetId, initInspectorOutput, outputClear, outputEdited, outputSetFfmpeg, outputSetFfmpegFeatures, outputShow, outputShowMedia, setTemplateShower, updateRenderControls } from './inspector-output';
 import { initGuidedSetup } from './guided-setup';
 import { initSemantic } from './semantic';
 import { browseAccordion, browseFoldToActive, mountBrowse } from './browse';
@@ -690,6 +690,8 @@ function readFfmpeg(): void {
     outputSetFfmpeg(info.ok, info.encoders ?? []);
     // Whether it can convert HDR (milestone 81), for an HDR clip's Range row in the Info tab.
     infoSetFfmpeg(info);
+    // What the project needs that this build lacks, said on the Output tab before a render (milestone 88).
+    outputSetFfmpegFeatures(info.ok ? info.features ?? [] : []);
   });
 }
 registerFfmpegRefresh(readFfmpeg);
