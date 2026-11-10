@@ -2258,7 +2258,9 @@ describe.skipIf(!electron)('inspector UI', () => {
         }
       } finally {
         await page.eval(`(() => { const u = document.getElementById('undo'); u.click(); })()`);
-        await rm(folder, { recursive: true, force: true });
+        // Windows keeps a file open a moment after the ffmpeg reading it (its film strip, its
+        // proxies) has ended, so the folder is let go with retries rather than at once.
+        await rm(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
         await page.eval(`document.getElementById('rescan').click()`);
         await restoreLayers();
       }

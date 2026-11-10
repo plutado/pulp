@@ -1713,11 +1713,9 @@ describe.skipIf(!available)('end-to-end render', () => {
     };
 
     const hdrRender = await render('pulp.test.video-layer', 'png-sequence', 'hdr-clip', { extra: [...common, ...trackOf(hdrId)] });
-    expect(hdrRender.code, hdrRender.stderr).toBe(0);
     const sdrRender = await render('pulp.test.video-layer', 'png-sequence', 'hdr-control', { extra: [...common, ...trackOf(sdrId)] });
     expect(sdrRender.code, sdrRender.stderr).toBe(0);
     const control = await halves('hdr-control');
-    const converted = await halves('hdr-clip');
 
     // The standard-range clip is written as it was drawn, whatever this ffmpeg can do.
     expect(control.dark, 'the control is the picture itself').toBeGreaterThan(40);
@@ -1727,6 +1725,8 @@ describe.skipIf(!available)('end-to-end render', () => {
 
     const filters = await runBounded(ffmpeg, ['-hide_banner', '-filters'], { timeoutMs: TOOL_TIMEOUT_MS });
     if (featureStatus({ filters: parseFilters(filters.stdout), encoders: null, decoders: null }, 'hdr').ok) {
+      expect(hdrRender.code, hdrRender.stderr).toBe(0);
+      const converted = await halves('hdr-clip');
       // Taken at face value, HDR code values are a flat picture in the middle of the range; read
       // as the light they mean, the dark half settles down and the bright half comes up to white,
       // so what was washed out has its contrast back.
@@ -1738,12 +1738,12 @@ describe.skipIf(!available)('end-to-end render', () => {
       expect(Math.abs(r! - b!), 'gray stays gray').toBeLessThan(12);
       expect(hdrRender.stderr, 'nothing to warn about when it can be converted').not.toContain('zimg');
     } else {
-      // An ffmpeg without zimg cannot convert: the render still finishes, the clip is written as
-      // it is, and the person is told why and what to do rather than left with a washed-out file.
-      expect(Math.abs(converted.bright - control.bright), 'written as it is').toBeLessThan(6);
-      expect(Math.abs(converted.dark - control.dark)).toBeLessThan(6);
-      expect(hdrRender.stderr).toContain('zimg');
-      expect(hdrRender.stderr).toContain('HDR (PQ)');
+      // An ffmpeg without zimg cannot convert. The window still renders such a shot as it is and
+      // warns; the command line, asked for the whole render, refuses before it starts and names
+      // what is missing and where to get it (milestone 88).
+      expect(hdrRender.code, 'refused rather than written washed out').not.toBe(0);
+      expect(hdrRender.stderr).toContain('libzimg');
+      expect(hdrRender.stderr).toContain('Settings');
     }
 
     // Whatever happened, the camera's own file is untouched: same bytes, still HDR.
