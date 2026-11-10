@@ -19,6 +19,7 @@ import { deflateSync } from 'node:zlib';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { solid, writePsd } from '../psd-fixture';
 import { fixtureClipArgs, IL_HEIGHT, IL_WIDTH } from '../interlace-fixture';
+import { grayClipArgs, strobeExpr } from '../flash-fixture';
 import { writePdf } from '../pdf-fixture';
 import { encodePng } from '../../src/core/png';
 import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
@@ -557,6 +558,10 @@ describe.skipIf(!electron)('inspector UI', () => {
         // first and nothing in the file to say so, so only its frames can tell. Half a second and
         // sorted last, like the HDR clip above, for the same reasons.
         await runBounded(ffmpeg.path, ffmpegArgs(fixtureClipArgs('tff', join(mediaDir, 'zz-tape.mp4'), { seconds: 0.5 })), { timeoutMs: 60_000 });
+        // A strobe (milestone 84): gray, white and black five times a second from 1 s to 2.5 s, for
+        // the flash check to find and the softening to calm. mpeg4 and sorted last, like the clips
+        // above, so the codec and duration searches count what they counted.
+        await runBounded(ffmpeg.path, ffmpegArgs(grayClipArgs(strobeExpr({ hz: 5, from: 1, to: 2.5 }), 4, join(mediaDir, 'zz-strobe.mp4'), 'mpeg4')), { timeoutMs: 60_000 });
         // A clip whose every frame carries its own number (milestone 87), as six bars across it, the
         // least significant at the left, white for a one: read back off the timeline's film strip to
         // see which frame each slot shows. Six seconds at ten a second; mpeg4 and sorted last, like the
@@ -3960,6 +3965,98 @@ describe.skipIf(!electron)('inspector UI', () => {
         await restoreLayers();
       }
     }, 120_000);
+
+    it('checks a finished render for strong flashing, names it on the card, and softens it only as the person chooses (milestone 84)', async () => {
+      const ffmpeg = await detectFfmpeg();
+      if (!ffmpeg.ok || !ffmpeg.encoders.includes('libx264')) {
+        console.info('ffmpeg with libx264 not available; flash check skipped.');
+        return;
+      }
+      /** The mean brightness of each frame of a file. */
+      const means = (file: string) => [...spawnSync(ffmpeg.path, ['-v', 'error', '-i', file, '-vf', 'scale=1:1,format=gray', '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 1 << 20 }).stdout];
+      const swing = (list: number[]) => Math.max(...list) - Math.min(...list);
+      const cardFor = (part: string) => `[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => (c.dataset.file || '').split(/[\\/]/).pop().startsWith(${JSON.stringify(part)}))`;
+      const flashText = (part: string) => page.eval<string>(`(() => { const c = ${cardFor(part)}; return c ? (c.querySelector('.job-flash')?.textContent ?? '') : ''; })()`);
+      const made: number[] = [];
+      try {
+        // A still has nothing to flash: the box is not offered for it.
+        await clickResult('tiny');
+        await openTab('output');
+        await until(() => page.eval<boolean>(`!document.getElementById('media-options').hidden`), 'the media options');
+        expect(await page.eval<boolean>(`document.getElementById('opt-flash-field').hidden`)).toBe(true);
+
+        await clickResult('zz-strobe');
+        await until(() => page.eval<boolean>(`!document.getElementById('opt-flash-field').hidden`), 'the flash check offered for a clip');
+        expect(await page.eval<string>(`document.getElementById('opt-flash-field').getAttribute('data-tip')`)).toContain('not a certified broadcast test');
+        await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'h264-mp4'; s.dispatchEvent(new Event('change', { bubbles: true })); const f = document.getElementById('opt-flash'); f.checked = true; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(async () => (await flashText('zz-strobe')).includes('Strong flashing at'), 'the card naming the flashing', 90_000);
+        expect(await flashText('zz-strobe')).toContain('Strong flashing at 00:00:01:00');
+        expect(await flashText('zz-strobe')).toContain('5 flashes a second, light and dark');
+        expect(await page.eval<string>(`${cardFor('zz-strobe')}.dataset.tip`)).toContain('not a certified broadcast test');
+        const original = await page.eval<string>(`${cardFor('zz-strobe')}.dataset.file`);
+        made.push(Number(await page.eval<string>(`${cardFor('zz-strobe')}.dataset.job`)));
+        const draft = join(original.slice(0, original.length - original.split(/[\\/]/).pop()!.length), `.${original.split(/[\\/]/).pop()}.softening.mp4`);
+        const openSoften = async () => {
+          await page.eval(`${cardFor('zz-strobe')}.querySelector('.job-soften').click()`);
+          await until(() => page.eval<boolean>(`document.getElementById('flash-dialog').open`), 'the soften dialog');
+          const status = () => page.eval<string>(`document.getElementById('flash-status').textContent`);
+          await until(async () => /^(Checked again|Could not)/.test(await status()), 'the softened draft checked again', 60_000);
+          expect(await status()).toMatch(/^Checked again/);
+        };
+
+        // Closed without a choice while it is still softening (as Escape closes it): when the draft
+        // lands it is thrown away, not left hidden beside the render.
+        await page.eval(`${cardFor('zz-strobe')}.querySelector('.job-soften').click()`);
+        await until(() => page.eval<boolean>(`document.getElementById('flash-dialog').open`), 'the soften dialog');
+        await page.eval(`document.getElementById('flash-dialog').close()`);
+        await until(async () => (await flashText('zz-strobe')).endsWith('Soften…'), 'the softening finished behind the closed dialog', 60_000);
+        await new Promise((r) => setTimeout(r, 500));
+        expect(existsSync(draft), 'no draft left').toBe(false);
+
+        // Softened into a draft, shown before and after, checked again — and nothing written over yet.
+        await openSoften();
+        expect(await page.eval<string>(`document.getElementById('flash-moments').textContent`)).toBe('Strong flashing in 1 moment:');
+        expect(await page.eval<string>(`document.querySelector('#flash-spans li').textContent`)).toContain('00:00:01:00');
+        expect(await page.eval<string>(`document.getElementById('flash-status').textContent`)).toBe('Checked again: no strong flashing in the softened render.');
+        expect(await page.eval<boolean>(`!document.getElementById('flash-stills').hidden && document.getElementById('flash-before').src.startsWith('data:image/png') && document.getElementById('flash-after').src.startsWith('data:image/png')`)).toBe(true);
+        expect(await page.eval<boolean>(`!document.getElementById('flash-copy').disabled && !document.getElementById('flash-replace').disabled`)).toBe(true);
+        expect(existsSync(draft), 'the draft beside the render').toBe(true);
+        expect(swing(means(original).slice(36, 70)), 'the render untouched').toBeGreaterThan(150);
+        // Discarded: the draft is gone and the render is as it was.
+        await page.eval(`document.getElementById('flash-discard').click()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('flash-dialog').open`), 'the dialog closed');
+        await until(async () => !existsSync(draft), 'the draft thrown away');
+        expect(await flashText('zz-strobe')).toContain('Strong flashing at');
+
+        // Saved as a copy: a card of its own beside the render's, which still warns.
+        await openSoften();
+        await page.eval(`document.getElementById('flash-copy').click()`);
+        await until(async () => (await flashText('zz-strobe softened')) !== '', 'the copy\'s card', 60_000);
+        expect(await flashText('zz-strobe softened')).toBe('Softened · no strong flashing found now');
+        made.push(Number(await page.eval<string>(`${cardFor('zz-strobe softened')}.dataset.job`)));
+        const copy = await page.eval<string>(`${cardFor('zz-strobe softened')}.dataset.file`);
+        expect(swing(means(copy).slice(36, 70)), 'the copy calm').toBeLessThan(12);
+        expect(swing(means(original).slice(36, 70)), 'the render still as it was').toBeGreaterThan(150);
+
+        // Put in the render's place: the card says so, and the file itself is calm now.
+        await openSoften();
+        await page.eval(`document.getElementById('flash-replace').click()`);
+        await until(async () => (await flashText('zz-strobe')) === 'Softened · no strong flashing found now', 'the render\'s card saying it was softened', 60_000);
+        expect(swing(means(original).slice(36, 70)), 'the render replaced').toBeLessThan(12);
+        expect(existsSync(draft)).toBe(false);
+
+        // A clip that does not flash passes.
+        await clickResult('zz-walker');
+        await until(() => page.eval<boolean>(`!document.getElementById('opt-flash-field').hidden && document.getElementById('opt-flash').checked`), 'the check still asked for');
+        await page.eval(`document.getElementById('drag-prepare').click()`);
+        await until(async () => (await flashText('zz-walker')) === 'No strong flashing found', 'the steady clip passing', 90_000);
+        made.push(Number(await page.eval<string>(`${cardFor('zz-walker')}.dataset.job`)));
+      } finally {
+        await page.eval(`(() => { const f = document.getElementById('opt-flash'); f.checked = false; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        for (const id of made) await page.eval(`window.pulp.removeRender(${id})`);
+      }
+    }, 300_000);
 
     it('marks an interlaced clip in the library, deinterlaces the frames the preview gets, and turns it off and on from the Info tab (milestone 83)', async () => {
       // The library's own pass reads the clip's frames: the card names its resolution as video

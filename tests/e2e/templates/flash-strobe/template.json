@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.flash-strobe",
+  "name": "Test Flash Strobe",
+  "description": "A full-frame strobe, white and black five times a second from 1 s to 2.5 s and dark gray either side, so the flash check has something to find and the softening something to calm (milestone 84).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 4,
+  "fps": 30,
+  "width": 320,
+  "height": 180,
+  "alpha": false,
+  "parameters": []
+}

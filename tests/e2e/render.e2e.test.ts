@@ -2985,6 +2985,68 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(await squaresInView(join(out, 'cropped_00005.png')), 'the crop cannot hold both').toBeLessThan(2);
   }, 240_000);
 
+  describe('the flash warning (milestone 84)', () => {
+    // A template that strobes white and black five times a second from 1 s to 2.5 s, rendered and
+    // checked through the command line as a script would, and a steady one that must pass.
+    const strobe = (prefix: string, preset: string, extension: string, extra: string[]) =>
+      render('pulp.test.flash-strobe', preset, `${prefix}${extension}`, { extra: ['--library', FIXTURES, ...extra] });
+    /** Each frame's mean brightness, from a file. */
+    const means = async (file: string): Promise<number[]> => {
+      const read = await runBoundedBuffer(ffmpeg, ['-v', 'error', '-i', file, '-vf', 'scale=1:1,format=gray', '-f', 'rawvideo', 'pipe:1'], { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 1 << 20 });
+      expect(read.code, read.stderr).toBe(0);
+      return [...read.stdout];
+    };
+
+    it('names where a render flashes strongly, in its own timecode, and writes nothing else', async () => {
+      const result = await strobe('flash-warn', 'h264-mp4', '.mp4', ['--flash-check', 'warn']);
+      expect(result.code, result.stderr).toBe(0);
+      expect(result.stdout).toContain('flash check: a help to catch strong flashing, not a certified broadcast test');
+      // Frames 30 to 74 strobe, ending white; frame 75 falls to the dark gray, the last transition,
+      // so the moment runs to just past it: frame 76, 2 s and 16 frames.
+      expect(result.stderr).toContain('warning: strong flashing at 00:00:01:00–00:00:02:16: 5 flashes a second, light and dark');
+      expect((await readdir(out)).filter((f) => f.startsWith('flash-warn'))).toEqual(['flash-warn.mp4']);
+    }, 120_000);
+
+    it('with soften, writes a calmed copy beside the render, checked again, and leaves the render as it was', async () => {
+      const result = await strobe('flash-soft', 'h264-mp4', '.mp4', ['--flash-check', 'soften']);
+      expect(result.code, result.stderr).toBe(0);
+      const copy = join(out, 'flash-soft softened.mp4');
+      expect(result.stdout).toContain(`wrote ${copy} (softened; checked again: no strong flashing found)`);
+      expect(await probe(copy)).toMatchObject({ width: 320, height: 180 });
+      const before = await means(join(out, 'flash-soft.mp4'));
+      const after = await means(copy);
+      expect(after).toHaveLength(before.length);
+      const swing = (list: number[]) => Math.max(...list) - Math.min(...list);
+      expect(swing(before.slice(36, 70)), 'the render still strobes').toBeGreaterThan(150);
+      expect(swing(after.slice(36, 70)), 'the copy is calm').toBeLessThan(12);
+      // Outside the padded moment the copy is the render's picture, within H.264's own loss.
+      for (const i of [0, 15, 100, 119]) expect(Math.abs(after[i]! - before[i]!), `frame ${i}`).toBeLessThanOrEqual(3);
+    }, 180_000);
+
+    it('checks an animated image and a sequence but softens only video, and says so', async () => {
+      const gif = await strobe('flash-gif', 'gif', '.gif', ['--flash-check', 'soften', '--image-fps', '30']);
+      expect(gif.code, gif.stderr).toBe(0);
+      expect(gif.stderr).toContain('warning: strong flashing at 00:00:01:00');
+      expect(gif.stderr).toContain('a gif render cannot be softened; render it as a video to soften it');
+      expect((await readdir(out)).some((f) => f.startsWith('flash-gif softened'))).toBe(false);
+      const seq = await render('pulp.test.flash-strobe', 'png-sequence', 'flash-seq', { extra: ['--library', FIXTURES, '--flash-check', 'warn', '--in-point', '15'] });
+      expect(seq.code, seq.stderr).toBe(0);
+      // The numbering starts at the in point, and the moment is still named on the template's own timeline.
+      expect(seq.stderr).toContain('warning: strong flashing at 00:00:01:00–00:00:02:16');
+    }, 180_000);
+
+    it('passes a render that does not flash, and refuses a choice it does not know', async () => {
+      const steady = await render('pulp.test.reframe-tall', 'h264-mp4', 'flash-steady.mp4', { extra: ['--library', FIXTURES, '--flash-check', 'warn', '--background', '#336699'] });
+      expect(steady.code, steady.stderr).toBe(0);
+      expect(steady.stdout).toContain('flash check: no strong flashing found');
+      expect(steady.stderr).not.toContain('strong flashing at');
+      const bad = await strobe('flash-bad', 'h264-mp4', '.mp4', ['--flash-check', 'always']);
+      expect(bad.code).not.toBe(0);
+      expect(bad.stderr).toContain('--flash-check always (expected warn, soften)');
+      expect((await readdir(out)).some((f) => f.startsWith('flash-bad'))).toBe(false);
+    }, 120_000);
+  });
+
   describe('interlaced footage (milestone 83)', () => {
     // A white box crossing a gray PAL frame, woven two fields to a frame top first and written with
     // no tag to say so, and the same motion progressive. Rendered on the cut track under a

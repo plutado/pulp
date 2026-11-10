@@ -106,6 +106,8 @@ const els = {
   typeDefaultNote: $<HTMLParagraphElement>('type-default-note'),
   optCoverField: $<HTMLDivElement>('opt-cover-field'),
   optCover: $<HTMLInputElement>('opt-cover'),
+  optFlashField: $<HTMLLabelElement>('opt-flash-field'),
+  optFlash: $<HTMLInputElement>('opt-flash'),
   optCoverRow: $<HTMLDivElement>('opt-cover-row'),
   optCoverAt: $<HTMLInputElement>('opt-cover-at'),
   optCoverHere: $<HTMLButtonElement>('opt-cover-here'),
@@ -748,6 +750,8 @@ export function readRenderOptions(): RenderOptions {
   }
   // The captions (milestone 50): only a choice other than the default is worth carrying.
   if (!els.optCaptionsField.hidden && els.optCaptions.value !== 'burn') options.captions = els.optCaptions.value as CaptionsMode;
+  // The flash check after the render (milestone 84): a still has nothing to flash.
+  if (preset && !preset.still && !els.optFlashField.hidden && els.optFlash.checked) options.flashCheck = 'warn';
   // The music's stems (milestone 16): only "files" is worth carrying; the mix is the default.
   if (!els.optStemsField.hidden && els.optStems.value === 'files') options.stems = 'files';
   // The cover image (milestone 20): a still of one frame beside the render. The frame is whatever
@@ -1218,6 +1222,7 @@ function showMediaFields(entry: MediaEntry | null): void {
   if (!entry) {
     els.optMatteField.hidden = false;
     els.optCoverField.hidden = false;
+    els.optFlashField.hidden = false;
     els.optPlatformField.hidden = false;
     publishCover();
     return;
@@ -1232,6 +1237,8 @@ function showMediaFields(entry: MediaEntry | null): void {
   // own cover already, so only a clip is offered one (milestone 20).
   els.optMatteField.hidden = kind === 'audio';
   els.optCoverField.hidden = kind !== 'video';
+  // Only what moves can flash (milestone 84).
+  els.optFlashField.hidden = kind !== 'video';
   publishCover();
   els.optTintField.hidden = kind === 'audio';
   els.optResolution.parentElement!.hidden = kind === 'audio';

@@ -39,6 +39,7 @@ export type SaveCanvasResult =
   | { ok: false; cancelled?: boolean; message: string };
 import type { ImageGrantRequest } from '../core/image-slot';
 import type { TrackSample } from '../core/motion-track';
+import type { FlashSpan } from '../core/flash';
 import type { ReframeKey, ReframeWideSpan } from '../core/cut-track';
 export type ReframeResult = { ok: true; keys: ReframeKey[]; wide: ReframeWideSpan[]; shots: number; faces: number; frames: number } | { ok: false; message: string };
 export type TrackMotionResult =
@@ -714,6 +715,13 @@ export interface PulpApi {
   renderCollection(items: CollectionItem[], name: string): Promise<RenderCollectionResult>;
   /** Take one finished card off the tray. */
   removeRender(id: number): Promise<void>;
+  /**
+   * The flash warning (milestone 84): a checked render's strong moments calmed into a draft beside
+   * it, checked again, with a still of the worst moment before and after. Nothing is written over.
+   */
+  softenFlashes(id: number): Promise<{ ok: true; at: number; before: string; after: string; recheck: { spans: FlashSpan[]; fps: number } } | { ok: false; message: string }>;
+  /** What to do with that draft: put in the render's place, saved as a copy beside it, or thrown away. */
+  keepSoftened(id: number, choice: 'replace' | 'copy' | 'discard'): Promise<{ ok: true; file?: string } | { ok: false; message: string }>;
   /** Show a rendered file in the file manager. False when the path is not one this app made. */
   revealFile(path: string): Promise<boolean>;
   /** Put a rendered file's path on the clipboard, under the same rule. */

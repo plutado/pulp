@@ -82,6 +82,7 @@ export const CLI_SPECS: readonly CliCommandSpec[] = [
       { name: '--lut', value: '<file.cube>', help: 'Grade the whole render through a .cube LUT.' },
       { name: '--captions', value: 'burn|track|none', help: 'How the project\'s captions reach the render; SRT and WebVTT are written beside it either way.' },
       { name: '--stems', value: 'mix|files', help: 'Music that came in as stems: folded into the mix (default), or one WAV per stem beside the render.' },
+      { name: '--flash-check', value: 'warn|soften', help: 'Check the finished render for strong flashing: warn names where it is; soften also writes a calmed copy beside it, never over it. A help to catch it, not a certified broadcast test.' },
       { name: '--deinterlace', value: 'auto|off', help: 'Interlaced clips: deinterlaced as their frames show them to be (auto, the default), or read as they are (off).' },
       { name: '--batch', value: '<file.csv>', help: 'One render per CSV row into the --out folder; headers match parameter ids or labels, a name column names the files.' },
       { name: '--export-edit', value: '<base>', help: 'Instead of a render: write the cut track as FCPXML and an EDL at <base>, with the graphics rendered with alpha beside them.' },

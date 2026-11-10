@@ -11,7 +11,8 @@ import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { detectFfmpeg } from '../core/ffmpeg';
 import { tr } from '../core/i18n';
-import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, STEMS_MODES, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
+import { CAPTIONS_MODES, FRAME_FORMATS, OUTPUT_PRESETS, resolveTiming, STEMS_MODES, type CaptionsMode, type FrameFormat, type PresetId, type RenderOptions } from '../core/render-plan';
+import type { TemplateManifest } from '../core/manifest';
 import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { EXIT_CODES, helpText, parseCommandLine, usageErrorText, type ParsedCli } from '../core/cli';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
@@ -30,7 +31,10 @@ import { voicePreview } from './voice-service';
 import { voiceLevels } from './voice-levels';
 import { filmStrip } from './film-strip-service';
 import { cancelStabilize, chromaKeyClip, chromaKeyPreview, setStabilizeProgressWindow, splitScenes, stabilizeClip, stabilizeStatus } from './cleanup-service';
-import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
+import { canSoften } from '../core/flash';
+import { flashSpanText } from '../core/queue-card';
+import { checkRender, keepSoftened, softenRender } from './flash-service';
+import { allowedDragFiles, cancelRender, clearFinishedRenders, discardFlashDrafts, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, keepFlashSoftening, prepareDrag, removeRender, renderAgain, softenFlashes } from './render-queue-service';
 import { cacheStats, chooseRenderCacheDir, clearRenderCache, setRenderCacheLimit, startDragOut } from './render-cache-service';
 import { sanitizeCacheMaxMB } from '../core/render-cache';
 import { deletePreset, listPresets, savePreset } from './preset-service';
@@ -579,6 +583,10 @@ function registerIpc(): void {
     return true;
   });
   ipcMain.handle('queue:remove', (_event, id: unknown) => removeRender(Number(id)));
+  // The flash warning (milestone 84): a checked render softened into a draft, then the person's choice for it.
+  ipcMain.handle('queue:soften-flashes', (_event, id: unknown) => softenFlashes(Number(id)));
+  ipcMain.handle('queue:keep-softened', (_event, id: unknown, choice: unknown) =>
+    keepFlashSoftening(Number(id), choice === 'replace' || choice === 'copy' ? choice : 'discard'));
   ipcMain.handle('cache:stats', () => cacheStats());
   ipcMain.handle('cache:clear', () => clearRenderCache());
   ipcMain.handle('cache:choose-dir', () => chooseRenderCacheDir());
@@ -903,6 +911,12 @@ function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRend
     if ((STEMS_MODES as readonly string[]).includes(stemsRaw)) options.stems = stemsRaw as 'mix' | 'files';
     else badNumbers.push(`--stems ${stemsRaw} (expected ${STEMS_MODES.join(', ')})`); // i18n-exempt(terminal)
   }
+  // The flash check after the render (milestone 84): named, or named and a calmed copy written beside it.
+  const flashRaw = get('--flash-check');
+  if (flashRaw !== undefined) {
+    if (flashRaw === 'warn' || flashRaw === 'soften') options.flashCheck = flashRaw;
+    else badNumbers.push(`--flash-check ${flashRaw} (expected warn, soften)`); // i18n-exempt(terminal)
+  }
   // Interlaced clips (milestone 83): deinterlaced as found, or every clip read as it is.
   const deinterlaceRaw = get('--deinterlace');
   if (deinterlaceRaw !== undefined) {
@@ -1078,6 +1092,7 @@ async function runCliRender(cli: CliRender): Promise<number> {
   console.log(`peak memory (main process): ${Math.round(process.resourceUsage().maxRSS / 1024)} MB`);
   if (result.cover) console.log(`wrote ${result.cover}`);
   if (result.subtitles) console.log(`wrote ${result.subtitles.srt}\nwrote ${result.subtitles.vtt}`);
+  if (cli.options.flashCheck) await cliFlashCheck(cli.options.flashCheck, template.manifest, cli.presetId, cli.options, result.output, result.frames);
   if (result.captionTrack) console.log(`wrote ${result.captionTrack}`);
   return 0;
 }
@@ -1232,6 +1247,51 @@ async function runCliBatch(cli: CliRender, template: NonNullable<Awaited<ReturnT
   return failed === 0 ? 0 : 1;
 }
 
+/**
+ * `--flash-check` (milestone 84): the finished render read back and checked;
+ * each strong moment named as a warning in the render's own timecode, and
+ * with `soften` a calmed copy written beside the render — never over it — and
+ * checked again. The exit code is the render's: a warning is not a failure.
+ */
+async function cliFlashCheck(mode: 'warn' | 'soften', manifest: TemplateManifest, presetId: string, options: RenderOptions, output: string, frames: number): Promise<void> {
+  const ffmpeg = await detectFfmpeg();
+  if (!ffmpeg.ok) {
+    console.warn(`warning: not checked for flashing: ${ffmpeg.message}`); // i18n-exempt(terminal)
+    return;
+  }
+  const timing = resolveTiming(manifest, options);
+  const target = { output, presetId, fps: timing.fps, firstFrame: timing.firstFrame, frames };
+  const checked = await checkRender(ffmpeg.path, target);
+  console.log('flash check: a help to catch strong flashing, not a certified broadcast test'); // i18n-exempt(terminal)
+  if (!checked.ok) {
+    console.warn(`warning: not checked for flashing (${checked.reason})`); // i18n-exempt(terminal)
+    return;
+  }
+  const spans = checked.report.spans;
+  if (spans.length === 0) {
+    console.log('flash check: no strong flashing found'); // i18n-exempt(terminal)
+    return;
+  }
+  for (const s of spans) console.warn(`warning: strong flashing at ${flashSpanText(s, timing.fps, timing.firstFrame)}`); // i18n-exempt(terminal)
+  if (mode !== 'soften') return;
+  if (!canSoften(presetId)) {
+    console.warn(`warning: a ${presetId} render cannot be softened; render it as a video to soften it`); // i18n-exempt(terminal)
+    return;
+  }
+  const made = await softenRender(ffmpeg.path, target, spans);
+  if (!made.ok) {
+    console.warn(`warning: could not soften the flashing: ${made.message}`); // i18n-exempt(terminal)
+    return;
+  }
+  const kept = await keepSoftened(ffmpeg.path, target, made.draft.draft, 'copy');
+  if (!kept.ok || !kept.file) {
+    console.warn(`warning: could not keep the softened copy: ${kept.ok ? 'no file' : kept.message}`); // i18n-exempt(terminal)
+    return;
+  }
+  const left = made.draft.recheck.spans;
+  console.log(`wrote ${kept.file} (softened; checked again: ${left.length === 0 ? 'no strong flashing found' : `${left.length} moment${left.length === 1 ? '' : 's'} still strong`})`); // i18n-exempt(terminal)
+}
+
 // The command line (src/core/cli.ts): `pulp render …`, `pulp collection …`, help, the version, or
 // nothing, which opens the window. In development Electron puts the app path before the arguments.
 const parsedCli = parseCommandLine(process.argv.slice(process.defaultApp ? 2 : 1));
@@ -1339,6 +1399,8 @@ app.on('will-quit', () => {
   closeLibrary();
   // A disc image Pulp mounted for a stock library goes with it (milestone 32).
   void unmountStockImages();
+  // A softened draft nobody chose for is thrown away, not left hidden beside a render (milestone 84).
+  void discardFlashDrafts();
 });
 
 app.on('window-all-closed', () => {

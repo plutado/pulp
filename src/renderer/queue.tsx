@@ -18,6 +18,7 @@ import { Icon } from './icons';
 import { appState } from './store';
 import { mountRovingGroup, paintRovingStops } from './roving';
 import { t } from './i18n';
+import { openFlashDialog } from './flash-dialog';
 
 const jobs = computed(() => appState.value.jobs.jobs);
 
@@ -137,6 +138,17 @@ function Job({ job }: { job: RenderQueueJob }) {
         </span>
         {card.status.progress !== undefined && <progress max={1} value={card.status.progress} />}
         <span class={`job-status ${card.status.kind}`}>{card.status.text}</span>
+        {/* The flash check (milestone 84): what it found, and the calming where there is something to calm. */}
+        {card.flash && (
+          <span class={`job-flash ${card.flash.tone}${card.flash.busy ? ' busy' : ''}`} role="status">
+            <span class="job-flash-text">{card.flash.text}</span>
+            {card.flash.soften && (
+              <button type="button" class="job-soften" aria-label={t('queue.flash.soften.aria-label', { name: card.name })} onClick={() => openFlashDialog(job)}>
+                {t('queue.flash.soften')}
+              </button>
+            )}
+          </span>
+        )}
       </span>
       {card.draggable && <span class="drag-hint">{t('queue.drag-hint')}</span>}
       <Actions card={card} />

@@ -934,6 +934,16 @@ button > .icon + .label, button > .icon-wrap + .label { margin-inline-start: 6px
 .key-dialog { width: min(720px, 92vw); }
 /* The Stabilize dialog (milestone 78): small — two settings, a progress bar for the two passes. */
 .stab-dialog { width: min(440px, 92vw); }
+/* Softening a render's flashing (milestone 84): the moments, then the worst one before and after, side by side. */
+.flash-dialog { width: min(560px, 92vw); }
+.flash-dialog .flash-spans { margin: 0 0 var(--space-2); padding-left: 18px; font-size: var(--font-caption); }
+.flash-dialog .flash-stills { display: flex; gap: var(--space-2); margin: var(--space-2) 0; }
+.flash-dialog .flash-stills[hidden] { display: none; }
+.flash-dialog figure { flex: 1; margin: 0; min-width: 0; }
+.flash-dialog figure img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 3px; background: var(--ink); }
+.flash-dialog figcaption { font-size: var(--font-caption); color: var(--muted); margin-top: 2px; }
+.flash-dialog #flash-progress { width: 100%; }
+.flash-dialog .note.error { color: var(--danger); }
 .stab-dialog #stab-progress { width: 100%; margin: var(--space-2) 0 0; }
 .stab-dialog #stab-smoothing { width: 160px; }
 .key-previews { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-2) 0; }
@@ -1642,6 +1652,12 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .queue .job-status { color: var(--muted); font-size: var(--font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queue .job-status.failed { color: var(--danger); white-space: normal; }
 .queue .job-status.done { color: var(--text-secondary); }
+/* The flash check's line (milestone 84): warn where it found strong flashing, quiet otherwise. */
+.queue .job-flash { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--font-secondary); color: var(--muted); }
+.queue .job-flash .job-flash-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.queue .job-flash.warn { color: var(--accent-text); }
+.queue .job-flash.ok { color: var(--text-secondary); }
+.queue .job-soften { flex: none; padding: 0 6px; font-size: var(--font-caption); }
 .queue progress { width: 100%; height: 4px; }
 /* The hint only answers a question the pointer has already asked. */
 .queue .drag-hint { color: var(--accent-text); font-size: var(--font-caption); white-space: nowrap; visibility: hidden; }

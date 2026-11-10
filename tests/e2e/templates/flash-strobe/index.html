@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // Flash fixture (milestone 84): five flashes a second over the whole frame between frames 30 and
+  // 74 — three frames white, three black — and a steady dark gray before and after.
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  window.pulpRender = function (state) {
+    if (canvas.width !== state.width || canvas.height !== state.height) {
+      canvas.width = state.width;
+      canvas.height = state.height;
+    }
+    var n = state.frame;
+    var strobing = n >= 30 && n < 75;
+    ctx.fillStyle = strobing ? (n % 6 < 3 ? '#ffffff' : '#000000') : '#202020';
+    ctx.fillRect(0, 0, state.width, state.height);
+  };
+</script>
+</body>
+</html>

@@ -455,6 +455,13 @@ export interface RenderOptions {
    */
   stems?: 'mix' | 'files';
   /**
+   * Check the finished render for strong flashing (milestone 84): `warn` names
+   * where it is; `soften` also writes a calmed copy beside it, which is what
+   * the command line's `--flash-check soften` asks. Changes no pixel of the
+   * render itself, so it is not part of a cache key.
+   */
+  flashCheck?: 'warn' | 'soften';
+  /**
    * Interlaced clips (milestone 83): deinterlaced as found (`auto`, and absent), or every clip read
    * as it is (`off`) — the command line's `--deinterlace`; in the window it is each clip's own choice.
    */

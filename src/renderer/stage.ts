@@ -37,6 +37,7 @@ import { mountOverlayTrack, overlayTrackUpdate } from './overlay-track';
 import { filmStripMode, setFilmStripChooser } from './film-strip';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
 import { motionTracksDebug, motionTracksDraw, mountMotionTracks } from './motion-track';
+import { initFlashDialog } from './flash-dialog';
 import { mountReframeStage, reframeStageDebug, reframeStageDraw } from './reframe-stage';
 import { captionsPreviewDraw, captionsPreviewSync, mountCaptionsPreview } from './stage-captions';
 import { registerPlayerSetter } from './settings';
@@ -1396,6 +1397,8 @@ export function initStage(): void {
   mountCutTrack($<HTMLDivElement>('cut-track'), $<HTMLDivElement>('transport-lanes'), (text) => {
     showNoteText(text);
   });
+  // What became of a softened render (milestone 84) is said on the same line.
+  initFlashDialog(showNoteText);
   // Choosing a layer lights its clip on the picture track too.
   effect(() => {
     void selectedLayer.value;

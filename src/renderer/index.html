@@ -301,6 +301,10 @@
           <input id="opt-matte" type="checkbox">
           <span data-i18n="ui.opt-matte-field.matte-file-beside-the-render"></span>
         </label>
+        <label class="field inline flash-field" id="opt-flash-field" data-i18n-attr="data-tip:ui.opt-flash-field.data-tip">
+          <input id="opt-flash" type="checkbox">
+          <span data-i18n="ui.opt-flash-field.check"></span>
+        </label>
         <label class="field inline stems-field" id="opt-stems-field" hidden data-i18n-attr="data-tip:ui.opt-stems-field.data-tip">
           <span data-i18n="ui.opt-stems-field.music-stems"></span>
           <select id="opt-stems" data-i18n-attr="aria-label:ui.opt-stems.aria-label">
@@ -823,6 +827,27 @@
         <button id="stab-fix" type="button" class="ghost" hidden data-i18n="ui.ffmpeg-fix"></button>
         <span class="dialog-spacer"></span>
         <button id="stab-close" type="button" data-i18n="ui.stab-close"></button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="flash-dialog" class="pack-dialog flash-dialog" aria-labelledby="flash-title">
+    <form method="dialog">
+      <h2 id="flash-title" data-i18n="ui.flash-title"></h2>
+      <p id="flash-moments" class="note"></p>
+      <ul id="flash-spans" class="flash-spans"></ul>
+      <p class="note" data-i18n="ui.flash-dialog.note"></p>
+      <div id="flash-stills" class="flash-stills" hidden>
+        <figure><img id="flash-before" alt=""><figcaption data-i18n="ui.flash-dialog.before"></figcaption></figure>
+        <figure><img id="flash-after" alt=""><figcaption data-i18n="ui.flash-dialog.after"></figcaption></figure>
+      </div>
+      <progress id="flash-progress" hidden></progress>
+      <p id="flash-status" class="note" role="status"></p>
+      <p class="note muted" data-i18n="ui.flash-dialog.not-certified"></p>
+      <div class="render-actions">
+        <button id="flash-replace" type="button" disabled data-i18n="ui.flash-replace"></button>
+        <button id="flash-copy" type="button" class="primary" disabled data-i18n="ui.flash-copy"></button>
+        <span class="dialog-spacer"></span>
+        <button id="flash-discard" type="button" data-i18n="ui.flash-discard"></button>
       </div>
     </form>
   </dialog>

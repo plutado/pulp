@@ -35,6 +35,10 @@ import { planMediaRender, renderMedia } from './media-render';
 import { AUDIO_PRESETS, isAudioPresetId } from '../core/media-render';
 import { mediaCacheKey } from '../core/render-cache';
 import type { MediaEntry } from '../core/library-types';
+import { detectFfmpeg } from '../core/ffmpeg';
+import { canSoften, type FlashSpan } from '../core/flash';
+import { checkRender, keepSoftened, softenRender, type FlashTarget } from './flash-service';
+import { basename } from 'node:path';
 
 /** Per-job inputs the UI does not need to see: a template to step, or a media item to transcode (milestone 15). */
 type JobInputs =
@@ -175,6 +179,7 @@ async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): P
     const cached = queue.addFinished(job, outputPath, timing.totalFrames);
     finishedOutputs.add(existing);
     markItemUsed(entry.id);
+    void checkFlashes(cached.id, { media: entry, params: request.params, options: request.options }, request.presetId, outputPath, timing.firstFrame, timing.totalFrames);
     return { ok: true, cached: true, file: existing, jobId: cached.id };
   }
   const queued = queue.add(job);
@@ -237,6 +242,7 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     // The card can be dragged, revealed and copied, like any other finished render.
     finishedOutputs.add(existing);
     markItemUsed(template.id);
+    void checkFlashes(cached.id, { template, params: request.params, options: request.options }, preset.id, outputPath, timing.firstFrame, timing.totalFrames);
     return { ok: true, cached: true, file: existing, jobId: cached.id };
   }
   const job = queue.add({
@@ -381,12 +387,139 @@ export function cancelRender(jobId: number): void {
 }
 
 export function clearFinishedRenders(): void {
+  const before = new Set(queue.snapshot().jobs.map((j) => j.id));
   queue.clearFinished();
+  const kept = new Set(queue.snapshot().jobs.map((j) => j.id));
+  for (const id of before) if (!kept.has(id)) forgetFlash(id);
 }
 
 /** Take one finished card off the tray. A job still running is canceled instead. */
 export function removeRender(id: number): void {
   queue.remove(id);
+  if (!queue.get(id)) forgetFlash(id);
+}
+
+/** A card gone from the tray takes its check with it, and a draft waiting on it is thrown away (milestone 84). */
+function forgetFlash(id: number): void {
+  flashTargets.delete(id);
+  const draft = drafts.get(id);
+  drafts.delete(id);
+  if (draft) void rm(draft, { force: true });
+}
+
+/** Every draft still waiting, thrown away: on quit, so no hidden file is left beside a render. */
+export async function discardFlashDrafts(): Promise<void> {
+  const files = [...drafts.values()];
+  drafts.clear();
+  await Promise.all(files.map((f) => rm(f, { force: true })));
+}
+
+// ---------------------------------------------------------------- the flash warning (milestone 84)
+
+/** What the check of each finished job read, so a softening reads the same file at the same rate. */
+const flashTargets = new Map<number, FlashTarget>();
+/** A softened draft waiting on the person's choice, by job. */
+const drafts = new Map<number, string>();
+/** Jobs whose dialog was closed while their softening still ran: the draft is thrown away as it lands. */
+const abandoned = new Set<number>();
+
+/** The rate a job rendered at: the template's timing, or the media item's plan. */
+async function renderFps(input: Pick<JobInputs, 'template' | 'media' | 'params' | 'options'>, presetId: string, output: string): Promise<number> {
+  if (input.template) return resolveTiming(input.template.manifest, input.options).fps;
+  const planned = await planMediaRender(input.media!, presetId, input.options, input.params, output);
+  return planned.ok ? planned.plan.timing.fps : 30;
+}
+
+/**
+ * Check a finished render for strong flashing, where the render asked for it:
+ * the card says it is checking, then what was found — or why it could not
+ * look. Runs beside the queue, so the next render does not wait on it.
+ */
+async function checkFlashes(jobId: number, input: Pick<JobInputs, 'template' | 'media' | 'params' | 'options'>, presetId: string, output: string, firstFrame: number, frames: number): Promise<void> {
+  if (!input.options?.flashCheck || isAudioPresetId(presetId)) return;
+  queue.setFlash(jobId, { state: 'checking' });
+  const ffmpeg = await detectFfmpeg();
+  if (!ffmpeg.ok) {
+    queue.setFlash(jobId, { state: 'unchecked', reason: 'failed' }); // i18n-exempt(technical): a reason's code
+    return;
+  }
+  const target: FlashTarget = { output, presetId, fps: await renderFps(input, presetId, output), firstFrame, frames };
+  const checked = await checkRender(ffmpeg.path, target);
+  if (!checked.ok) {
+    queue.setFlash(jobId, { state: 'unchecked', reason: checked.reason });
+    return;
+  }
+  flashTargets.set(jobId, target);
+  queue.setFlash(jobId, { state: 'checked', spans: checked.report.spans, fps: checked.report.fps, transparent: checked.report.transparent, canSoften: canSoften(presetId) });
+}
+
+/**
+ * Calm a checked render's strong moments into a draft beside it, checked
+ * again, with a still of the worst moment before and after — for the person to
+ * see before anything is written over. The render itself is not touched.
+ */
+export async function softenFlashes(jobId: number): Promise<{ ok: true; at: number; before: string; after: string; recheck: { spans: FlashSpan[]; fps: number } } | { ok: false; message: string }> {
+  const job = queue.get(jobId);
+  const target = flashTargets.get(jobId);
+  const flash = job?.flash;
+  if (!job || !target || flash?.state !== 'checked' || flash.spans.length === 0 || !flash.canSoften) return { ok: false, message: tr('queue.flash.unchecked.failed') };
+  const ffmpeg = await detectFfmpeg();
+  if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };
+  queue.setFlash(jobId, { ...flash, state: 'softening' });
+  abandoned.delete(jobId);
+  const made = await softenRender(ffmpeg.path, target, flash.spans);
+  queue.setFlash(jobId, flash);
+  if (!made.ok) return made;
+  if (abandoned.delete(jobId)) {
+    await keepSoftened(ffmpeg.path, target, made.draft.draft, 'discard');
+    return { ok: false, message: 'discarded' }; // i18n-exempt(diagnostic): nobody is waiting to read it
+  }
+  const previous = drafts.get(jobId);
+  if (previous && previous !== made.draft.draft) await keepSoftened(ffmpeg.path, target, previous, 'discard');
+  drafts.set(jobId, made.draft.draft);
+  return { ok: true, at: made.draft.at, before: made.draft.before, after: made.draft.after, recheck: { spans: made.draft.recheck.spans, fps: made.draft.recheck.fps } };
+}
+
+/**
+ * The person's choice for a softened draft: put in the render's place — the
+ * card then says it was softened, and what the check found of it — saved as a
+ * copy beside the render, which joins the tray as a card of its own, or thrown
+ * away.
+ */
+export async function keepFlashSoftening(jobId: number, choice: 'replace' | 'copy' | 'discard'): Promise<{ ok: true; file?: string } | { ok: false; message: string }> {
+  const draft = drafts.get(jobId);
+  const target = flashTargets.get(jobId);
+  const job = queue.get(jobId);
+  drafts.delete(jobId);
+  // Thrown away before the draft was even made: it is let go as soon as it is.
+  if (!draft && job?.flash?.state === 'softening') abandoned.add(jobId);
+  if (!draft || !target || !job) return { ok: true };
+  const ffmpeg = await detectFfmpeg();
+  if (!ffmpeg.ok) return { ok: false, message: ffmpeg.message };
+  const kept = await keepSoftened(ffmpeg.path, target, draft, choice);
+  if (!kept.ok || choice === 'discard' || !kept.file) return kept;
+  // What the check finds of the softened file now, read from the file kept rather than assumed.
+  const checked = await checkRender(ffmpeg.path, { ...target, output: kept.file });
+  const flash = checked.ok
+    ? { state: 'checked' as const, spans: checked.report.spans, fps: checked.report.fps, transparent: checked.report.transparent, softened: true, canSoften: true }
+    : { state: 'unchecked' as const, reason: checked.reason };
+  if (choice === 'replace') {
+    queue.setFlash(jobId, flash);
+    return kept;
+  }
+  const copy = queue.addFinished(
+    {
+      templateId: job.templateId, templateName: job.templateName, label: `${job.label ?? job.templateName} · ${basename(kept.file)}`,
+      presetId: job.presetId, outputPath: kept.file, totalFrames: job.totalFrames, firstFrame: job.firstFrame ?? 0,
+      ...(job.mediaId ? { mediaId: job.mediaId } : {}),
+    },
+    kept.file,
+    job.frame,
+    flash,
+  );
+  flashTargets.set(copy.id, { ...target, output: kept.file });
+  finishedOutputs.add(kept.file);
+  return kept;
 }
 
 /** Render queued jobs until none are left. Only one pump runs at a time. */
@@ -508,6 +641,8 @@ async function pump(): Promise<void> {
         const dragged = dragFileFor(result.output, job.firstFrame ?? 0);
         finishedOutputs.add(dragged);
         if (input.forCache) await evictIfNeeded(new Set([dragged]));
+        // The flash check, where it was asked for (milestone 84), beside the queue rather than in its way.
+        void checkFlashes(id, input, job.presetId, result.output, job.firstFrame ?? 0, result.frames);
       }
     }
   } finally {

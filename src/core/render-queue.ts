@@ -5,6 +5,19 @@
  */
 
 import { tr } from './i18n';
+import type { FlashSpan } from './flash';
+
+/**
+ * The flash check of a finished render (milestone 84): running; what it found
+ * — the strong moments in seconds of the file, none at all being a pass — and
+ * whether those moments have been calmed into this file; why it could not
+ * look; or a softening under way.
+ */
+export type JobFlash =
+  | { state: 'checking' }
+  | { state: 'checked'; spans: FlashSpan[]; fps: number; transparent: boolean; softened?: boolean; canSoften: boolean }
+  | { state: 'unchecked'; reason: 'unreadable' | 'still' | 'sound' | 'failed' }
+  | { state: 'softening'; spans: FlashSpan[]; fps: number; transparent: boolean; canSoften: boolean };
 
 export type RenderJobStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 
@@ -31,6 +44,8 @@ export interface RenderQueueJob {
   /** The platform preset the render was aimed at (milestone 20): what the finished card's hand-off opens. */
   platform?: string;
   warnings: string[];
+  /** The flash check, where one was asked for (milestone 84). */
+  flash?: JobFlash;
 }
 
 export interface RenderQueueSnapshot {
@@ -124,12 +139,26 @@ export class RenderQueue {
    * the cache. The tray shows one kind of card whether the render happened just
    * now or an hour ago.
    */
-  addFinished(input: NewRenderJob, output: string, frames: number): RenderQueueJob {
+  addFinished(input: NewRenderJob, output: string, frames: number, flash?: JobFlash): RenderQueueJob {
     // Not add() then mutate: add returns a copy, so the stored job has to be built here.
-    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'done', frame: frames, output, warnings: [] }; // i18n-exempt(technical): a job's state
+    const job: RenderQueueJob = { ...input, id: this.nextId++, status: 'done', frame: frames, output, warnings: [], ...(flash ? { flash } : {}) }; // i18n-exempt(technical): a job's state
     this.jobs.push(job);
     this.changed();
     return { ...job };
+  }
+
+  /** The flash check of a finished render, as it goes (milestone 84); a job not done is left alone. */
+  setFlash(id: number, flash: JobFlash): void {
+    const job = this.find(id);
+    if (!job || job.status !== 'done') return;
+    job.flash = flash;
+    this.changed();
+  }
+
+  /** A job as it stands, by id. */
+  get(id: number): RenderQueueJob | undefined {
+    const job = this.find(id);
+    return job ? { ...job, warnings: [...job.warnings] } : undefined;
   }
 
   /** Take one finished job off the list; a job still queued or running stays. */
@@ -147,7 +176,7 @@ export class RenderQueue {
   }
 
   snapshot(): RenderQueueSnapshot {
-    return { jobs: this.jobs.map((j) => ({ ...j, warnings: [...j.warnings] })) };
+    return { jobs: this.jobs.map((j) => ({ ...j, warnings: [...j.warnings], ...(j.flash ? { flash: structuredClone(j.flash) } : {}) })) };
   }
 
   private find(id: number): RenderQueueJob | undefined {
