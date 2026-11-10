@@ -27,6 +27,7 @@ import { fetchSemanticModel, semanticSearch, semanticStatus, setSemanticProgress
 import { fetchFfmpeg, ffmpegDownloadStatus, registerManagedFfmpeg, setFfmpegProgressWindow } from './ffmpeg-service';
 import { voicePreview } from './voice-service';
 import { voiceLevels } from './voice-levels';
+import { filmStrip } from './film-strip-service';
 import { canTonemap } from './hdr-service';
 import { cancelStabilize, chromaKeyClip, chromaKeyPreview, setStabilizeProgressWindow, splitScenes, stabilizeClip, stabilizeStatus } from './cleanup-service';
 import { allowedDragFiles, cancelRender, clearFinishedRenders, enqueueBatch, enqueueRender, getRenderQueue, interruptedRenders, prepareDrag, removeRender, renderAgain } from './render-queue-service';
@@ -624,6 +625,8 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('library:hover-strip', (_event, id: string) => hoverStrip(String(id)));
+  // A clip's film strip for the timeline (milestone 87): an id in, the tiled frames and how to read them out.
+  ipcMain.handle('library:film-strip', (_event, id: unknown) => filmStrip(id));
   ipcMain.handle('library:waveform', (_event, id: string) => waveform(String(id)));
   // Clip clean-up (milestone 52): keys, splits and the LUT chooser, each by library id, never a path.
   ipcMain.handle('cleanup:key-preview', (_event, id: unknown, settings: unknown, at: unknown) => chromaKeyPreview(String(id), settings, at));

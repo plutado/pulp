@@ -26,6 +26,10 @@ import type { TemplateManifest } from '../core/manifest';
 import { resolveLength } from '../core/timing';
 import { layerEditor, selectedLayer } from './layer-edit';
 import { bindAttr, bindText, t } from './i18n';
+import { effect } from '@preact/signals';
+import { filmStripMode, filmStrips, paintFilm } from './film-strip';
+import { filmSlots } from '../core/film-strip';
+import { clipMediaTimeAt, type ClipSource } from '../core/video-layer';
 import { appState } from './store';
 
 /** A dropped clip's height as a fraction of the frame's short side: a corner's worth, not the frame's. */
@@ -37,6 +41,8 @@ interface PipEl {
   root: HTMLDivElement;
   body: HTMLButtonElement;
   label: HTMLSpanElement;
+  /** The clip's frames along the block (milestone 87), under its name. */
+  film: HTMLCanvasElement;
 }
 
 let host: HTMLDivElement | null = null;
@@ -78,6 +84,9 @@ export function overlayTrackUpdate(manifest: TemplateManifest | null, layers: La
   host.hidden = !show;
   host.classList.toggle('empty', list.length === 0);
   host.classList.toggle('drop-lane', show && ready);
+  // Taller while clips on it show their frames (milestone 87); its usual height otherwise.
+  const mode = filmStripMode.value;
+  host.classList.toggle('film', mode !== 'off' && list.length > 0);
   if (hint) hint.hidden = !(show && ready);
   if (!show) {
     for (const el of els.values()) el.root.remove();
@@ -106,6 +115,14 @@ export function overlayTrackUpdate(manifest: TemplateManifest | null, layers: La
     bindAttr(el.body, 'aria-label', 'overlay-track.pip.aria-label', said);
     const selected = selectedLayer.value;
     el.root.classList.toggle('selected', selected?.block === block && selected.id === layer.id);
+    // The clip's frames along its block (milestone 87), each at the clip second playing under the
+    // slot's left edge — its in point, its speed, its delay, a loop — by the arithmetic the stage plays it by.
+    const clip = layer.type === 'video' ? layer.clip : null;
+    const meta = clip?.id ? appState.value.index?.media.find((m) => m.id === clip.id)?.meta : undefined;
+    const source: ClipSource | null = meta?.duration && meta.fps ? { frames: Math.max(1, Math.round(meta.duration * meta.fps)), fps: meta.fps } : null;
+    const span = window.to - window.from;
+    paintFilm(el.film, source ? mode : 'off', clip?.id ?? null, (width, slot) =>
+      filmSlots(width, slot, mode, (fraction) => clipMediaTimeAt(window.from + fraction * span, clip!, source!)));
   });
   for (const [key, el] of els) {
     if (keep.has(key)) continue;
@@ -124,13 +141,17 @@ function makePip(block: string, id: string): PipEl {
   body.className = 'pip-body';
   const label = document.createElement('span');
   label.className = 'pip-label';
-  body.append(label);
+  const film = document.createElement('canvas');
+  film.className = 'pip-film';
+  film.setAttribute('aria-hidden', 'true');
+  film.hidden = true;
+  body.append(film, label);
   root.append(body);
   // Choosing the clip here is choosing its layer: the stage's handles and the card follow.
   body.addEventListener('click', () => {
     selectedLayer.value = { block, id };
   });
-  return { root, body, label };
+  return { root, body, label, film };
 }
 
 function tidy(seconds: number): number {
@@ -174,6 +195,12 @@ export function overlayTrackTakeDrop(id: string, time: number): boolean {
 export function mountOverlayTrack(el: HTMLDivElement, note: (text: string) => void): void {
   host = el;
   say = note;
+  // The film strips land in the background, and the choice of what lanes draw changes them all (milestone 87).
+  effect(() => {
+    void filmStrips.value;
+    void filmStripMode.value;
+    if (last) overlayTrackUpdate(...last);
+  });
   // What the empty lane says while a clip is dragged over it, from the message catalog.
   hint = document.createElement('span');
   hint.className = 'drop-hint';

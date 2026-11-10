@@ -339,6 +339,16 @@ export interface PulpApi {
    * URL to load it from, or why there is none.
    */
   hoverStrip(id: string): Promise<HoverStripResult>;
+  /**
+   * A clip's film strip for the timeline (milestone 87): its frames sampled
+   * evenly and tiled into one PNG, with the rate they were taken at and how
+   * the tiles are laid out — or why there is none, and whether to ask again.
+   * Made in the background and cached by the file; asked for by id (ADR 0013).
+   */
+  filmStrip(id: string): Promise<
+    | { ok: true; png: Uint8Array; rate: number; count: number; tileWidth: number; tileHeight: number; columns: number }
+    | { ok: false; reason: string; transient?: boolean }
+  >;
   /** An audio file's waveform peaks, computed on first ask and cached. */
   waveform(id: string): Promise<WaveformResult>;
   /** One frame of a clip, plain and keyed with the settings as they stand (milestone 52): the key dialog's before and after. */

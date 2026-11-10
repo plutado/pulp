@@ -38,6 +38,8 @@
   --cut-hold-stripe: rgba(255, 255, 255, 0.08);
   --cut-hold-selected: rgba(213, 190, 150, 0.6);
   --chip-dark: rgba(13, 17, 23, 0.7);
+  /* The shade under a shot's sound where it crosses the film strip (milestone 87): dark in either appearance, since it sits on a picture. */
+  --film-shade: rgba(0, 0, 0, 0.6);
   /* The running time over a card's thumbnail: dark in either appearance, since it sits on a picture. */
   --time-pill: rgba(8, 10, 14, 0.78);
   --time-pill-text: #f2f4f7;
@@ -156,6 +158,7 @@
     --cut-hold-stripe: rgba(15, 23, 42, 0.06);
     --cut-hold-selected: rgba(180, 83, 9, 0.34);
     --chip-dark: rgba(13, 17, 23, 0.7);
+    --film-shade: rgba(0, 0, 0, 0.6);
     --time-pill: rgba(8, 10, 14, 0.78);
     --time-pill-text: #f2f4f7;
     --silence: rgba(239, 68, 68, 0.25);
@@ -1132,6 +1135,10 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
   background: var(--bar); overflow: visible;
 }
 .layer-bar.selected .bar-body { background: var(--bar-selected); }
+/* The template's own frames along the bar (milestone 87), faint, under the sound, the shades and the
+   label; clipped to the bar's rounded ends. The bars keep their height: there are many of them. */
+.layer-bar .bar-film { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 3px; opacity: 0.55; pointer-events: none; }
+.layer-bar .bar-film[hidden] { display: none; }
 /* The layer's own sound, drawn under the shades and the label (milestone 48). */
 .layer-bar .bar-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .layer-bar .bar-wave[hidden] { display: none; }
@@ -1255,6 +1262,18 @@ body.stage-window { margin: 0; height: 100vh; display: flex; flex-direction: col
 .cut .cut-join { position: absolute; right: -5px; top: 3px; width: 10px; height: 10px; pointer-events: none; z-index: 1;
   background: var(--accent); clip-path: polygon(0 0, 50% 50%, 0 100%, 100% 100%, 50% 50%, 100% 0); }
 .cut .cut-join[hidden] { display: none; }
+/* The film strip (milestone 87): the clip's frames along the cut, under its sound and its name. The
+   lane is taller while frames show and its usual 16 px when they do not, so the stage keeps the room
+   (milestone 42); the name sits on a dark chip and the sound across the bottom over a shade, so both
+   stay readable over any picture. */
+.cut .cut-film, .overlay-track .pip-film { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cut .cut-film[hidden], .overlay-track .pip-film[hidden] { display: none; }
+.cut-track.film { height: 40px; }
+.cut-track.film .cut-trim { height: 42px; }
+.cut-track.film .cut-label, .overlay-track.film .pip-label { display: inline-block; max-width: 100%; box-sizing: border-box; margin-top: 1px; padding: 0 3px; border-radius: 2px; background: var(--chip-dark); vertical-align: top; }
+.cut-track.film .cut-wave { top: auto; height: 40%; background: linear-gradient(transparent, var(--film-shade)); }
+.overlay-track.film { height: 32px; }
+.overlay-track.film .pip-body { padding: 0 4px; }
 /* A quiet stretch the silence scan found (milestone 49), shaded where the cut will fall. */
 .cut-track .cut-silence { position: absolute; top: -2px; bottom: -2px; background: var(--silence); border: 1px solid var(--silence-edge); border-radius: 2px; pointer-events: none; z-index: 2; }
 .silence-dialog .key-controls label { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--font-secondary); }

@@ -76,6 +76,8 @@ describe('preferences', () => {
       volume: 0.4,
       muted: true,
       audition: false,
+      // What the timeline draws of each clip (milestone 87), its default when the file says nothing.
+      filmStrip: 'continuous',
     });
     expect(sanitizePlayer({ volume: 4 }).volume).toBe(1);
     expect(sanitizePlayer({ volume: -1 }).volume).toBe(0);

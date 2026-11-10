@@ -543,6 +543,15 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-filter_complex', '[0][1]hstack,setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
           '-frames:v', '5', '-c:v', 'mpeg4', '-qscale:v', '2', '-pix_fmt', 'yuv420p', join(mediaDir, 'zz-hdr.mp4'),
         ]), { timeoutMs: 60_000 });
+        // A clip whose every frame carries its own number (milestone 87), as six bars across it, the
+        // least significant at the left, white for a one: read back off the timeline's film strip to
+        // see which frame each slot shows. Six seconds at ten a second; mpeg4 and sorted last, like the
+        // fixtures above, for the same reasons.
+        await runBounded(ffmpeg.path, ffmpegArgs([
+          '-v', 'error', '-y', '-f', 'lavfi',
+          '-i', "color=c=black:s=160x90:r=10:d=6,format=yuv420p,geq=lum='255*bitand(floor(N/pow(2\\,floor(X*6/W)))\\,1)':cb=128:cr=128",
+          '-c:v', 'mpeg4', '-qscale:v', '2', join(mediaDir, 'zz-numbered.mp4'),
+        ]), { timeoutMs: 60_000 });
         // A run of numbered frames (milestone 26), so the stage has a sequence to step through.
         await mkdir(join(mediaDir, 'frames'), { recursive: true });
         await runBounded(ffmpeg.path, ffmpegArgs([
@@ -3867,6 +3876,120 @@ describe.skipIf(!electron)('inspector UI', () => {
         await restoreLayers();
       }
     }, 120_000);
+
+    // After the right-click menu's tests too, for the reason the HDR test gives: a dropped clip is recently used.
+    it('draws each shot\'s frames along it, placed by its own time through a trim, a speed and a freeze, with Off, First frame and Continuous (milestone 87)', async () => {
+      await clickResult('Title Card');
+      await openTab('parameters');
+      await until(() => page.eval<boolean>(`!!${section}`), 'the layers section');
+      const numberedId = (await onResult<string>('zz-numbered', '(li) => li.dataset.id'))!;
+      const cuts = () => page.eval<number>(`document.querySelectorAll('#cut-track .cut').length`);
+      const film = (i: number) => `document.querySelectorAll('#cut-track .cut .cut-film')[${i}]`;
+      const setTrack = (cutsJson: unknown[]) => page.eval(`window.pulpLayerEditor().setTrack({ cuts: ${JSON.stringify(cutsJson)} }, true)`);
+      /**
+       * The frame numbers a shot's film strip shows, slot by slot: each slot's six bars read at their
+       * middles off the canvas, a white bar a one. The slots' width is what the painter said it drew.
+       */
+      const numbers = (i: number) => page.eval<number[]>(
+        `(() => { const c = ${film(i)}; if (!c || c.hidden) return [];
+          const ctx = c.getContext('2d'); const ratio = c.width / c.clientWidth; const slot = Number(c.dataset.slotWidth); const count = Number(c.dataset.slots);
+          const out = [];
+          for (let j = 0; j < count; j++) {
+            if ((j + 1) * slot > c.clientWidth + 0.5) break; // a slot cut short at the end has bars missing
+            let n = 0;
+            for (let k = 0; k < 6; k++) {
+              const x = Math.floor((j * slot + (k + 0.5) * slot / 6) * ratio);
+              const d = ctx.getImageData(x, Math.floor(c.height / 2), 1, 1).data;
+              if (d[0] > 128) n += 1 << k;
+            }
+            out.push(n);
+          }
+          return out; })()`,
+      );
+      const drawn = (i: number) => until(() => page.eval<boolean>(`(() => { const c = ${film(i)}; return !!c && !c.hidden && Number(c.dataset.slots) > 0; })()`), `shot ${i + 1}'s frames drawn`, 60_000);
+      /** What each whole slot should show: the file second under its left edge, by the shot's own timing, in clip frames (ten a second). */
+      const expected = (i: number, sourceAt: (within: number) => number) => page.eval<{ width: number; slot: number; seconds: number }>(
+        `(() => { const c = ${film(i)}; return { width: c.clientWidth, slot: Number(c.dataset.slotWidth), seconds: 0 }; })()`,
+      ).then(({ width, slot }) => {
+        const out: number[] = [];
+        for (let j = 0; (j + 1) * slot <= width + 0.5; j++) out.push(sourceAt(j * slot / width) * 10);
+        return out;
+      });
+      /** Each slot within a strip frame's spacing of what it should show: 32 frames over six seconds is one every 1.9 clip frames. */
+      const near = (got: number[], want: number[], what: string) => {
+        expect(got.length, `${what}: a slot read for each one expected`).toBe(want.length);
+        got.forEach((n, j) => expect(Math.abs(n - want[j]!), `${what}: slot ${j} shows frame ${n}, wanting ${want[j]!.toFixed(1)}`).toBeLessThanOrEqual(2));
+      };
+      const laneHeight = () => page.eval<number>(`document.getElementById('cut-track').getBoundingClientRect().height`);
+      try {
+        await restoreLayers();
+        await until(async () => (await cuts()) === 0, 'a project with no shots');
+        expect(await page.eval<string>(`document.querySelector('#settings-thumbnails input:checked')?.value ?? ''`), 'Continuous to start with').toBe('continuous');
+
+        // The whole clip as one shot: the strip arrives in the background, and the slots read 0, then on by the clip's time.
+        await setTrack([{ id: numberedId, from: 0, to: 6 }]);
+        await until(async () => (await cuts()) === 1, 'the shot');
+        await drawn(0);
+        expect(await laneHeight(), 'the cut track taller while frames show').toBeGreaterThan(30);
+        const whole = await numbers(0);
+        expect(whole[0], 'the first slot is the first frame').toBeLessThanOrEqual(1);
+        near(whole, await expected(0, (f) => f * 6), 'the whole clip');
+
+        // A trim: the first picture is the in point, three seconds in.
+        await setTrack([{ id: numberedId, from: 3, to: 6 }]);
+        await until(async () => Math.abs(((await numbers(0))[0] ?? -99) - 30) <= 2, 'the trimmed shot starting on frame 30');
+        near(await numbers(0), await expected(0, (f) => 3 + f * 3), 'the trim');
+
+        // Twice the speed: the same file covered in half the time, so the slots step twice as far.
+        await setTrack([{ id: numberedId, from: 0, to: 6, speed: { rate: 2 } }]);
+        await until(async () => (await numbers(0)).length > 1, 'the fast shot drawn');
+        near(await numbers(0), await expected(0, (f) => f * 6), 'twice the speed');
+
+        // A freeze frame: its one frame in every slot.
+        await setTrack([{ id: numberedId, from: 2.5, to: 2.55, hold: 3 }]);
+        let frozen: number[] = [];
+        await until(async () => { frozen = await numbers(0); return frozen.length > 1 && frozen.every((n) => Math.abs(n - 25) <= 2); }, 'the freeze showing frame 25 throughout').catch(async (err: Error) => {
+          throw new Error(`${err.message}; read ${JSON.stringify(frozen)}; track ${await page.eval<string>('JSON.stringify(window.pulpLayerEditor().track())')}`);
+        });
+
+        // First frame: one picture, at the in point; Off: none, and the lane back to its own height.
+        await setTrack([{ id: numberedId, from: 3, to: 6 }]);
+        await page.eval(`(() => { const r = document.getElementById('settings-thumbnails-first'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<boolean>(`${film(0)}.dataset.slots === '1'`), 'one picture for First frame');
+        expect(Math.abs(((await numbers(0))[0] ?? -99) - 30)).toBeLessThanOrEqual(2);
+        await page.eval(`(() => { const r = document.getElementById('settings-thumbnails-off'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await until(() => page.eval<boolean>(`${film(0)}.hidden`), 'nothing drawn when Off');
+        expect(await laneHeight(), 'and the lane its own height, the room back to the stage').toBeLessThan(20);
+        await page.eval(`(() => { const r = document.getElementById('settings-thumbnails-continuous'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await drawn(0);
+
+        // The picture track's clips are drawn the same way (milestone 57's lane), and the layer bars show the template's own frames.
+        await page.eval(`(() => { const dt = new DataTransfer(); dt.setData('application/x-pulp-item', ${JSON.stringify(numberedId)}); dt.setData('application/x-pulp-clip', '');
+          document.getElementById('transport-lanes').dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true })); return true; })()`);
+        await until(() => page.eval<boolean>(`!document.getElementById('overlay-track').hidden`), 'the picture track to drop on');
+        await page.eval(`(() => { const el = document.getElementById('overlay-track'); const r = el.getBoundingClientRect(); const dt = new DataTransfer(); dt.setData('application/x-pulp-item', ${JSON.stringify(numberedId)});
+          const at = { clientX: r.left + 2, clientY: r.top + r.height / 2, dataTransfer: dt, bubbles: true, cancelable: true };
+          el.dispatchEvent(new DragEvent('dragover', at)); el.dispatchEvent(new DragEvent('drop', at)); return true; })()`);
+        await until(() => page.eval<boolean>(`(() => { const c = document.querySelector('#overlay-track .pip-film'); return !!c && !c.hidden && Number(c.dataset.slots) > 0; })()`), 'the clip over the shots drawn as a strip', 30_000);
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#layer-bars .bar-film')].some((c) => !c.hidden && Number(c.dataset.slots) > 0)`), 'the template\'s own frames along its bars', 90_000);
+
+        // Many shots: sixty, every one drawn, and a trim's redraw stays quick.
+        const many = Array.from({ length: 60 }, (_, k) => ({ id: numberedId, from: (k % 5) * 0.5, to: (k % 5) * 0.5 + 1 + (k % 3) * 0.5 }));
+        await setTrack(many);
+        await until(async () => (await cuts()) === 60, 'sixty shots');
+        await until(() => page.eval<boolean>(`[...document.querySelectorAll('#cut-track .cut-film')].every((c) => !c.hidden)`), 'all sixty drawn');
+        const ms = await page.eval<number>(`(() => { const e = window.pulpLayerEditor(); const base = e.track(); const t0 = performance.now();
+          for (let i = 0; i < 20; i++) { const cuts = base.cuts.map((c, k) => (k === 30 ? { ...c, to: c.to - 0.02 * (i + 1) } : c)); e.setTrack({ cuts }, false); }
+          document.getElementById('cut-track').getBoundingClientRect(); return (performance.now() - t0) / 20; })()`);
+        expect(ms, `a trim's redraw of sixty shots takes ${ms.toFixed(1)} ms`).toBeLessThan(50);
+        const scroll = await page.eval<number>(`(() => { const l = document.getElementById('transport-lanes'); const t0 = performance.now();
+          for (let i = 0; i < 20; i++) { l.scrollTop = i % 2 ? 0 : 40; l.getBoundingClientRect(); } return (performance.now() - t0) / 20; })()`);
+        expect(scroll, `scrolling the lanes takes ${scroll.toFixed(1)} ms a step`).toBeLessThan(16);
+      } finally {
+        await page.eval(`(() => { const r = document.getElementById('settings-thumbnails-continuous'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await restoreLayers();
+      }
+    }, 240_000);
   });
 
   describe('length (milestone 30)', () => {

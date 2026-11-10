@@ -30,6 +30,8 @@ import { openContextMenu } from './context-menu';
 import { layerBarPeaks } from '../core/layer-audio';
 import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
 import { requestWaveform, waveforms } from './waveforms';
+import { chooseFilmStrip, filmStripMode, filmStrips, paintFilm } from './film-strip';
+import { cutFilmSlots, FILM_STRIP_MODES, sanitizeFilmStripMode } from '../core/film-strip';
 import type { TemplateManifest } from '../core/manifest';
 import type { MediaEntry } from '../core/library-types';
 import { resolveLength } from '../core/timing';
@@ -50,6 +52,8 @@ interface CutEl {
   end: HTMLButtonElement;
   /** The transition into the next cut, marked at the boundary (milestone 49); hidden on a straight cut. */
   join: HTMLSpanElement;
+  /** The clip's frames along the cut (milestone 87), under its sound and its name. */
+  film: HTMLCanvasElement;
   /** The cut's sound, drawn inside the body (milestone 49); empty while it has none. */
   wave: SVGSVGElement;
   wavePath: SVGPathElement;
@@ -143,6 +147,27 @@ export function cutTrackUpdate(track: CutTrack | null, manifest: TemplateManifes
   if (selected !== null && selected >= cuts.length) selected = null;
   paintSelection();
   paintWaves();
+  paintFilms();
+}
+
+/**
+ * Each cut's frames along it (milestone 87): the clip's strip, a picture per
+ * slot placed by the cut's own timing — a trim, a speed or a ramp, a freeze
+ * frame — or the first frame alone, or nothing, as the lanes are set. The
+ * lane is taller while frames show (the `film` class), which the stylesheet
+ * gives back to the stage when they do not.
+ */
+function paintFilms(): void {
+  if (!host) return;
+  const mode = filmStripMode.value;
+  host.classList.toggle('film', mode !== 'off');
+  const track = current.track;
+  if (!track || host.hidden) return;
+  cutEls.forEach((el, index) => {
+    const cut = track.cuts[index];
+    if (!cut) return;
+    paintFilm(el.film, mode, cut.id, (width, slot) => cutFilmSlots(cut, width, slot, mode));
+  });
 }
 
 /** What the mark at a boundary says of the transition there. */
@@ -237,7 +262,11 @@ function makeCut(): CutEl {
   const speed = document.createElement('span');
   speed.className = 'cut-speed';
   speed.toggleAttribute('hidden', true);
-  // The sound first, so the label draws over it — the bars' own order (src/renderer/stage-bars.ts).
+  // The frames first, then the sound, so the label draws over both — the bars' own order (src/renderer/stage-bars.ts).
+  const film = document.createElement('canvas');
+  film.className = 'cut-film';
+  film.setAttribute('aria-hidden', 'true');
+  film.hidden = true;
   const wave = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   wave.setAttribute('class', 'cut-wave');
   wave.setAttribute('preserveAspectRatio', 'none');
@@ -245,7 +274,7 @@ function makeCut(): CutEl {
   const wavePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   wave.append(wavePath);
   wave.toggleAttribute('hidden', true);
-  body.append(wave, label, speed);
+  body.append(film, wave, label, speed);
   const start = trimHandle('start');
   const end = trimHandle('end');
   const join = document.createElement('span');
@@ -264,7 +293,7 @@ function makeCut(): CutEl {
     handle.addEventListener('pointerup', onTrimPointerUp);
     handle.addEventListener('pointercancel', onTrimPointerUp);
   }
-  return { root, body, label, speed, start, end, join, wave, wavePath };
+  return { root, body, label, speed, start, end, join, film, wave, wavePath };
 }
 
 function trimHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -553,6 +582,10 @@ function cutMenuItems(track: CutTrack, index: number): MenuItemSpec[] {
     ...(cut.hold !== undefined ? [{ label: t('cut-track.menu.hold'), submenu: hold } satisfies MenuItemSpec] : [{ label: t('cut-track.menu.speed'), submenu: speed } satisfies MenuItemSpec]),
     { label: t('cut-track.menu.freeze'), submenu: freeze },
     { label: t('cut-track.menu.reframe', { aspect }), submenu: reframe },
+    // What the lanes draw of every clip (milestone 87): a choice for the timeline, kept with the settings.
+    { label: t('cut-track.menu.thumbnails'), submenu: FILM_STRIP_MODES.map((mode): MenuItemSpec => ({
+      command: 'cut.thumbnails', label: t(`cut-track.menu.thumbnails.${mode}`), arg: mode, type: 'radio', checked: filmStripMode.value === mode,
+    })) },
     { type: 'separator' },
     { command: 'cut.silences', label: t('cut-track.menu.silences') },
     { command: 'cut.export', label: t('cut-track.menu.export') },
@@ -614,6 +647,10 @@ function runCutCommand(command: string, arg: string | null, index: number): void
       setTrack(withCutReframe(now, index, aspect, result.keys), true);
       say(t(result.faces > 0 ? 'cut-track.reframe.done-faces' : 'cut-track.reframe.done', { shots: result.shots, keys: result.keys.length }));
     });
+    return;
+  }
+  if (command === 'cut.thumbnails') {
+    if (arg) chooseFilmStrip(sanitizeFilmStripMode(arg));
     return;
   }
   if (command === 'cut.export') {
@@ -842,6 +879,9 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
   for (const type of ['dragleave', 'dragend', 'drop'] as const) {
     lanes.addEventListener(type, () => lanes!.classList.remove('drop-target'));
   }
+  // A drop the picture track takes stops there and never reaches the lanes, and a drag ends at its
+  // source: heard on the document in capture, so the lanes' highlight never outlives the drag.
+  for (const type of ['drop', 'dragend'] as const) document.addEventListener(type, () => lanes?.classList.remove('drop-target'), true);
   lanes.addEventListener('drop', onDrop);
   window.addEventListener('keydown', onSplitKey);
   wireSilenceDialog();
@@ -854,6 +894,14 @@ export function mountCutTrack(el: HTMLDivElement, lanesEl: HTMLDivElement, note:
     void waveforms.value;
     paintWaves();
   });
+  // So do the film strips (milestone 87), and the choice of what the lanes draw changes them all.
+  effect(() => {
+    void filmStrips.value;
+    void filmStripMode.value;
+    paintFilms();
+  });
+  // A wider or narrower lane has more or fewer slots along each cut.
+  new ResizeObserver(() => paintFilms()).observe(el);
 }
 
 /** The shape the stage shows the picture at, which is the shape a reframe is for. */

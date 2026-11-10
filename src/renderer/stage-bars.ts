@@ -23,13 +23,15 @@ import type { Layer, LayerValues } from '../core/layers';
 import { heardStems } from '../core/sound-layer';
 import type { MediaEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
-import { resolveLength } from '../core/timing';
+import { resolveLength, templateTimeAt } from '../core/timing';
 import { WAVEFORM_BUCKETS, waveformPath } from '../core/waveform';
 import { openContextMenu } from './context-menu';
 import { bindAttr, bindText, t } from './i18n';
 import { layerEditor, selectedLayer } from './layer-edit';
 import { appState, playheadSeconds } from './store';
 import { requestWaveform, waveforms } from './waveforms';
+import { filmStripMode, filmStrips, paintTemplateFilm } from './film-strip';
+import { filmSlots } from '../core/film-strip';
 
 /** The bar for a layer, kept across updates so a drag keeps its element. */
 interface Bar {
@@ -40,6 +42,8 @@ interface Bar {
   label: HTMLSpanElement;
   start: HTMLButtonElement;
   end: HTMLButtonElement;
+  /** The template's own frames along the bar (milestone 87), under everything else. */
+  film: HTMLCanvasElement;
   /** The layer's sound, drawn inside the body (milestone 48); empty while it has none. */
   wave: SVGSVGElement;
   wavePath: SVGPathElement;
@@ -115,7 +119,11 @@ function makeBar(block: string, id: string, stem?: number): Bar {
   label.className = 'bar-label';
   const start = endHandle('start');
   const end = endHandle('end');
-  // The sound first, so the shades, the label and the handles draw over it.
+  // The frames, then the sound, so the shades, the label and the handles draw over them.
+  const film = document.createElement('canvas');
+  film.className = 'bar-film';
+  film.setAttribute('aria-hidden', 'true');
+  film.hidden = true;
   const wave = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   wave.setAttribute('class', 'bar-wave');
   wave.setAttribute('preserveAspectRatio', 'none');
@@ -123,7 +131,7 @@ function makeBar(block: string, id: string, stem?: number): Bar {
   const wavePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   wave.append(wavePath);
   wave.toggleAttribute('hidden', true);
-  body.append(wave, enter, leave, label, start, end);
+  body.append(film, wave, enter, leave, label, start, end);
   // A stem's lane carries the mixer's two buttons (milestone 16): mute, and solo.
   if (stem !== undefined) {
     const mute = stemButton('bars.stem.mute', 'bar-mute');
@@ -165,7 +173,7 @@ function makeBar(block: string, id: string, stem?: number): Bar {
     handle.addEventListener('pointercancel', onEndPointerUp);
     handle.addEventListener('keydown', (e) => onEndKeyDown(e, block, id, which));
   }
-  return { root, body, enter, leave, label, start, end, wave, wavePath, marks: [], layer: null };
+  return { root, body, enter, leave, label, start, end, film, wave, wavePath, marks: [], layer: null };
 }
 
 function endHandle(which: 'start' | 'end'): HTMLButtonElement {
@@ -211,7 +219,23 @@ function placeBar(bar: Bar, layer: Layer, length: number, stem?: number): void {
   }
   bar.layer = layer;
   paintWave(bar, layer, length, stem);
+  paintBarFilm(bar, layer, length);
   placeKeys(bar, layer, length);
+}
+
+/**
+ * The template's own frames along a layer's bar (milestone 87): what the
+ * graphic looks like at each moment the layer is on screen, through the
+ * template's own timing — a stretched hold holds its frame — from the strip
+ * its card already scrubs through.
+ */
+function paintBarFilm(bar: Bar, layer: Layer, length: number): void {
+  const manifest = current.manifest;
+  const entry = manifest ? appState.value.index?.templates.find((t) => t.manifest.id === manifest.id) : undefined;
+  const window = spanWindow(layer.span, length);
+  const span = window.to - window.from;
+  paintTemplateFilm(bar.film, filmStripMode.value, entry && manifest ? { id: entry.id, fps: manifest.fps, duration: manifest.duration } : null, (width, slot) =>
+    filmSlots(width, slot, filmStripMode.value, (fraction) => templateTimeAt(window.from + fraction * span, manifest!.duration, manifest!.structure ?? null, length)));
 }
 
 /** One of the lane's two letters, pressed or not; the state is painted by placeBar. */
@@ -575,6 +599,12 @@ export function mountLayerBars(el: HTMLDivElement, transportEl: HTMLElement): vo
   effect(() => {
     void selectedLayer.value;
     paintSelection();
+  });
+  // The template's frames land in the background, and the choice of what lanes draw changes them (milestone 87).
+  effect(() => {
+    void filmStrips.value;
+    void filmStripMode.value;
+    for (const bar of bars.values()) if (bar.layer) paintBarFilm(bar, bar.layer, current.length);
   });
   // Peaks arrive in the background, and the library's metadata with them: the bars catch up.
   effect(() => {

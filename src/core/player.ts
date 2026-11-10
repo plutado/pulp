@@ -6,6 +6,7 @@
  * elements and the main process stores the settings.
  */
 
+import { DEFAULT_FILM_STRIP, sanitizeFilmStripMode, type FilmStripMode } from './film-strip';
 import { tr } from './i18n';
 
 /** What shows behind a preview with transparency. */
@@ -46,6 +47,8 @@ export interface PlayerState {
   muted: boolean;
   /** Audition mode: choosing an audio item plays it, so a list can be heard by arrowing through it. */
   audition: boolean;
+  /** What the timeline's lanes draw of each clip (milestone 87): nothing, its first frame, or a strip of frames. */
+  filmStrip: FilmStripMode;
 }
 
 export const DEFAULT_PLAYER: PlayerState = {
@@ -56,6 +59,7 @@ export const DEFAULT_PLAYER: PlayerState = {
   volume: 1,
   muted: false,
   audition: false,
+  filmStrip: DEFAULT_FILM_STRIP,
 };
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
@@ -72,6 +76,7 @@ export function sanitizePlayer(raw: unknown): PlayerState {
     volume,
     muted: r.muted === true,
     audition: r.audition === true,
+    filmStrip: sanitizeFilmStripMode(r.filmStrip),
   };
 }
 

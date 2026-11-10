@@ -108,6 +108,16 @@ function heavyWork<T>(work: () => Promise<T>, label = 'work'): Promise<T> {
   return next;
 }
 
+/** A turn on the heavy chain for work kept elsewhere — the timeline's film strips (milestone 87). */
+export function takeHeavyTurn<T>(work: () => Promise<T>, label: string): Promise<T> {
+  return heavyWork(work, label);
+}
+
+/** Whether caches go to disk; headless runs keep none (`useInMemoryLibrary`). */
+export function cachesPersist(): boolean {
+  return persistent;
+}
+
 /** A snapshot of the background work, for the status bar's diagnostics and for a stuck test to print. */
 export interface LibraryDiagnostics {
   thumbnailing: boolean;

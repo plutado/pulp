@@ -19,6 +19,8 @@ import type { PlayerState } from '../core/player';
 import { showCacheStats } from './tray';
 import { effect } from '@preact/signals';
 import { APPEARANCES } from '../core/appearance';
+import { FILM_STRIP_MODES } from '../core/film-strip';
+import { chooseFilmStrip, filmStripMode } from './film-strip';
 import { appearanceChoice, chooseAppearance } from './appearance';
 import { bindAttr, bindText, chooseLanguage, languageState, locale, t, whenLocaleChanges } from './i18n';
 import { isLocaleId, LOCALES, resolveLocale } from '../core/i18n';
@@ -245,6 +247,36 @@ function initAppearanceChoice(): void {
 }
 
 /**
+ * What the timeline draws of each clip (milestone 87): Off, First frame or
+ * Continuous, kept with the player's settings — the same choice a shot's
+ * right-click menu offers, so the radios follow it from either.
+ */
+function initThumbnailsChoice(): void {
+  const group = $('settings-thumbnails');
+  for (const mode of FILM_STRIP_MODES) {
+    const label = document.createElement('label');
+    label.className = 'field inline';
+    bindAttr(label, 'data-tip', `film-strip.${mode}.hint`);
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'settings-thumbnails';
+    input.id = `settings-thumbnails-${mode}`;
+    input.value = mode;
+    input.addEventListener('change', () => {
+      if (input.checked) chooseFilmStrip(mode);
+    });
+    const text = document.createElement('span');
+    bindText(text, `film-strip.${mode}`);
+    label.append(input, text);
+    group.append(label);
+  }
+  effect(() => {
+    const chosen = filmStripMode.value;
+    for (const input of group.querySelectorAll<HTMLInputElement>('input[type=radio]')) input.checked = input.value === chosen;
+  });
+}
+
+/**
  * Settings → Language (milestone 59): the system's language first — naming the one it comes to —
  * then each language under its own name, so a person can find theirs whatever the window is in.
  * Rebuilt when the language changes, since the first line is in the window's language.
@@ -283,6 +315,7 @@ function initLanguageChoice(): void {
 
 export function initSettings(): void {
   initAppearanceChoice();
+  initThumbnailsChoice();
   initLanguageChoice();
   // The fetch, and the one line of status it reports through (milestone 17). The button is
   // the asking: nothing is fetched until it is pressed, and what arrives is checked against

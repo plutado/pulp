@@ -34,6 +34,7 @@ import { transitionAt, type CutTrack } from '../core/cut-track';
 import { resolveTemplateSoundChoice, templateSoundValue, wipeSoundValue } from '../core/template-sound';
 import { cutTrackTakeDrop, cutTrackUpdate, mountCutTrack } from './cut-track';
 import { mountOverlayTrack, overlayTrackUpdate } from './overlay-track';
+import { filmStripMode, setFilmStripChooser } from './film-strip';
 import { mountTrackPicture, trackPictureDebug, trackPictureDraw, trackPictureSync } from './stage-track';
 import { motionTracksDebug, motionTracksDraw, mountMotionTracks } from './motion-track';
 import { mountReframeStage, reframeStageDebug, reframeStageDraw } from './reframe-stage';
@@ -192,6 +193,8 @@ function setPlayer(change: Partial<PlayerState>): void {
 /** Put the preferences on the elements: background, safe areas, loop, volume. */
 function applyPlayer(): void {
   const p = s.player;
+  // What the timeline's lanes draw of each clip (milestone 87): the lanes follow the signal.
+  filmStripMode.value = p.filmStrip;
   els.loop.setAttribute('aria-pressed', String(p.loop));
   for (const [kind, button] of Object.entries(BACKGROUND_BUTTONS)) button.setAttribute('aria-pressed', String(p.background === kind));
   els.bgCustom.value = p.customBackground;
@@ -1389,6 +1392,8 @@ export function initStage(): void {
     overlayTrackUpdate(s.manifest, s.layers, s.length, Boolean(s.manifest) && !s.sequence, s.track);
   });
   // The picture track's own drop, ahead of the lanes' drop onto the cut track (milestone 57).
+  // A choice of what the lanes draw (milestone 87), from Settings or a shot's menu, is kept with the player's.
+  setFilmStripChooser((mode) => setPlayer({ filmStrip: mode }));
   mountOverlayTrack($<HTMLDivElement>('overlay-track'), (text) => {
     showNoteText(text);
   });

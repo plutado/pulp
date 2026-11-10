@@ -102,6 +102,10 @@ Measured on ffmpeg 8.0 (macOS):
 - libwebp_anim takes `bgra`, `yuv420p` or `yuva420p`; fed BGRA, libwebp does the conversion to Y'CbCr itself, with the matrix a WebP decoder assumes, so Pulp's Rec. 709 conversion is not used for it.
 - **`fps` keeps frames to the nearest, a half up:** 59 frames at 30 to 15 is 30, 61 is 31, one is one. `animatedImageOutput` counts them the same way for `-frames:v`.
 
+### A tiled strip from a live decode can end on a blank tile (milestone 87)
+
+`tile` flushes a padded, part-blank image when its input ends short of a full grid, and `fps=N/duration` can give one frame fewer than asked on a clip that ends a hair early (the hover-scrub note above). The timeline's film strips therefore decode in one run to **raw** tiles of a known size — so the number of frames is exactly the bytes over a tile's — and tile them in a second run from a pipe, with the grid sized to that number. A short last row is still padded, but the strip says how many tiles are real, and nothing reads past them.
+
 ### VideoToolbox from BGRA leaves the matrix untagged
 
 `hevc_videotoolbox` accepts BGRA and converts internally with BT.709, but writes `colr` with matrix 0 (unspecified). A decoder falling back to BT.601 then reads pure red as (233, 0, 1). Feeding `ayuv` (4:4:4 Y'CbCr with alpha) that the Rec.709 steps converted and tagged gives `nclc` 1/1/1 and an exact round trip (ADR 0005). The encoder exists only in macOS builds.

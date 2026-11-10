@@ -339,6 +339,8 @@ export const markup = {
   'ui.settings-dialog.choosing-a-sound-in-the.data-tip': 'Choosing a sound in the results plays it, so a list can be heard by arrowing through it',
   'ui.settings-dialog.play-a-sound-when-it': 'Play a sound when it is chosen',
   'ui.settings-appearance-head': 'Appearance',
+  'ui.settings-thumbnails-head': 'Timeline thumbnails',
+  'ui.settings-dialog.thumbnails-note': 'What the timeline draws of each clip along its shot. The cut track is taller while frames show.',
   'ui.settings-dialog.how-the-window-looks-every': 'How the window looks — every window, the start screen and the dialogs at once. The stage’s checkerboard follows it too; a chosen black, white, gray or custom background and what a template draws stay as they are. Also in View → Appearance.',
   'ui.settings-dialog.semantic-search': 'Semantic search',
   'ui.settings-dialog.search-by-meaning-as-well': 'Search by meaning as well as by words: “something calm for a podcast intro” finds the right templates. Off by default. Everything runs on this machine — the library is embedded locally and so is every search; the one thing ever fetched is the model file itself, from its publisher, after you say yes here.',
