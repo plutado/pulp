@@ -99,7 +99,7 @@ describe('the window it describes', () => {
     const sections = docSections(guide);
     expect(sections[0]!.title).toBe('Using Pulp');
     const titles = sections.filter((s) => s.level === 1).map((s) => s.title);
-    expect(titles).toEqual(['Using Pulp', 'The window', 'Making something', 'Keys worth knowing', 'Searching', 'Where your things are', 'More']);
+    expect(titles).toEqual(['Using Pulp', 'The window', 'Making something', 'Working with footage', 'Keys worth knowing', 'Searching', 'Where your things are', 'More']);
     // The two tables are read as tables, so the dialog sets them as tables.
     const tables = sections.flatMap((s) => s.blocks).filter((b) => typeof b !== 'string' && 'header' in b);
     expect(tables).toHaveLength(2);

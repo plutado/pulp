@@ -36,6 +36,10 @@ npm run build
 
 The results region is windowed: only the cards and rows in view are in the DOM. A UI test must therefore scroll to an item before reading or clicking it — use the `scrollToResult`, `onResult`, `clickResult` and `resultNames` helpers in `tests/e2e/ui.e2e.test.ts` rather than querying `#results` directly.
 
+## The pictures in the README
+
+`npm run images` makes the five in `docs/images/` again: the sample frames and the GIF through `pulp render`, and the window photographed over the DevTools protocol on a scratch user-data folder, so your own settings and library are neither read nor written. Run it when the window's shape or the bundled templates change, and look at what it wrote before committing — it is a picture, and only a person can say whether it shows the app well. `--only samples,gif,window`, `--no-build` and `--keep` are there for working on the script itself.
+
 ## Visual regression
 
 Every bundled template is rendered at each aspect it declares, at a few fixed frames, and compared with the approved perceptual hashes in `tests/visual/references.json` (`tests/e2e/visual.e2e.test.ts`). Hashes rather than images: this repository ships no binaries, and a hash is a short string a reviewer reads in a diff. A failure names the template, the aspect and the frame.
