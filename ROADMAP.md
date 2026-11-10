@@ -100,9 +100,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 83. Deinterlace old footage (post-1.0) | 3-6 h |
 | 84. A flash warning before export (post-1.0) | 4-7 h |
 | 85. Timeline lanes that say what they are (post-1.0) | 3-5 h |
+| 86. The docs and pictures caught up (post-1.0) | 4-7 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1182-1947 h** |
+| **Total including post-1.0 items** | **1186-1954 h** |
 
 ## 0. Foundation (done)
 
@@ -1039,3 +1040,11 @@ Decided 2026-11-10. With cuts on the cut track and nothing on the picture track 
 - [ ] **No empty box at rest, a drop lane while dragging:** the empty picture track is hidden until a clip is dragged over the lanes, then shown as a highlighted lane that says it takes the clip as picture-in-picture (1-2 h)
 - [ ] **Each lane named:** a short label at the left of the layer bars, the picture track and the cut track, so the rows read as tracks in every language and in the mirrored window (1-2 h)
 - [ ] **Translated and held by tests:** the hint moves out of the stylesheet into the message catalog, and an end-to-end check that the empty track takes no height at rest, appears on a drag and shows its label at 1280 × 788 and 960 × 600 (1 h)
+
+## 86. The docs and pictures caught up (4-7 h, after 1.0; GitHub issue #88)
+
+Decided 2026-11-10. The README and the user guides say nothing of the newest work, the README's account of what has been tested has not caught up with it, and the five pictures in `docs/images/` were made by hand before the start screen (milestone 60), the light and dark appearance (62) and the redrawn templates.
+
+- [ ] **What it does, said:** the README's feature list and the user guide in English, German and Chinese cover motion tracking (76), stabilize (78), auto-reframe (77), the music dip (80), HDR clips (81), and Arabic, Hebrew and Indic text with the mirrored window (70) (2-3 h)
+- [ ] **What it has been tested with, said:** Where things stand names these as tested with generated clips only, not real footage, and the new scripts as not yet read by a fluent speaker (1 h)
+- [ ] **Pictures made by a script, not by hand:** the sample frames and the GIF rendered through Pulp's own command line and the window captured as the end-to-end suite does, in one command, and all five made again with it (1-3 h)
