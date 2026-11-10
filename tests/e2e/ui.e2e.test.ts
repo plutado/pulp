@@ -4000,7 +4000,8 @@ describe.skipIf(!electron)('inspector UI', () => {
           await until(async () => (await flashText('zz-strobe')).includes('Strong flashing at'), 'the card naming the flashing', 90_000);
         } catch (err) {
           // Say what the card did show, so a check that could not run is told from one still running.
-          throw new Error(`${(err as Error).message}; the card said: ${JSON.stringify(await flashText('zz-strobe'))}`, { cause: err });
+          const jobs = await page.eval<unknown>(`window.pulp.getRenderQueue().then((q) => (q.jobs ?? q).filter?.((j) => String(j.outputPath ?? j.output ?? '').includes('zz-strobe')).map((j) => ({ id: j.id, status: j.status, presetId: j.presetId, flash: j.flash, cached: j.cached, output: j.output })))`).catch((e: Error) => e.message);
+          throw new Error(`${(err as Error).message}; the card said: ${JSON.stringify(await flashText('zz-strobe'))}; its jobs: ${JSON.stringify(jobs)}`, { cause: err });
         }
         expect(await flashText('zz-strobe')).toContain('Strong flashing at 00:00:01:00');
         expect(await flashText('zz-strobe')).toContain('5 flashes a second, light and dark');
