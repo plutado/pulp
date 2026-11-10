@@ -102,7 +102,7 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 85. Timeline lanes that say what they are (post-1.0, **done**) | 3-5 h |
 | 86. The docs and pictures caught up (post-1.0, **done**) | 4-7 h |
 | 87. A film strip on the timeline (post-1.0, **done**) | 10-16 h |
-| 88. Features that know what the ffmpeg can do (post-1.0) | 8-13 h |
+| 88. Features that know what the ffmpeg can do (post-1.0, **done**) | 8-13 h |
 | 89. Reframe when the action is wider than the frame (post-1.0) | 2-3 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
