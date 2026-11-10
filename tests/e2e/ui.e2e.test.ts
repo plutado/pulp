@@ -3989,6 +3989,12 @@ describe.skipIf(!electron)('inspector UI', () => {
         await until(() => page.eval<boolean>(`!document.getElementById('opt-flash-field').hidden`), 'the flash check offered for a clip');
         expect(await page.eval<string>(`document.getElementById('opt-flash-field').getAttribute('data-tip')`)).toContain('not a certified broadcast test');
         await page.eval(`(() => { const s = document.getElementById('preset'); s.value = 'h264-mp4'; s.dispatchEvent(new Event('change', { bubbles: true })); const f = document.getElementById('opt-flash'); f.checked = true; f.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        // The Output tab is redrawn for the new preset a moment later on a slow runner, which can
+        // hide the field and clear the box again; the render asks for the check only once both hold.
+        await until(async () => {
+          const ready = await page.eval<boolean>(`(() => { const f = document.getElementById('opt-flash'); if (document.getElementById('opt-flash-field').hidden || document.getElementById('preset').value !== 'h264-mp4') return false; if (!f.checked) { f.checked = true; f.dispatchEvent(new Event('change', { bubbles: true })); } return f.checked; })()`);
+          return ready;
+        }, 'the flash check ticked for an H.264 render');
         await page.eval(`document.getElementById('drag-prepare').click()`);
         try {
           await until(async () => (await flashText('zz-strobe')).includes('Strong flashing at'), 'the card naming the flashing', 90_000);
