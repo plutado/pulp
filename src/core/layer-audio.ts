@@ -99,6 +99,8 @@ export function presetAudioArgs(presetId: string): string[] | null {
     case 'prores-422hq':
     case 'qt-animation':
     case 'hevc-alpha':
+    case 'dnxhr-hq':
+    case 'dnxhr-hqx':
       return ['-c:a', 'pcm_s16le'];
     case 'webm-vp9-alpha':
       return ['-c:a', 'libopus', '-b:a', '128k'];
@@ -526,6 +528,8 @@ export function applyLayerAudio(
 ): RenderPlan {
   const audible = audibleLayers(layers, plan.length);
   if (audible.length === 0) return plan;
+  // An animated image (milestone 82) is silent by nature: no stream, and no WAV beside a GIF either.
+  if (plan.preset.animatedImage) return plan;
 
   const args = [...plan.args];
   const pipeAt = args.indexOf('pipe:0');
@@ -592,7 +596,7 @@ export function stemOutputPath(output: string, label: string, index: number): st
  */
 export function applyStemAudio(plan: RenderPlan, stems: readonly { layer: SoundAudioLayer; label: string }[]): RenderPlan {
   const audible = stems.filter((s) => audibleLayers([s.layer], plan.length).length > 0);
-  if (audible.length === 0) return plan;
+  if (audible.length === 0 || plan.preset.animatedImage) return plan;
 
   const args = [...plan.args];
   if (args.indexOf('pipe:0') < 0 || args.indexOf(plan.output) < 0) return plan;

@@ -29,6 +29,7 @@ npx electron . --render pulp.test.alpha-check --preset png-sequence   --out rend
 npx electron . --render pulp.test.alpha-check --preset webm-vp9-alpha --out renders/alpha-check.webm       --library $L
 npx electron . --render pulp.test.alpha-check --preset qt-animation   --out renders/alpha-check-anim.mov   --library $L
 npx electron . --render pulp.test.alpha-check --preset hevc-alpha     --out renders/alpha-check-hevc.mov   --library $L   # macOS
+npx electron . --render pulp.test.alpha-check --preset dnxhr-hq       --out renders/alpha-check-dnxhr.mov  --library $L   # flattened; no alpha
 npx electron . --render pulp.samples.lower-third-bar --preset prores-4444 --out renders/lower-third.mov
 ```
 
@@ -60,6 +61,7 @@ Method: each test file on V2 over a black solid for the first half and a white s
 | QuickTime Animation | **Pass.** Default: Straight. Pixel-identical over black. | **Fails by default, passes with Clip Attributes, Data Levels: Full.** Auto treats the file as video range and scales the alpha by about 255/235 (red 140, black patch 117). The file now carries a `colr` atom declaring full-range RGB; re-check whether Auto honors it. | not tested |
 | HEVC (alpha) | **Fails.** No alpha is read (the Alpha Channel section is grayed out) and the file is decoded with video levels (black 16, white 235). No setting fixes it. | **Fails by default, passes with Clip Attributes, Alpha Mode: Straight.** Default is Premultiplied: the ramp clips to 255 over black, red (255, 1, 0). | not applicable |
 | WebM VP9 (alpha) | **Not importable** ("File format not supported"). | **Fails.** Alpha appears binarized: patches opaque, the 50% black patch gone, jagged dark fringes on text over white. Only None and Premultiplied are offered; nothing fixes it. | not tested |
+| DNxHR HQ (milestone 82) | not tested yet | not tested yet | not tested |
 | Lower third (ProRes 4444) | **Pass.** Panel (14, 20, 32) over black, (52, 58, 71) over white. | **Pass.** Same values; accent (244, 157, 11). | not tested |
 
 **Linear compositing in Premiere Pro.** New sequences have Composite in Linear Color on by default. With it on, semi-transparent pixels blend in linear light: 50% red over black reads 191 (0.5^(1/2.4) x 255), the 49% ramp 189, and the lower-third panel (15, 22, 36) over black and (116, 116, 118) over white. The alpha is read correctly; this is expected behavior, not a fault in the files. The expected values on this page assume gamma-space blending, which matches Premiere only with that option off. A file misread as premultiplied would clip to 255 over black instead, which did not happen.

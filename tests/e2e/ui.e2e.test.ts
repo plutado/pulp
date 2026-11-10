@@ -4707,6 +4707,53 @@ describe.skipIf(!electron)('inspector UI', () => {
       }
     }, 90_000);
 
+    it('offers DNxHR and the animated images, and gives the animated images a rate and a width of their own (milestone 82)', async () => {
+      await clickResult('Lower Third Bar');
+      await until(() => page.eval<boolean>(`!document.getElementById('play').disabled`), 'the preview');
+      await openTab('output');
+      const before = await page.eval<string>(`document.getElementById('preset').value`);
+      const shown = (id: string) => page.eval<boolean>(`(() => { const el = document.getElementById(${JSON.stringify(id)}); return !el.hidden && getComputedStyle(el).display !== 'none'; })()`);
+      const value = (id: string) => page.eval<string>(`document.getElementById(${JSON.stringify(id)}).value`);
+      try {
+        // The new presets are in the list, under the names an editor and a web page know them by.
+        const offered = await page.eval<string[]>(`[...document.getElementById('preset').options].map((o) => o.value)`);
+        expect(offered).toEqual(expect.arrayContaining(['dnxhr-hq', 'dnxhr-hqx', 'gif', 'webp-animated', 'apng']));
+
+        // DNxHR is a video preset like ProRes 422 HQ: no rate or width of its own, the matte on offer for the key.
+        await fire('#preset', 'dnxhr-hq', 'change');
+        expect(await shown('opt-image-field')).toBe(false);
+        expect(await shown('opt-matte-field'), 'the matte, for DNxHR\'s missing alpha').toBe(true);
+        expect(await shown('opt-background-field'), 'and the background it is flattened over').toBe(true);
+
+        // A GIF arrives smaller: 15 a second and 480 wide, the matte out of the way.
+        await fire('#preset', 'gif', 'change');
+        expect(await shown('opt-image-field')).toBe(true);
+        expect(await value('opt-image-fps')).toBe('15');
+        expect(await value('opt-image-width')).toBe('480');
+        expect(await shown('opt-matte-field'), 'an animated image takes no matte').toBe(false);
+        expect(await page.eval<string>(`document.getElementById('preset-note').textContent`)).toContain('palette made for this clip');
+        // The person's own choice holds while the preset stays.
+        await fire('#opt-image-fps', '10', 'change');
+        expect(await value('opt-image-fps')).toBe('10');
+
+        // WebP and APNG keep their alpha, so no background; and they start as rendered.
+        await fire('#preset', 'webp-animated', 'change');
+        expect(await shown('opt-image-field')).toBe(true);
+        expect(await value('opt-image-fps')).toBe('');
+        expect(await value('opt-image-width')).toBe('');
+        expect(await shown('opt-background-field'), 'alpha kept, nothing to flatten over').toBe(false);
+        await fire('#preset', 'apng', 'change');
+        expect(await shown('opt-image-field')).toBe(true);
+
+        // And back to a video preset, everything as it was.
+        await fire('#preset', 'prores-4444', 'change');
+        expect(await shown('opt-image-field')).toBe(false);
+        expect(await shown('opt-matte-field')).toBe(true);
+      } finally {
+        await fire('#preset', before, 'change');
+      }
+    }, 60_000);
+
     it('music moods are their own way to browse and search sounds (milestone 16)', async () => {
       // Two sounds in mood-named folders: the folder is the person's own word for how they feel.
       const silence = await readFile(join(ROOT, 'tests', 'e2e', 'templates', 'media', 'silence.wav'));

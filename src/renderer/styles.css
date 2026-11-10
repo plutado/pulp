@@ -2002,6 +2002,11 @@ progress { width: 100%; margin: 2px 0; }
 .media-options { display: contents; }
 .audio-options { display: contents; }
 .matte-field { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+/* Not for the chosen preset (milestone 82): an animated image takes no matte. */
+.matte-field.not-for-preset { display: none; }
+/* An animated image's own rate and width, side by side under the frame rate (milestone 82). */
+.image-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.image-options[hidden] { display: none; }
 .tint-row { display: flex; align-items: center; gap: var(--space-2); }
 .matte-field input { width: auto; }
 

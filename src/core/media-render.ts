@@ -28,7 +28,7 @@ import { tonemapSteps, type HdrFormat } from './hdr';
 import { hdrLabel } from './display';
 import {
   AUDIO_BIT_DEPTHS, AUDIO_SAMPLE_RATES, matteCodecArgs, matteFilters, matteOutputPath, normalizeOutputPath, OUTPUT_PRESETS, REC709_CONVERT, REC709_TAGS,
-  RenderPlanError, RGB_FULL_TAGS, type AudioOptions, type OutputPreset, type PresetId, type RenderOptions,
+  animatedImageOutput, RenderPlanError, RGB_FULL_TAGS, type AudioOptions, type OutputPreset, type PresetId, type RenderOptions,
 } from './render-plan';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 import { isCubeFile, lutFilter } from './clip-clean';
@@ -267,6 +267,8 @@ export interface MediaRenderPlan {
   width: number;
   height: number;
   warnings: string[];
+  /** An animated image at a rate of its own (milestone 82): what it holds, which ffmpeg's progress counts in. */
+  image?: { fps: number; frames: number };
 }
 
 function hexToFfmpegColor(hex: string): string {
@@ -383,6 +385,8 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const { width, height, fitted } = sizeOf(source, options, preset);
   const output = normalizeOutputPath(input.outputPath, preset);
   const matte = options.matte === true;
+  // An animated image (milestone 82) takes no matte, as a template's does not.
+  if (matte && preset.animatedImage) throw new RenderPlanError(tr('render-plan.error.image-matte', { preset: preset.label }));
   const matteOutput = matte ? matteOutputPath(output, preset) : undefined;
   const warnings: string[] = [];
   const audioArgs = audioCodecArgsFor(preset);
@@ -440,6 +444,9 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const trimA = `atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS`;
   const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
   toOutput.push(`format=${preset.pixelFormat}`);
+  // An animated image's own rate, width and palette (milestone 82), by the template's one rule.
+  const image = animatedImageOutput(preset, options, { fps: timing.fps, frames: timing.totalFrames });
+  if (image?.steps) toOutput.push(image.steps);
   const parts: string[] = [`[0:v]${[...finalVideoPrepare, trimV].join(',')}[src]`];
   if (matte) parts.push(`[src]split[pic][mat]`, `[mat]${matteFilters(preset)}[matte]`);
   const pic = matte ? '[pic]' : '[src]';
@@ -455,7 +462,7 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   else args.push('-an');
   args.push(...preset.codecArgs);
   if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
-  args.push('-frames:v', String(timing.totalFrames), '-r', fps, output);
+  args.push('-frames:v', String(image ? image.frames : timing.totalFrames), '-r', image && image.fps !== timing.fps ? String(image.fps) : fps, output);
   if (matte && matteOutput) {
     args.push('-map', '[matte]', '-an', ...matteCodecArgs(preset));
     if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
@@ -464,7 +471,10 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   stages.push({ output, args });
   if (preset.alpha && !source.alpha) warnings.push(tr('media-render.warning.no-alpha'));
   if (matte && !source.alpha) warnings.push(tr('media-render.warning.no-alpha-matte'));
-  return { kind: 'video', preset, stages, output, ...(matteOutput ? { matteOutput } : {}), timing, width, height, warnings };
+  return {
+    kind: 'video', preset, stages, output, ...(matteOutput ? { matteOutput } : {}), timing, width, height, warnings,
+    ...(image && image.fps !== timing.fps ? { image: { fps: image.fps, frames: image.frames } } : {}),
+  };
 }
 
 /** The encoder arguments for an audio preset with the asked bit depth. */

@@ -19,6 +19,7 @@ export const enGB: Catalog = {
   'ui.bg-gray.aria-label': 'Grey background',
   'ui.bg-gray.data-tip': 'Mid-grey: the neutral a soft edge is judged against',
   'ui.bg-custom.aria-label': 'Custom background colour',
+  'preset.gif.description': 'An animated GIF for a page or a chat, looping forever, with a palette made for this clip so its colours hold. Flattened over the background: a GIF\'s transparency has hard edges. 15 frames a second and 480 pixels wide to start with, since a GIF at a video\'s size is very large.',
   'ui.bg-custom.data-tip': 'A colour of your own',
   'ui.theater.aria-label': 'Theatre: hide the results',
   'ui.theater.data-tip': 'Theatre: the stage takes the window (T)',

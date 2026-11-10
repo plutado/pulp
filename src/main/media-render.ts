@@ -214,7 +214,9 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
       const last = i === plan.stages.length - 1;
       const { code, stderr } = await runStage(ffmpeg.path, stage.args, job, (frame, seconds) => {
         if (!last) return;
-        const done = frame !== undefined && plan.kind === 'video' ? frame : seconds !== undefined ? Math.round(seconds * plan.timing.fps) : undefined;
+        // ffmpeg counts the frames it writes, which an animated image at a lower rate has fewer of (milestone 82).
+        const written = plan.image ? plan.timing.fps / plan.image.fps : 1;
+        const done = frame !== undefined && plan.kind === 'video' ? Math.round(frame * written) : seconds !== undefined ? Math.round(seconds * plan.timing.fps) : undefined;
         if (done !== undefined) job.onProgress?.({ frame: Math.min(total, done), totalFrames: total });
       });
       if (job.signal?.aborted) {

@@ -91,6 +91,17 @@ Two things measured while building it. **The input's transfer, matrix and primar
 
 Generating an HDR fixture has the same catch as the section above: `-color_trc`/`-color_primaries` as output options do not reach the file (only `-colorspace` did), while `setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc` on the frames sets all three. mpeg4 keeps them as well as H.264 does.
 
+### Animated WebP and APNG: what ffmpeg reads back, and what it loops by default (milestone 82)
+
+Measured on ffmpeg 8.0 (macOS):
+
+- **ffmpeg cannot decode an animated WebP.** Its WebP demuxer reads stills only; on an animated file ffprobe says `image data not found` and counts nothing. The render tests read the file's own RIFF chunks instead (`tests/webp-anim.ts`: `VP8X` for the alpha and animation flags, `ANIM` for the loop count, one `ANMF` per frame with its duration). It also means a Pulp library cannot read an animated WebP back as a clip.
+- **libwebp folds frames it would not store into the one before**, lengthening that frame: a picture whose frames barely change comes out with fewer `ANMF` chunks than it was given (18 for 30 in a probe whose red channel stepped by 8 a frame; a still picture becomes a single, non-animated image). The durations always add up to the clip's length, so that is what to check, not the count.
+- **Both muxers play once unless told otherwise:** the WebP muxer's `-loop` defaults to 1, the APNG muxer's `-plays` to 1. An animated image on a page is expected to loop, so both are set to 0, which is forever. The GIF muxer's `-loop` already defaults to 0.
+- **`.png` means a still** to ffmpeg's muxer guessing, so APNG names `-f apng`.
+- libwebp_anim takes `bgra`, `yuv420p` or `yuva420p`; fed BGRA, libwebp does the conversion to Y'CbCr itself, with the matrix a WebP decoder assumes, so Pulp's Rec. 709 conversion is not used for it.
+- **`fps` keeps frames to the nearest, a half up:** 59 frames at 30 to 15 is 30, 61 is 31, one is one. `animatedImageOutput` counts them the same way for `-frames:v`.
+
 ### VideoToolbox from BGRA leaves the matrix untagged
 
 `hevc_videotoolbox` accepts BGRA and converts internally with BT.709, but writes `colr` with matrix 0 (unspecified). A decoder falling back to BT.601 then reads pure red as (233, 0, 1). Feeding `ayuv` (4:4:4 Y'CbCr with alpha) that the Rec.709 steps converted and tagged gives `nclc` 1/1/1 and an exact round trip (ADR 0005). The encoder exists only in macOS builds.

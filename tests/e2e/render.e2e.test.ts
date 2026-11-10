@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
 import { probeMedia } from '../../src/core/media-probe';
 import { hasTonemapping } from '../../src/core/hdr';
+import { readWebp } from '../webp-anim';
 import { SEQUENCE_FPS, sequenceMetadata, sequencePatternName } from '../../src/core/media-sequence';
 import { sequenceStripArgs } from '../../src/core/hover-scrub';
 import { itemId } from '../../src/core/library-scan';
@@ -1523,6 +1524,102 @@ describe.skipIf(!available)('end-to-end render', () => {
     // And past its span it is gone, wherever the keys would have put it.
     expect((await pixels(join(out, 'keys-together_00055.png'), ...middle))[3]).toBe(0);
     expect((await pixels(join(out, 'keys-together_00055.png'), ...right))[3]).toBe(0);
+  }, 300_000);
+
+  it('writes DNxHR, GIF, animated WebP and APNG, each read back for its codec, its alpha and its frames (milestone 82)', async () => {
+    // The alpha check renders a 50% red patch, an alpha ramp, transparency and text that moves on
+    // every frame — so no two frames are alike — two seconds at 30 a second, at a small size.
+    const small = ['--library', FIXTURES, '--size', '320x180'];
+    const redAt = [48, 66] as const; // inside the 50% red patch
+    const clearAt = [5, 5] as const; // above everything the fixture draws
+    const rampRow = 23; // through the white ramp, 0% at the left to 100% at the right
+
+    // DNxHR: the codec and profile asked for, 4:2:2 at the depth asked, no alpha, every frame.
+    for (const [preset, profile, format] of [['dnxhr-hq', 'DNXHR HQ', 'yuv422p'], ['dnxhr-hqx', 'DNXHR HQX', 'yuv422p10le']] as const) {
+      const made = await render('pulp.test.alpha-check', preset, preset, { extra: small });
+      expect(made.code, made.stderr).toBe(0);
+      const file = join(out, `${preset}.mov`);
+      const info = await probe(file);
+      expect(info.codec_name, preset).toBe('dnxhd');
+      expect(info.pix_fmt, preset).toBe(format);
+      expect(info.nb_read_frames, preset).toBe('60');
+      const { stdout } = await runBounded(ffprobe, ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=profile', '-of', 'csv=p=0', file], { timeoutMs: TOOL_TIMEOUT_MS });
+      expect(stdout.trim(), preset).toBe(profile);
+      // Flattened over black: the 50% red patch reads as half red, opaque.
+      const [r, g, b, a] = await pixels(file, ...redAt);
+      expect(a).toBe(255);
+      expect(Math.abs(r! - 128), `${preset} red`).toBeLessThan(14);
+      expect(g! + b!).toBeLessThan(30);
+    }
+
+    // GIF: 15 a second by default, so 30 frames; 320 wide stays 320 (only ever scaled down); flattened
+    // and opaque; and a palette made for the clip, so the ramp keeps its many grays and the red holds.
+    const gif = await render('pulp.test.alpha-check', 'gif', 'anim', { extra: small });
+    expect(gif.code, gif.stderr).toBe(0);
+    const gifFile = join(out, 'anim.gif');
+    const gifInfo = await probe(gifFile);
+    expect(gifInfo.codec_name).toBe('gif');
+    expect(gifInfo.nb_read_frames).toBe('30');
+    expect([gifInfo.width, gifInfo.height]).toEqual([320, 180]);
+    expect(gifInfo.r_frame_rate).toBe('15/1');
+    const [gr, gg, gb, ga] = await pixels(gifFile, ...redAt);
+    expect(ga, 'a GIF is flattened').toBe(255);
+    expect(Math.abs(gr! - 128), 'the red holds through the palette').toBeLessThan(20);
+    expect(gg! + gb!).toBeLessThan(40);
+    const ramp = await pixels(gifFile, 0, rampRow, 320);
+    const grays = new Set<number>();
+    for (let x = 0; x < 320; x++) grays.add(ramp[x * 4]!);
+    expect(grays.size, 'a palette made for the clip keeps the ramp\'s grays').toBeGreaterThan(40);
+    // The rate and the width are the person's to set: 10 a second and 160 wide is 20 frames of 160 × 90.
+    const smaller = await render('pulp.test.alpha-check', 'gif', 'anim-small', { extra: [...small, '--image-fps', '10', '--image-width', '160'] });
+    expect(smaller.code, smaller.stderr).toBe(0);
+    const smallInfo = await probe(join(out, 'anim-small.gif'));
+    expect([smallInfo.width, smallInfo.height, smallInfo.nb_read_frames]).toEqual([160, 90, '20']);
+    // And `full` is the render's own, over a GIF's smaller defaults: every frame.
+    const full = await render('pulp.test.alpha-check', 'gif', 'anim-full', { extra: [...small, '--image-fps', 'full'] });
+    expect(full.code, full.stderr).toBe(0);
+    expect((await probe(join(out, 'anim-full.gif'))).nb_read_frames).toBe('60');
+
+    // APNG: every frame, RGBA, looping forever, and the alpha as drawn.
+    const apng = await render('pulp.test.alpha-check', 'apng', 'anim-apng', { extra: small });
+    expect(apng.code, apng.stderr).toBe(0);
+    const apngFile = join(out, 'anim-apng.png');
+    const apngInfo = await probe(apngFile);
+    expect(apngInfo.codec_name).toBe('apng');
+    expect(apngInfo.pix_fmt).toBe('rgba');
+    expect(apngInfo.nb_read_frames).toBe('60');
+    expect((await pixels(apngFile, ...clearAt))[3], 'transparent where nothing is drawn').toBe(0);
+    const apngRed = await pixels(apngFile, ...redAt);
+    expect(apngRed[0], 'straight red').toBeGreaterThan(240);
+    expect(Math.abs(apngRed[3]! - 128), 'at half alpha').toBeLessThan(4);
+    // The acTL chunk says how often it plays: 0 is forever.
+    const apngBytes = await readFile(apngFile);
+    const actl = apngBytes.indexOf('acTL');
+    expect(actl).toBeGreaterThan(0);
+    expect(apngBytes.readUInt32BE(actl + 4), 'the frames acTL counts').toBe(60);
+    expect(apngBytes.readUInt32BE(actl + 8), 'plays forever').toBe(0);
+
+    // Animated WebP: ffmpeg 8 cannot decode one, so the file's own chunks are read. libwebp may fold
+    // a frame it would not store into the one before, so the durations — not the count — must make
+    // the two seconds, and no frame may be one that was not rendered.
+    const webp = await render('pulp.test.alpha-check', 'webp-animated', 'anim-webp', { extra: small });
+    if (encoders.includes('libwebp_anim')) {
+      expect(webp.code, webp.stderr).toBe(0);
+      const read = readWebp(await readFile(join(out, 'anim-webp.webp')));
+      expect(read, 'a WebP').not.toBeNull();
+      expect(read!.animated, 'animated').toBe(true);
+      expect(read!.alpha, 'with alpha').toBe(true);
+      expect([read!.width, read!.height]).toEqual([320, 180]);
+      expect(read!.loops, 'loops forever').toBe(0);
+      expect(read!.durations.length).toBeGreaterThan(30);
+      expect(read!.durations.length).toBeLessThanOrEqual(60);
+      const ms = read!.durations.reduce((sum, d) => sum + d, 0);
+      expect(Math.abs(ms - 2000), 'two seconds of frames').toBeLessThan(40);
+    } else {
+      // No libwebp in this ffmpeg: refused before anything is rendered, by the encoder it lacks.
+      expect(webp.code).not.toBe(0);
+      expect(webp.stderr).toContain('libwebp_anim');
+    }
   }, 300_000);
 
   it('converts an HDR clip to standard range for the render and leaves the file alone, or says why it cannot (milestone 81)', async () => {

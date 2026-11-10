@@ -13,7 +13,7 @@ import { AspectError, aspectById, defaultAspect, orientationOf, resolutionsFor, 
 import { planBatch, type BatchPlan } from '../core/batch-csv';
 import { dimensionsLabel } from '../core/display';
 import { presetUnavailableReason } from '../core/ffmpeg-presets';
-import { coverFrameWithin, OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type CaptionsMode, type PresetId, type RenderOptions } from '../core/render-plan';
+import { ANIMATED_IMAGE_FPS, ANIMATED_IMAGE_WIDTHS, coverFrameWithin, OUTPUT_PRESETS, PRESET_IDS, RenderPlanError, resolveTiming, type AudioOptions, type CaptionsMode, type PresetId, type RenderOptions } from '../core/render-plan';
 import { AUDIO_PRESET_IDS, AUDIO_PRESETS, DEFAULT_STILL_SECONDS, isAudioPresetId, MediaNotMeasuredError, mediaDefaultFps, resolveMediaTiming, sourceFromEntry } from '../core/media-render';
 import type { MediaEntry } from '../core/library-types';
 import { browsedHiddenChoice } from './psd-state';
@@ -62,6 +62,9 @@ const els = {
   optWidth: $<HTMLInputElement>('opt-width'),
   optHeight: $<HTMLInputElement>('opt-height'),
   optFps: $<HTMLSelectElement>('opt-fps'),
+  optImageField: $<HTMLDivElement>('opt-image-field'),
+  optImageFps: $<HTMLSelectElement>('opt-image-fps'),
+  optImageWidth: $<HTMLSelectElement>('opt-image-width'),
   optBackgroundField: $<HTMLLabelElement>('opt-background-field'),
   optBackground: $<HTMLInputElement>('opt-background'),
   optLut: $<HTMLButtonElement>('opt-lut'),
@@ -199,12 +202,46 @@ function showPresetNote(): void {
   if (isAudioPresetId(id)) {
     els.presetNote.textContent = AUDIO_PRESETS[id].description;
     els.optBackgroundField.hidden = true;
+    showImageOptions(undefined);
     return;
   }
   const preset = OUTPUT_PRESETS[id as PresetId];
   if (!preset) return;
   els.presetNote.textContent = preset.description;
   els.optBackgroundField.hidden = preset.alpha;
+  showImageOptions(preset);
+}
+
+/** The preset the image options were last set up for, so its defaults are put in once, on arriving. */
+let imageOptionsFor: PresetId | null = null;
+
+/**
+ * An animated image's own rate and width (milestone 82): shown for GIF, WebP
+ * and APNG only, set to the preset's defaults when it is chosen — a GIF's
+ * smaller rate and size, everything else as rendered — and the matte, which
+ * none of them takes, out of the way while one is chosen.
+ */
+function showImageOptions(preset: (typeof OUTPUT_PRESETS)[PresetId] | undefined): void {
+  const animated = preset?.animatedImage;
+  els.optImageField.hidden = !animated;
+  els.optMatteField.classList.toggle('not-for-preset', Boolean(animated));
+  if (!animated || !preset || imageOptionsFor === preset.id) {
+    if (!animated) imageOptionsFor = null;
+    return;
+  }
+  imageOptionsFor = preset.id;
+  const fill = (select: HTMLSelectElement, values: readonly number[], label: (v: number) => string, chosen: number | undefined) => {
+    select.replaceChildren();
+    for (const value of ['', ...values.map(String)]) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = value === '' ? t('output.image.as-rendered') : label(Number(value));
+      select.append(opt);
+    }
+    select.value = chosen === undefined ? '' : String(chosen);
+  };
+  fill(els.optImageFps, ANIMATED_IMAGE_FPS, (fps) => t('output.image.fps', { fps }), animated.fps);
+  fill(els.optImageWidth, ANIMATED_IMAGE_WIDTHS, (width) => t('output.image.width', { width }), animated.width);
 }
 
 function populatePresets(): void {
@@ -700,7 +737,12 @@ export function readRenderOptions(): RenderOptions {
   const platform = chosenPlatform();
   if (platform) options.platform = platform.id;
   Object.assign(options, readSizeChoice());
-  if (preset && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;
+  if (preset && !preset.animatedImage && !els.optMatteField.hidden && els.optMatte.checked) options.matte = true;
+  // An animated image's own rate and width (milestone 82), always said, so "as rendered" holds over a GIF's defaults.
+  if (preset?.animatedImage) {
+    const chosen = (select: HTMLSelectElement): number | null => (select.value === '' ? null : Number(select.value));
+    options.animatedImage = { fps: chosen(els.optImageFps), width: chosen(els.optImageWidth) };
+  }
   // The captions (milestone 50): only a choice other than the default is worth carrying.
   if (!els.optCaptionsField.hidden && els.optCaptions.value !== 'burn') options.captions = els.optCaptions.value as CaptionsMode;
   // The music's stems (milestone 16): only "files" is worth carrying; the mix is the default.
@@ -1295,6 +1337,12 @@ function initCollectionEditing(): void {
       }
       els.preset.value = item.presetId;
       els.preset.dispatchEvent(new Event('change'));
+      // An animated image's own rate and width (milestone 82), as the card was collected with.
+      const image = item.options.animatedImage;
+      if (image && !els.optImageField.hidden) {
+        if (image.fps !== undefined) els.optImageFps.value = image.fps === null ? '' : String(image.fps);
+        if (image.width !== undefined) els.optImageWidth.value = image.width === null ? '' : String(image.width);
+      }
       // The platform a card was collected for (milestone 20): shown, not applied again — the size
       // and rate the card carries are what it was saved with, whatever has been chosen since.
       els.optPlatform.value = item.options.platform && platformPreset(item.options.platform) ? item.options.platform : '';

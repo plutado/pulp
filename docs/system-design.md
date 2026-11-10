@@ -241,6 +241,13 @@ At 1080p the PNG round trip was a small part of the frame time. At 4K the raw pa
 | `h264-mp4` | .mp4 | libx264 CRF 18, yuv420p, faststart | no | Review and delivery copies. |
 | `qt-animation` | .mov | qtrle, argb | yes | Lossless RLE for older workflows. Full-range sRGB like PNG. Small with lots of transparency (lower third: 2 MB vs 15.7 MB ProRes 4444), large for full-frame content. |
 | `hevc-alpha` | .mov | hevc_videotoolbox, quality 80, alpha quality 0.9, `hvc1` | yes | macOS only (Apple VideoToolbox). Fed 4:4:4 Y'CbCr with alpha (`ayuv`) that the Rec.709 steps convert and tag; ADR 0005. About 0.3 MB for the 180-frame lower third at 54 dB PSNR. |
+| `dnxhr-hq` | .mov | dnxhd profile dnxhr_hq, yuv422p | no | Milestone 82. For Avid and other editors that prefer DNxHR. ffmpeg's encoder writes no alpha, so the matte option is the key. MOV rather than MXF: every editor that reads DNxHR links or imports it. |
+| `dnxhr-hqx` | .mov | dnxhd profile dnxhr_hqx, yuv422p10le | no | The 10-bit sibling, for finishing and grading. |
+| `gif` | .gif | gif, a palette made for the clip | no | Milestone 82. `palettegen=stats_mode=full` over every frame, `paletteuse` with an ordered (Bayer) dither and `diff_mode=rectangle`; loops forever. Flattened: a GIF's transparency is one bit. 15 frames/s and 480 px wide unless set. |
+| `webp-animated` | .webp | libwebp_anim, quality 85, from BGRA | yes | Milestone 82. libwebp converts to Y'CbCr itself, with the matrix a WebP decoder assumes. Loops forever (the muxer's own default is once). Needs libwebp. |
+| `apng` | .png | apng, rgba, `-f apng` | yes | Milestone 82. Lossless; loops forever (the muxer's own default plays once). `.png` so upload forms take it; the muxer is named because `.png` alone is a still. |
+
+**Animated images** (GIF, animated WebP, APNG) have a rate and a width of their own, applied after the preset's conversion (`animatedImageOutput` in `src/core/render-plan.ts`, shared with an item rendered on its own): the `fps` filter only ever drops frames, to one of 10, 12, 15, 20, 24, 25 or 30 (a GIF counts its delays in hundredths of a second, and browsers slow anything under two), and the width only ever scales down. They carry no sound, get no WAV beside them, and take no matte.
 
 Non-alpha presets flatten alpha templates with `color=...[bg];[bg][0:v]overlay=format=rgb`, compositing in RGB. Chroma-subsampled presets reject odd frame sizes before ffmpeg starts.
 

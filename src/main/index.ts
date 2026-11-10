@@ -836,6 +836,24 @@ function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRend
     if (fpsRaw.trim() === '' || !Number.isFinite(value)) badNumbers.push(`--fps ${fpsRaw}`);
     else options.fps = value;
   }
+  // An animated image's own rate and width (milestone 82); the planner holds each to its range by name.
+  const imageFpsRaw = get('--image-fps');
+  const imageWidthRaw = get('--image-width');
+  if (imageFpsRaw !== undefined || imageWidthRaw !== undefined) {
+    const animatedImage: NonNullable<RenderOptions['animatedImage']> = {};
+    for (const [flag, raw, key] of [['--image-fps', imageFpsRaw, 'fps'], ['--image-width', imageWidthRaw, 'width']] as const) {
+      if (raw === undefined) continue;
+      // `full`: the render's own rate or size, over a GIF's smaller defaults.
+      if (raw.trim().toLowerCase() === 'full') {
+        animatedImage[key] = null;
+        continue;
+      }
+      const value = Number(raw);
+      if (raw.trim() === '' || !Number.isFinite(value)) badNumbers.push(`${flag} ${raw}`);
+      else animatedImage[key] = value;
+    }
+    options.animatedImage = animatedImage;
+  }
   const background = get('--background');
   if (background !== undefined) options.background = background;
   // A .cube graded over the whole render (milestone 52); the planner refuses anything else by name.

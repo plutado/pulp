@@ -39,7 +39,10 @@ import { reframeCropFilter } from './reframe';
 
 export { fpsToRational } from './timecode';
 
-export type PresetId = 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'png-still' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha';
+export type PresetId =
+  | 'prores-4444' | 'prores-422hq' | 'png-sequence' | 'png-still' | 'webm-vp9-alpha' | 'h264-mp4' | 'qt-animation' | 'hevc-alpha'
+  // Milestone 82: DNxHR for editing apps that prefer it, and animated images for the web.
+  | 'dnxhr-hq' | 'dnxhr-hqx' | 'gif' | 'webp-animated' | 'apng';
 
 /** How captured frames are handed to ffmpeg: raw BGRA pixels or PNG images. */
 export type FrameFormat = 'raw' | 'png';
@@ -84,6 +87,14 @@ export interface OutputPreset {
   color: 'rec709' | 'rgb';
   /** Why the encoder may be missing, shown next to the preset when it is. */
   platformNote?: string;
+  /**
+   * An animated image for the web (milestone 82): GIF, animated WebP, APNG.
+   * It carries no sound and gets no file of sound beside it, takes no matte,
+   * and has a rate and a width of its own, set on the way out
+   * (`animatedImageOutput`) — these are the defaults, each "as rendered"
+   * where it is absent.
+   */
+  animatedImage?: { fps?: number; width?: number };
 }
 
 /** Rec.709 output, step 1: convert RGB to Y'CbCr with the BT.709 matrix at limited (video) range. */
@@ -210,7 +221,151 @@ export const OUTPUT_PRESETS: Record<PresetId, OutputPreset> = {
     codecArgs: ['-c:v', 'hevc_videotoolbox', '-q:v', '80', '-alpha_quality', '0.9', '-tag:v', 'hvc1'],
     get platformNote() { return tr('preset.hevc-alpha.platform-note'); },
   },
+  // DNxHR (milestone 82), for Avid-style editing and anything else that prefers it to ProRes. No
+  // alpha: ffmpeg's encoder writes none, so a graphic over nothing takes the matte beside it.
+  // MOV rather than MXF, which every editor that reads DNxHR links or imports as it is.
+  'dnxhr-hq': {
+    id: 'dnxhr-hq',
+    get label() { return tr('preset.dnxhr-hq'); },
+    get description() { return tr('preset.dnxhr-hq.description'); },
+    extension: '.mov',
+    alpha: false,
+    sequence: false,
+    requiresEvenDimensions: true,
+    encoder: 'dnxhd',
+    pixelFormat: 'yuv422p',
+    color: 'rec709',
+    codecArgs: ['-c:v', 'dnxhd', '-profile:v', 'dnxhr_hq'],
+  },
+  'dnxhr-hqx': {
+    id: 'dnxhr-hqx',
+    get label() { return tr('preset.dnxhr-hqx'); },
+    get description() { return tr('preset.dnxhr-hqx.description'); },
+    extension: '.mov',
+    alpha: false,
+    sequence: false,
+    requiresEvenDimensions: true,
+    encoder: 'dnxhd',
+    pixelFormat: 'yuv422p10le',
+    color: 'rec709',
+    codecArgs: ['-c:v', 'dnxhd', '-profile:v', 'dnxhr_hqx'],
+  },
+  // Animated images (milestone 82). A GIF is flattened: its transparency is one bit, which leaves a
+  // jagged edge round every soft one, and WebP and APNG are there for a picture with alpha. Each
+  // loops forever, as an animated image on a page is expected to.
+  gif: {
+    id: 'gif',
+    get label() { return tr('preset.gif'); },
+    get description() { return tr('preset.gif.description'); },
+    extension: '.gif',
+    alpha: false,
+    sequence: false,
+    requiresEvenDimensions: false,
+    encoder: 'gif',
+    // RGB in, for the palette to be made from; the palette step makes the GIF's own pal8.
+    pixelFormat: 'rgb24',
+    color: 'rgb',
+    codecArgs: ['-c:v', 'gif', '-loop', '0', '-f', 'gif'],
+    // A GIF at a video's size and rate runs to tens of megabytes: smaller to start with.
+    animatedImage: { fps: 15, width: 480 },
+  },
+  'webp-animated': {
+    id: 'webp-animated',
+    get label() { return tr('preset.webp-animated'); },
+    get description() { return tr('preset.webp-animated.description'); },
+    extension: '.webp',
+    alpha: true,
+    sequence: false,
+    requiresEvenDimensions: false,
+    encoder: 'libwebp_anim',
+    // RGB with alpha, converted by libwebp itself with the matrix a WebP decoder assumes.
+    pixelFormat: 'bgra',
+    color: 'rgb',
+    codecArgs: ['-c:v', 'libwebp_anim', '-quality', '85', '-loop', '0', '-f', 'webp'],
+    get platformNote() { return tr('preset.webp-animated.platform-note'); },
+    animatedImage: {},
+  },
+  apng: {
+    id: 'apng',
+    get label() { return tr('preset.apng'); },
+    get description() { return tr('preset.apng.description'); },
+    // `.png`, not `.apng`: what an upload form and a browser take, and it still shows its first
+    // frame anywhere that does not animate it. The muxer is named, since `.png` alone means a still.
+    extension: '.png',
+    alpha: true,
+    sequence: false,
+    requiresEvenDimensions: false,
+    encoder: 'apng',
+    pixelFormat: 'rgba',
+    color: 'rgb',
+    codecArgs: ['-c:v', 'apng', '-plays', '0', '-f', 'apng'],
+    animatedImage: {},
+  },
 };
+
+// ---------------------------------------------------------------- animated images (milestone 82)
+
+/**
+ * The rates an animated image may be written at. Fewer than a video's: what
+ * matters is the size of the file, and a GIF counts its delays in hundredths
+ * of a second, so nothing past 50 is kept by a browser anyway.
+ */
+export const ANIMATED_IMAGE_FPS = [10, 12, 15, 20, 24, 25, 30] as const;
+
+/** The widths the Output tab offers; anything from 16 to 4096 may be asked on the command line. */
+export const ANIMATED_IMAGE_WIDTHS = [240, 320, 480, 640, 800, 1080] as const;
+
+export const ANIMATED_IMAGE_LIMITS = { width: { min: 16, max: 4096 } } as const;
+
+/**
+ * What an animated image's own rate and width come to, and the steps that
+ * make them: frames dropped to the rate (never made up — a rate above the
+ * render's is the render's), the picture scaled down to the width (never up,
+ * its height following its shape), and for a GIF the palette.
+ *
+ * **A palette made for the clip.** A GIF holds 256 colors, and ffmpeg's
+ * stock palette is a fixed cube of them that turns every gradient to bands;
+ * `palettegen` reads every frame and picks the 256 this clip actually uses,
+ * `paletteuse` maps the frames onto them. The dither is ordered (Bayer)
+ * rather than diffused: a diffused dither moves from frame to frame, which
+ * shimmers on a still background and defeats the GIF's own trick of only
+ * storing what changed — `diff_mode=rectangle` keeps that trick.
+ *
+ * `steps` is a filtergraph fragment to follow the preset's own conversion: it
+ * starts unlabeled and ends unlabeled, so it reads the same after a `-vf`
+ * chain and before a complex graph's output label. Null for every preset
+ * that is not an animated image.
+ */
+export function animatedImageOutput(
+  preset: OutputPreset,
+  options: Pick<RenderOptions, 'animatedImage'>,
+  render: { fps: number; frames: number },
+): { fps: number; frames: number; width?: number; steps: string } | null {
+  if (!preset.animatedImage) return null;
+  // What was asked over the preset's defaults; null is "as rendered", the default notwithstanding.
+  const merged = { ...preset.animatedImage, ...options.animatedImage };
+  const asked = { fps: merged.fps ?? undefined, width: merged.width ?? undefined };
+  if (asked.fps !== undefined && !(ANIMATED_IMAGE_FPS as readonly number[]).includes(asked.fps)) {
+    throw new RenderPlanError(tr('render-plan.error.image-fps', { rates: ANIMATED_IMAGE_FPS.join(', '), got: String(asked.fps) }));
+  }
+  const { min, max } = ANIMATED_IMAGE_LIMITS.width;
+  if (asked.width !== undefined && (!Number.isInteger(asked.width) || asked.width < min || asked.width > max)) {
+    throw new RenderPlanError(tr('render-plan.error.image-width', { min, max, got: String(asked.width) }));
+  }
+  const steps: string[] = [];
+  // Frames dropped to the rate, and counted as the `fps` filter counts them (to the nearest, a half up).
+  const slower = asked.fps !== undefined && asked.fps < render.fps;
+  const fps = slower ? asked.fps! : render.fps;
+  const frames = slower ? Math.max(1, Math.round((render.frames * fps) / render.fps)) : render.frames;
+  if (slower) steps.push(`fps=${fps}`);
+  if (asked.width !== undefined) steps.push(`scale='min(iw,${asked.width})':-2:flags=lanczos`);
+  let graph = steps.join(',');
+  if (preset.id === 'gif') {
+    const palette = 'split[gifa][gifb];[gifa]palettegen=max_colors=256:stats_mode=full[gifp];[gifb][gifp]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle';
+    graph = graph ? `${graph},${palette}` : palette;
+  }
+  return { fps, frames, ...(asked.width !== undefined ? { width: asked.width } : {}), steps: graph };
+}
 
 export const PRESET_IDS = Object.keys(OUTPUT_PRESETS) as PresetId[];
 
@@ -299,6 +454,15 @@ export interface RenderOptions {
    * untouched either way.
    */
   stems?: 'mix' | 'files';
+  /**
+   * An animated image's own rate and width (milestone 82): GIF, animated WebP
+   * and APNG only, ignored by every other preset. The rate is one of
+   * `ANIMATED_IMAGE_FPS` and only ever drops frames; the width only ever
+   * scales down. Absent, each is the preset's default — a GIF's 15 frames a
+   * second and 480 pixels — or the render's own. `null` is the render's own
+   * even where the preset has a default: a GIF at full rate or full size.
+   */
+  animatedImage?: { fps?: number | null; width?: number | null };
 }
 
 export const STEMS_MODES = ['mix', 'files'] as const;
@@ -317,6 +481,12 @@ export const AUDIO_BIT_DEPTHS = [16, 24] as const;
 
 /** The matte's pixel format: the preset's own without its alpha, since a matte is gray. */
 export const MATTE_PIXEL_FORMATS: Record<PresetId, string> = {
+  'dnxhr-hq': 'yuv422p',
+  'dnxhr-hqx': 'yuv422p10le',
+  // An animated image takes no matte (it has its alpha, or is a GIF for a page); listed for the type.
+  gif: 'rgb24',
+  'webp-animated': 'bgra',
+  apng: 'rgb24',
   'prores-4444': 'yuv444p10le',
   'prores-422hq': 'yuv422p10le',
   'png-sequence': 'rgb24',
@@ -524,6 +694,12 @@ export interface RenderPlan {
   /** The music's stems written beside the render, one WAV each, when asked for as files (milestone 16). */
   stemOutputs?: string[];
   warnings: string[];
+  /**
+   * An animated image's own rate, frame count and width (milestone 82), where
+   * they differ from the render's: what the written file holds, which the
+   * frames piped in (`totalFrames`) are not once the rate drops some.
+   */
+  image?: { fps: number; frames: number; width?: number };
 }
 
 /** Make the output path agree with the preset's extension (and frame pattern for sequences). */
@@ -641,7 +817,13 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   toOutput.push(`format=${preset.pixelFormat}`);
 
   const matte = input.options?.matte === true;
+  // An animated image (milestone 82) has its own alpha, or is a GIF for a page: a gray matte beside
+  // it is for an editing app, which takes neither.
+  if (matte && preset.animatedImage) throw new RenderPlanError(tr('render-plan.error.image-matte', { preset: preset.label }));
   const matteOutput = matte ? matteOutputPath(output, preset) : undefined;
+  // Its own rate, width and palette, after the preset's conversion; null for everything else.
+  const image = animatedImageOutput(preset, input.options ?? {}, { fps: timing.fps, frames: totalFrames });
+  if (image?.steps) toOutput.push(image.steps);
   // The cover is not an output of this command: it is one more frame captured from the same page
   // once the video is written, so it can be any frame of the graphic rather than only one inside
   // the trim (src/main/render.ts).
@@ -756,7 +938,8 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
   args.push(...preset.codecArgs);
   // Sequence files are numbered with the frame indices they hold, so a render from frame 60 starts at _00060.
   if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
-  args.push('-frames:v', String(totalFrames), '-r', fps, output);
+  // An animated image at a lower rate writes the frames its rate keeps, at that rate (milestone 82).
+  args.push('-frames:v', String(image ? image.frames : totalFrames), '-r', image && image.fps !== timing.fps ? String(image.fps) : fps, output);
   if (matte && matteOutput) {
     args.push('-map', '[matte]', ...matteCodecArgs(preset));
     if (preset.sequence) args.push('-start_number', String(timing.firstFrame));
@@ -768,5 +951,6 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
     ...(matteOutput ? { matteOutput } : {}),
     ...(coverOutput !== undefined && coverFrame !== undefined ? { coverOutput, coverFrame } : {}),
     warnings,
+    ...(image && (image.fps !== timing.fps || image.width !== undefined) ? { image: { fps: image.fps, frames: image.frames, ...(image.width !== undefined ? { width: image.width } : {}) } } : {}),
   };
 }

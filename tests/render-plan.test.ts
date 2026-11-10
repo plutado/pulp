@@ -138,8 +138,9 @@ describe('buildRenderPlan', () => {
         '-hide_banner', '-loglevel', 'error', '-n',
         '-f', 'rawvideo', '-pixel_format', 'bgra', '-video_size', '1920x1080', '-framerate', '30', '-i', 'pipe:0',
       ]);
-      // A still (milestone 44) is the one frame; everything else is the whole two seconds.
-      expect(flag(plan.args, '-frames:v')).toBe(presetId === 'png-still' ? '1' : '60');
+      // A still (milestone 44) is the one frame; a GIF (milestone 82) its 15 a second of the two
+      // seconds; everything else the whole two seconds at the render's rate.
+      expect(flag(plan.args, '-frames:v')).toBe(presetId === 'png-still' ? '1' : presetId === 'gif' ? '30' : '60');
     }
   });
 
@@ -282,10 +283,11 @@ describe('buildRenderPlan', () => {
           // Conversion comes after the background composite, so both go through it the same way.
           if (chain.includes('overlay')) expect(chain.indexOf('overlay')).toBeLessThan(chain.indexOf(REC709_CONVERT));
         } else {
-          expect(['png-sequence', 'png-still', 'qt-animation']).toContain(presetId);
+          expect(['png-sequence', 'png-still', 'qt-animation', 'gif', 'webp-animated', 'apng']).toContain(presetId);
           expect(chain).not.toContain(REC709_CONVERT);
-          expect(chain).toContain(`${RGB_FULL_TAGS},format=`); // full-range RGB, declared
-          expect(chain).toMatch(/format=(rgba|argb)$/);
+          expect(chain).toContain(`${RGB_FULL_TAGS},format=${preset.pixelFormat}`); // full-range RGB, declared
+          // An animated image's own steps follow the conversion (milestone 82); a still's or a sequence's chain ends on it.
+          if (!preset.animatedImage) expect(chain).toMatch(/format=(rgba|argb)$/);
         }
       }
     }
@@ -355,7 +357,7 @@ describe('buildRenderPlan', () => {
   });
 
   it('rejects unknown presets and bad background colors', () => {
-    expect(() => buildRenderPlan({ manifest: timing(), presetId: 'gif', outputPath: '/o/t' })).toThrow(/unknown output preset/);
+    expect(() => buildRenderPlan({ manifest: timing(), presetId: 'mpeg2-ts', outputPath: '/o/t' })).toThrow(/unknown output preset/);
     expect(() =>
       buildRenderPlan({ manifest: timing(), presetId: 'h264-mp4', outputPath: '/o/t', options: { background: 'black' } }),
     ).toThrow(/background/);
