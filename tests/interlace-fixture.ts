@@ -34,7 +34,7 @@ export function fixtureClipArgs(scan: FixtureScan, out: string, options: { secon
   const weave = scan === 'tff' ? ',tinterlace=mode=interleave_top' : scan === 'bff' ? ',tinterlace=mode=interleave_bottom' : '';
   // Tagged top field first whatever it is, which is exactly the lie a progressive file can tell.
   const tag = options.tagged ? ',setfield=tff' : '';
-  const codec = options.tagged ? ['-c:v', 'mpeg2video', '-flags', '+ilme+ildct', '-top', '1', '-q:v', '2'] : ['-c:v', 'mpeg4', '-qscale:v', '2'];
+  const codec = options.tagged ? ['-c:v', 'mpeg2video', '-flags', '+ilme+ildct', '-q:v', '2'] : ['-c:v', 'mpeg4', '-qscale:v', '2'];
   return [
     '-v', 'error', '-y',
     '-f', 'lavfi', '-i', `color=c=0x404040:s=${IL_WIDTH}x${IL_HEIGHT}:r=${fieldRate}:d=${seconds}`,
