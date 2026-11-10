@@ -14,6 +14,7 @@
  * And the builds Pulp fetches are held to the table, feature by feature.
  */
 
+import { idetArgs } from '../src/core/interlace';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
@@ -160,7 +161,7 @@ function plannedArgs(): { what: string; args: string[] }[] {
   const duck = { depth: 12, speed: 0.2, spans: [{ from: 1, to: 2 }] };
   const track = {
     cuts: [
-      { path: '/lib/a.mov', from: 0, to: 2, tonemap: 'hlg' as const, transition: { type: 'dissolve' as const, seconds: 0.5 } },
+      { path: '/lib/a.mov', from: 0, to: 2, tonemap: 'hlg' as const, deinterlace: 'tff' as const, transition: { type: 'dissolve' as const, seconds: 0.5 } },
       { path: '/lib/b.mov', from: 0, to: 2, speed: { rate: 0.5, to: 2, smooth: true as const }, transition: { type: 'dip' as const, seconds: 0.5, color: '#000000' } },
       { path: '/lib/c.mov', from: 1, to: 1.05, hold: 1 },
       { path: '/lib/d.mov', from: 0, to: 2, reframe: [{ at: 0, x: 0.3, y: 0.5 }, { at: 2, x: 0.7, y: 0.5 }] },
@@ -187,7 +188,7 @@ function plannedArgs(): { what: string; args: string[] }[] {
   for (const treatment of VOICE_TREATMENTS) add(`voice ${treatment}`, ['-af', voiceSteps({ treatment, amount: 1 }).join(',')]);
 
   // An item rendered on its own: every video and sound preset, looped with a crossfade, retimed and recolored.
-  const clip: MediaSource = { kind: 'video', input: { path: '/lib/c.webm', decoder: 'libvpx-vp9' }, width: 1920, height: 1080, duration: 2, fps: 30, alpha: true, hasAudio: true, hdr: 'pq' };
+  const clip: MediaSource = { kind: 'video', input: { path: '/lib/c.webm', decoder: 'libvpx-vp9' }, width: 1920, height: 1080, duration: 2, fps: 30, alpha: true, hasAudio: true, hdr: 'pq', deinterlace: 'bff' };
   const sound: MediaSource = { kind: 'audio', input: { path: '/lib/s.wav' }, duration: 4, alpha: false, hasAudio: true };
   for (const presetId of PRESET_IDS as PresetId[]) {
     const options = { length: 5, crossfade: 0.5, speed: 1.5, tint: '#ff8800', ...(OUTPUT_PRESETS[presetId].animatedImage ? {} : { matte: true }) };
@@ -218,6 +219,7 @@ function plannedArgs(): { what: string; args: string[] }[] {
   add('poster from a frame', posterFromFrameArgs('/tmp/t.png', { x: 0, y: 0, width: 10, height: 10 }));
   add('waveform', waveformArgs('/lib/s.wav'));
   add('voice levels', levelArgs('/lib/v.wav'));
+  add('the scan read', idetArgs('/lib/old.mpg', 10));
   add('tracker frames', trackFramesArgs('/lib/c.mov', 0, 2, { width: 320, height: 180 }));
   add('a camera take', videoTakeArgs({ input: '/tmp/take.webm', output: '/out/take.mp4', rate: { fps: 30, rational: '30' } as never, sound: true, encoder: 'libx264', width: 1280, height: 720 }));
   const files = { intro: '/lib/in.webm', loop: '/lib/loop.webm', outro: '/lib/out.webm' };

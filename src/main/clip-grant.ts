@@ -23,6 +23,8 @@ import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSour
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import { tonemapPrefix, tonemapSteps, type HdrFormat } from '../core/hdr';
 import { tonemapFor } from './hdr-service';
+import { deinterlacePrefix, deinterlaceSteps, type FieldOrder } from '../core/interlace';
+import { deinterlaceFor } from './interlace-service';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem, lookupMedia, probeClipSet, prepareForUse } from './library-service';
 import { clipSetLayersFramesArgs } from '../core/clip-set';
@@ -181,10 +183,12 @@ export function clearClipFrameCache(): void {
 }
 
 /** The size and modification time of each chosen clip, for the render cache key; unknown ids stamp as zero. */
-export function clipStamps(ids: readonly string[]): { id: string; size: number; mtimeMs: number }[] {
+export function clipStamps(ids: readonly string[]): { id: string; size: number; mtimeMs: number; deinterlace?: false }[] {
   return ids.map((id) => {
     const found = lookupClipItem(id);
-    return { id, size: found?.size ?? 0, mtimeMs: found?.mtimeMs ?? 0 };
+    // Deinterlacing turned off for the clip (milestone 83) is a different render of the same file.
+    const off = found?.kind === 'media' && found.entry.deinterlace === false;
+    return { id, size: found?.size ?? 0, mtimeMs: found?.mtimeMs ?? 0, ...(off ? { deinterlace: false as const } : {}) };
   });
 }
 
@@ -201,22 +205,26 @@ export function clipStamps(ids: readonly string[]): { id: string; size: number; 
  * (milestone 81): its steps come first, so everything after them — the grade,
  * the scale, and the page that draws the frames — sees an ordinary
  * standard-range picture, and the file is only ever read from.
+ *
+ * `read.deinterlace` is the field order of an interlaced clip (milestone 83):
+ * its step comes before everything, the HDR conversion included, since any
+ * filter that resamples the picture would mix its two fields.
  */
 export function clipFramesArgs(
   entry: MediaEntry,
   source: ClipSource,
   window: { first: number; frames: number },
   maxSide: number,
-  read: { lut?: string; tonemap?: HdrFormat } = {},
+  read: { lut?: string; tonemap?: HdrFormat; deinterlace?: FieldOrder } = {},
 ): string[] {
-  const { lut, tonemap } = read;
+  const { lut, tonemap, deinterlace } = read;
   const side = Math.max(16, Math.min(MAX_CLIP_FRAME_SIDE, Math.round(maxSide)));
   const scale = `scale=w='min(iw,${side})':h='min(ih,${side})':force_original_aspect_ratio=decrease`;
   // A clip set is decoded as its parts end to end, each once: the frames the timing counts in.
   if (entry.clipSet && source.set) {
     const grade = lut && isCubeFile(lut) ? lutFilter(lut) : '';
     const own = { fps: source.fps, width: entry.meta?.width ?? side, height: entry.meta?.height ?? side };
-    const filters = [...(tonemap ? tonemapSteps(tonemap) : []), grade, scale].filter(Boolean).join(',');
+    const filters = [...deinterlaceSteps(deinterlace), ...(tonemap ? tonemapSteps(tonemap) : []), grade, scale].filter(Boolean).join(',');
     const decoder = alphaDecoderFor(entry.meta);
     // A set of several layers is composited into the frames it is handed (milestone 32).
     if (entry.clipSetLayers && source.setLayers?.length === entry.clipSetLayers.length) {
@@ -236,8 +244,9 @@ export function clipFramesArgs(
     '-v', 'error', '-nostdin',
     ...input,
     '-frames:v', String(window.frames),
-    // HDR first (milestone 81), then the grade: a `.cube` is a look drawn for standard range.
-    '-an', '-vf', `${tonemapPrefix(tonemap)}${grade}${scale},format=rgba`,
+    // Whole frames first (milestone 83), then HDR (milestone 81), then the grade: a `.cube` is a
+    // look drawn for standard range.
+    '-an', '-vf', `${deinterlacePrefix(deinterlace)}${tonemapPrefix(tonemap)}${grade}${scale},format=rgba`,
     '-f', 'image2pipe', '-c:v', 'png', 'pipe:1',
   ];
 }
@@ -269,6 +278,8 @@ export async function readClipFrames(
   drawnHeight: number,
   /** Read this file as the clip instead of the item's own — a clip set stitched into one (milestone 32), for a cut on the track. */
   asFile?: string,
+  /** Deinterlacing turned off for the whole render (`--deinterlace off`, milestone 83). */
+  options: { deinterlace?: 'off' } = {},
 ): Promise<{ ok: true; data: ClipFrameData } | { ok: false; problem: ClipReadProblem }> {
   // An archive's file is unpacked, and one browsed from its preview is read, the first time it is used (milestone 32).
   await prepareForUse([id]);
@@ -289,12 +300,16 @@ export async function readClipFrames(
   // An HDR file is converted on the way in (milestone 81), where this ffmpeg can: part of the key,
   // so frames read before an ffmpeg that can convert arrived are not served after it.
   const tonemap = found.kind === 'media' ? await tonemapFor(ffmpegPath, found.entry) : undefined;
-  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${tonemap ?? ''}|${asFile ?? ''}`;
+  // An interlaced clip is deinterlaced on the way in (milestone 83), unless it was turned off: part
+  // of the key, so turning it off or on reads the frames again. The clip's own file is measured,
+  // not a stitched clip set's.
+  const deinterlace = found.kind === 'media' && asFile === undefined ? await deinterlaceFor(ffmpegPath, found.entry, options.deinterlace === 'off') : undefined;
+  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${tonemap ?? ''}|${deinterlace ?? ''}|${asFile ?? ''}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
   const frames = found.kind === 'drawn'
     ? await drawnClipFrames(found.entry, window, side)
-    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, { ...(value.lut ? { lut: value.lut } : {}), ...(tonemap ? { tonemap } : {}) });
+    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, { ...(value.lut ? { lut: value.lut } : {}), ...(tonemap ? { tonemap } : {}), ...(deinterlace ? { deinterlace } : {}) });
   if (!frames.ok) return { ok: false, problem: { kind: 'failed', detail: frames.message } };
   const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
   cachePut(key, data);
@@ -314,7 +329,7 @@ export type ClipReadProblem =
 
 type FramesRead = { ok: true; pngs: Buffer[] } | { ok: false; message: string };
 
-async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, read: { lut?: string; tonemap?: HdrFormat }): Promise<FramesRead> {
+async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, read: { lut?: string; tonemap?: HdrFormat; deinterlace?: FieldOrder }): Promise<FramesRead> {
   const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side, read));
   if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
   const pngs = splitPngStream(result.stdout);

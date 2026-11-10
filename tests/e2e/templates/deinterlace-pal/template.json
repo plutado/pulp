@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "id": "pulp.test.deinterlace-pal",
+  "name": "Test Deinterlace PAL",
+  "description": "A transparent PAL frame, 720 × 576 at 25 fps, that draws nothing of its own, so the cut track under it is the whole picture at the footage's own size (milestone 83).",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "category": "other",
+  "tags": ["test"],
+  "duration": 2,
+  "fps": 25,
+  "width": 720,
+  "height": 576,
+  "alpha": true,
+  "parameters": []
+}

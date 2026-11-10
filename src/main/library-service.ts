@@ -36,6 +36,7 @@ import { encodePeaks, peaksFromPcm, wantsWaveform, waveformArgs } from '../core/
 import { captureTemplateFrames } from './render';
 import { templateDefaultSize } from '../core/aspect';
 import { isLayeredPath, layeredFileFor } from './layered-service';
+import { onScanMeasured, scanOf } from './interlace-service';
 
 /** A layered file's size and transparency, read from the file itself: ffprobe is not asked (milestone 33). */
 async function layeredMetadata(path: string): Promise<MediaMetadata | null> {
@@ -359,6 +360,8 @@ async function probePendingMetadata(): Promise<void> {
   } finally {
     probing = false;
     void generatePendingThumbnails();
+    // Each clip's frames read for its scan (milestone 83), a turn at a time beside the thumbnails.
+    void measurePendingScans();
   }
 }
 
@@ -483,6 +486,53 @@ async function generatePendingThumbnails(): Promise<void> {
   }
 }
 
+let scanning = false;
+
+/**
+ * Read each clip's frames for its scan (milestone 83), one clip to a turn of
+ * the heavy chain, once the metadata is in: a turn is queued only when the
+ * last is done, so a poster asked for meanwhile waits for one clip at most.
+ * A clip that cannot be interlaced by its rate is answered without a frame
+ * read. What is learned is kept with the clip's metadata (the listener below)
+ * and the library shown again once a batch is done. Skipped in headless mode,
+ * where a render measures what it uses itself.
+ */
+async function measurePendingScans(): Promise<void> {
+  if (scanning || !persistent) return;
+  scanning = true;
+  try {
+    const status = await detectFfmpeg();
+    if (!status.ok) return;
+    const st = getStore();
+    // Each clip is asked once a pass, so one whose reading cannot be kept never holds the pass in a loop.
+    const asked = new Set<string>();
+    for (;;) {
+      const pending = st.pendingScans(10).filter((e) => !asked.has(e.key));
+      if (pending.length === 0) break;
+      for (const entry of pending) {
+        asked.add(entry.key);
+        const file = await browsableFile(entry).catch(() => entry.path);
+        const scan = await heavyWork(() => scanOf(status.path, { ...entry, path: file }), `scan ${entry.name}`).catch(() => undefined);
+        // Kept here as well as by the listener: a clip read on the spot before its metadata was in
+        // answers from memory now, without telling the listener again. One that could not be read
+        // at all is kept as what its tag says, so it is not asked again until the file changes.
+        st.recordScan(entry.key, entry.size, entry.mtimeMs, scan ?? { field: entry.meta?.fieldOrder ?? 'progressive', by: 'tag' });
+      }
+      broadcast(st.toIndex());
+    }
+  } finally {
+    scanning = false;
+  }
+}
+
+// What a clip's frames showed of its scan, wherever it was measured — here, or on the spot by a
+// preview or a render — is kept with its metadata, so the library shows it and nothing reads it twice.
+onScanMeasured((entry, scan, fieldOrder) => {
+  if (!persistent || !entry.key) return;
+  const st = getStore();
+  if (st.recordScan(entry.key, entry.size, entry.mtimeMs, scan, fieldOrder) && !scanning) broadcast(st.toIndex());
+});
+
 /**
  * A template's poster (milestone 34): frames spread over the timeline — or the
  * one moment `posterAt` names — captured through one offscreen window, each
@@ -539,6 +589,20 @@ export function setItemSequenceFps(id: string, fps: number | undefined): Library
   const key = st.keyForId(id);
   const clamped = fps === undefined || !Number.isFinite(fps) || fps <= 0 ? undefined : Math.min(240, Math.max(1, Math.round(fps * 1000) / 1000));
   if (key) st.setUserData(key, { sequenceFps: clamped });
+  const index = st.toIndex();
+  broadcast(index);
+  return index;
+}
+
+/**
+ * Deinterlacing for one clip (milestone 83): on is the automatic choice — an
+ * interlaced clip is deinterlaced wherever it is drawn or rendered — and off
+ * reads it as it is. Kept with the item, like a tag.
+ */
+export function setItemDeinterlace(id: string, on: boolean): LibraryIndex {
+  const st = getStore();
+  const key = st.keyForId(id);
+  if (key) st.setUserData(key, { deinterlace: on ? undefined : false });
   const index = st.toIndex();
   broadcast(index);
   return index;

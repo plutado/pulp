@@ -26,6 +26,7 @@ import {
   type InfoSectionId,
 } from '../core/item-info';
 import type { LibraryEntry, MediaEntry, TemplateEntry } from '../core/library-types';
+import { interlacedField } from '../core/interlace';
 import { entryMoods, moodLabel, entryType, typeInfo } from '../core/taxonomy';
 import { appState, selectedTemplate, slotNotes } from './store';
 import { Icon, scopeIcon, TYPE_GROUP_ICONS, type IconName } from './icons';
@@ -456,12 +457,32 @@ function Layers({ entry }: { entry: LibraryEntry }) {
   );
 }
 
+/**
+ * Deinterlacing an interlaced clip (milestone 83): on as found, and the
+ * person's to turn off — kept with the item, and every place that draws or
+ * renders it reads the frames again.
+ */
+function Deinterlace({ entry }: { entry: LibraryEntry }) {
+  if (entry.kind !== 'media' || !interlacedField(entry.meta?.scan)) return null;
+  return (
+    <label class="deinterlace-toggle" data-tip={t('info.deinterlace.tip')}>
+      <input type="checkbox" id="info-deinterlace" checked={entry.deinterlace !== false} onChange={(e) => void window.pulp.setItemDeinterlace(entry.id, (e.currentTarget as HTMLInputElement).checked)} />
+      {t('info.deinterlace')}
+    </label>
+  );
+}
+
 function Panel({ onSelect }: { onSelect: (e: LibraryEntry) => void }) {
   const entry = shown.value;
   if (!entry) return null;
   const sections: Partial<Record<InfoSectionId, preact.ComponentChildren>> = {
     about: <About entry={entry} />,
-    format: <Rows rows={formatRows(entry, { ...(ffmpegTonemap.value !== undefined ? { tonemap: ffmpegTonemap.value } : {}) })} />,
+    format: (
+      <>
+        <Rows rows={formatRows(entry, { ...(ffmpegTonemap.value !== undefined ? { tonemap: ffmpegTonemap.value } : {}) })} />
+        <Deinterlace entry={entry} />
+      </>
+    ),
     ...(isPsdEntry(entry) ? { layers: <Layers entry={entry} /> } : {}),
     categories: <Categories entry={entry} />,
     tags: (

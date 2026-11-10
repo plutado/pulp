@@ -32,6 +32,7 @@ import { splitGrayFrames, TRACK_CHANNELS, trackFramesArgs, trackProxySize, type 
 import { reframeKeysFrom, steadyPath, subjectPath, wideShots } from '../../src/core/reframe';
 import { pinKeys } from '../../src/core/track-pin';
 import { dotLottieFixture, lottieFixture } from '../lottie-fixture';
+import { boxLeftEdge, combScore, fixtureClipArgs, IL_BOX, IL_HEIGHT, IL_STEP, IL_WIDTH } from '../interlace-fixture';
 
 const ROOT = join(__dirname, '..', '..');
 const FIXTURES = join(__dirname, 'templates');
@@ -2983,6 +2984,77 @@ describe.skipIf(!available)('end-to-end render', () => {
     expect(cropped.code, cropped.stderr).toBe(0);
     expect(await squaresInView(join(out, 'cropped_00005.png')), 'the crop cannot hold both').toBeLessThan(2);
   }, 240_000);
+
+  describe('interlaced footage (milestone 83)', () => {
+    // A white box crossing a gray PAL frame, woven two fields to a frame top first and written with
+    // no tag to say so, and the same motion progressive. Rendered on the cut track under a
+    // transparent 720 × 576, 25 fps template, so each output frame is one of the clip's, unscaled.
+    const lib = () => join(out, 'interlace-library');
+    const clipId = (name: string) => itemId(`media:${join(lib(), name)}`);
+    const track = (name: string) => JSON.stringify({ cuts: [{ id: clipId(name), from: 0, to: 2 }] });
+    /** Every frame a render wrote, as gray, at the frame's own size. */
+    const grayFrames = async (prefix: string): Promise<Uint8Array[]> => {
+      const files = (await readdir(out)).filter((f) => f.startsWith(`${prefix}_`)).sort();
+      const got: Uint8Array[] = [];
+      for (const f of files) {
+        const read = await runBoundedBuffer(ffmpeg, ['-v', 'error', '-i', join(out, f), '-f', 'rawvideo', '-pix_fmt', 'gray', 'pipe:1'], { timeoutMs: TOOL_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024 });
+        expect(read.code, read.stderr).toBe(0);
+        got.push(new Uint8Array(read.stdout.buffer, read.stdout.byteOffset, read.stdout.byteLength));
+      }
+      return got;
+    };
+    const renderTrack = async (name: string, prefix: string, extra: string[] = []) => {
+      const result = await render('pulp.test.deinterlace-pal', 'png-sequence', prefix, {
+        extra: ['--library', FIXTURES, '--library', lib(), '--out-point', '24', '--param', `@track=${track(name)}`, ...extra],
+      });
+      expect(result.code, result.stderr).toBe(0);
+      const frames = await grayFrames(prefix);
+      expect(frames).toHaveLength(25);
+      expect(await probe(join(out, `${prefix}_00000.png`))).toMatchObject({ width: IL_WIDTH, height: IL_HEIGHT });
+      return frames;
+    };
+    const row = IL_BOX.top + 2 * Math.round(IL_BOX.height / 4);
+
+    beforeAll(async () => {
+      await mkdir(lib(), { recursive: true });
+      for (const [scan, name] of [['tff', 'woven.mp4'], ['progressive', 'steady.mp4']] as const) {
+        const built = await runBounded(ffmpeg, ffmpegArgs(fixtureClipArgs(scan, join(lib(), name))), { timeoutMs: TOOL_TIMEOUT_MS });
+        expect(built.code, built.stderr).toBe(0);
+      }
+    });
+
+    it('finds the woven clip interlaced by its frames, and renders it free of combing, each frame at its first field', async () => {
+      const frames = await renderTrack('woven.mp4', 'woven');
+      // Untouched, the same clip renders combed: what the switch turns off, and the measure's own control.
+      const combed = await renderTrack('woven.mp4', 'woven-off', ['--deinterlace', 'off']);
+      for (let k = 1; k < frames.length; k++) {
+        expect(combScore(combed[k]!, IL_WIDTH, IL_HEIGHT), `frame ${k} as it is`).toBeGreaterThan(100);
+        expect(combScore(frames[k]!, IL_WIDTH, IL_HEIGHT), `frame ${k} deinterlaced`).toBeLessThan(2);
+        // Top first: the even rows of the woven frame are the field the deinterlaced frame shows, on every row.
+        const first = boxLeftEdge(combed[k]!, IL_WIDTH, row);
+        expect(boxLeftEdge(combed[k]!, IL_WIDTH, row + 1) - first, `frame ${k}: the fields a field apart`).toBe(IL_STEP);
+        for (const r of [row, row + 1]) expect(Math.abs(boxLeftEdge(frames[k]!, IL_WIDTH, r) - first), `frame ${k} row ${r}`).toBeLessThanOrEqual(2);
+      }
+    }, 240_000);
+
+    it('leaves the progressive clip alone: the render is the same frame for frame with deinterlacing on or off', async () => {
+      const auto = await renderTrack('steady.mp4', 'steady');
+      const off = await renderTrack('steady.mp4', 'steady-off', ['--deinterlace', 'off']);
+      for (let k = 0; k < auto.length; k++) {
+        expect(combScore(auto[k]!, IL_WIDTH, IL_HEIGHT), `frame ${k}`).toBeLessThan(1);
+        expect(Buffer.compare(Buffer.from(auto[k]!), Buffer.from(off[k]!)), `frame ${k}: untouched`).toBe(0);
+      }
+    }, 240_000);
+
+    it('refuses a deinterlace choice it does not know, before anything is written', async () => {
+      const result = await render('pulp.test.deinterlace-pal', 'png-sequence', 'bad-choice', {
+        extra: ['--library', FIXTURES, '--library', lib(), '--param', `@track=${track('steady.mp4')}`, '--deinterlace', 'sometimes'],
+      });
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toContain('--deinterlace sometimes (expected auto, off)');
+      expect((await readdir(out)).some((f) => f.startsWith('bad-choice_'))).toBe(false);
+    }, 120_000);
+  });
 
   describe('Lottie animations', () => {
     let lib = '';

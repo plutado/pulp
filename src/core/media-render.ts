@@ -25,6 +25,7 @@ import { sequencePatternName, SEQUENCE_FPS } from './media-sequence';
 import { clipSetNaturalSeconds } from './clip-set';
 import { alphaDecoderFor } from './media-meta';
 import { tonemapSteps, type HdrFormat } from './hdr';
+import { deinterlaceSteps, type FieldOrder } from './interlace';
 import { hdrLabel } from './display';
 import {
   AUDIO_BIT_DEPTHS, AUDIO_SAMPLE_RATES, matteCodecArgs, matteFilters, matteOutputPath, normalizeOutputPath, OUTPUT_PRESETS, REC709_CONVERT, REC709_TAGS,
@@ -88,6 +89,8 @@ export interface MediaSource {
   hasAudio: boolean;
   /** The HDR the file tags itself as (milestone 81); converted to standard range on the way in. */
   hdr?: HdrFormat;
+  /** The field order of an interlaced clip, to deinterlace it by on the way in (milestone 83); absent reads it as it is. */
+  deinterlace?: FieldOrder;
 }
 
 /**
@@ -405,7 +408,10 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const tonemap = source.hdr && input.tonemap !== false ? tonemapSteps(source.hdr) : [];
   if (source.hdr && tonemap.length === 0) warnings.push(tr('media-render.warning.hdr-unconverted', { format: hdrLabel(source.hdr) }));
   // What every path normalises the picture to first: speed, a constant output rate, the grade, the recolor, the size.
+  // An interlaced clip is made whole frames before all of it (milestone 83): any of the steps after
+  // resamples the picture or its time, which would mix its two fields.
   const normalise = (speedToo: boolean): string[] => [
+    ...deinterlaceSteps(source.deinterlace),
     ...tonemap,
     ...(speedToo && timing.speed !== 1 ? [`setpts=PTS/${timing.speed}`] : []),
     `fps=${fps}`,

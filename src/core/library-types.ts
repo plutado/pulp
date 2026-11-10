@@ -87,6 +87,12 @@ export interface MediaEntry {
   /** From ffprobe, once probed; absent until then or when ffprobe could not read the file. */
   meta?: MediaMetadata;
   /**
+   * The person turned deinterlacing off for this clip (milestone 83): an
+   * interlaced clip is then read as it is, combing and all. Kept with the item
+   * like a tag; absent is the automatic choice.
+   */
+  deinterlace?: false;
+  /**
    * Set when this entry is a run of numbered frames read as one clip rather
    * than a single file (milestone 26). `path` is then its first frame, and
    * `mediaKind` is `video` however the frames are stored.

@@ -16,7 +16,7 @@ import { PLATFORM_IDS, platformPreset } from '../core/platform-presets';
 import { EXIT_CODES, helpText, parseCommandLine, usageErrorText, type ParsedCli } from '../core/cli';
 import { parseLengthSeconds, parseTimecode, timecodePattern, TimecodeError } from '../core/timecode';
 import type { BatchRequest, FfmpegInfo, RenderRequest, SampleMediaOutcome } from '../shared/api';
-import { addLibraryFolder, addStockLibrary, removeStockLibrary, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform, addStockLibraryImage, unmountStockImages } from './library-service';
+import { addLibraryFolder, addStockLibrary, removeStockLibrary, closeLibrary, findTemplate, getLibrary, hoverStrip, importImageFile, itemPath, libraryDiagnostics, libraryPerformance, lookupMedia, markItemUsed, rescan, rescanIfStale, setItemDeinterlace, setItemFavorite, setItemSequenceFps, setItemTags, setItemThemes, startLibraryMonitor, useInMemoryLibrary, waveform, addStockLibraryImage, unmountStockImages } from './library-service';
 import { handleFontProtocol, handleMediaProtocol, handleTemplateProtocol, handleThumbProtocol, registerTemplateScheme } from './protocol';
 import { renderTemplate } from './render';
 import { mixLoudness } from './mix-loudness';
@@ -258,6 +258,8 @@ function registerIpc(): void {
   ipcMain.handle('library:set-themes', (_event, id: string, themes: string[]) => setItemThemes(id, Array.isArray(themes) ? themes.map(String) : []));
   ipcMain.handle('library:set-favorite', (_event, id: string, favorite: boolean) => setItemFavorite(id, favorite === true));
   ipcMain.handle('library:set-sequence-fps', (_event, id: string, fps: unknown) => setItemSequenceFps(id, typeof fps === 'number' ? fps : undefined));
+  // Deinterlacing one clip on or off (milestone 83); anything but false is the automatic choice.
+  ipcMain.handle('library:set-deinterlace', (_event, id: unknown, on: unknown) => setItemDeinterlace(String(id), on !== false));
   ipcMain.handle('library:mark-used', (_event, id: string) => markItemUsed(id));
   ipcMain.handle('images:load', (_event, requests: unknown) => readSlotImages(grantRequestsFrom(requests)));
   ipcMain.handle('psd:outline', (_event, id: unknown) => layeredOutlineFor(String(id ?? '')));
@@ -900,6 +902,12 @@ function cliRenderFrom(parsed: Extract<ParsedCli, { kind: 'command' }>): CliRend
   if (stemsRaw !== undefined) {
     if ((STEMS_MODES as readonly string[]).includes(stemsRaw)) options.stems = stemsRaw as 'mix' | 'files';
     else badNumbers.push(`--stems ${stemsRaw} (expected ${STEMS_MODES.join(', ')})`); // i18n-exempt(terminal)
+  }
+  // Interlaced clips (milestone 83): deinterlaced as found, or every clip read as it is.
+  const deinterlaceRaw = get('--deinterlace');
+  if (deinterlaceRaw !== undefined) {
+    if (deinterlaceRaw === 'auto' || deinterlaceRaw === 'off') options.deinterlace = deinterlaceRaw;
+    else badNumbers.push(`--deinterlace ${deinterlaceRaw} (expected auto, off)`); // i18n-exempt(terminal)
   }
   const length = get('--length');
   const batch = get('--batch');

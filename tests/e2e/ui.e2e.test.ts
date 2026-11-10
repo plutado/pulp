@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { solid, writePsd } from '../psd-fixture';
+import { fixtureClipArgs, IL_HEIGHT, IL_WIDTH } from '../interlace-fixture';
 import { writePdf } from '../pdf-fixture';
 import { encodePng } from '../../src/core/png';
 import { detectFfmpeg, nodeRunner } from '../../src/core/ffmpeg';
@@ -552,6 +553,10 @@ describe.skipIf(!electron)('inspector UI', () => {
           '-filter_complex', '[0][1]hstack,setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
           '-frames:v', '5', '-c:v', 'mpeg4', '-qscale:v', '2', '-pix_fmt', 'yuv420p', join(mediaDir, 'zz-hdr.mp4'),
         ]), { timeoutMs: 60_000 });
+        // Old footage (milestone 83): a white box crossing a gray PAL frame, its fields woven top
+        // first and nothing in the file to say so, so only its frames can tell. Half a second and
+        // sorted last, like the HDR clip above, for the same reasons.
+        await runBounded(ffmpeg.path, ffmpegArgs(fixtureClipArgs('tff', join(mediaDir, 'zz-tape.mp4'), { seconds: 0.5 })), { timeoutMs: 60_000 });
         // A clip whose every frame carries its own number (milestone 87), as six bars across it, the
         // least significant at the left, white for a one: read back off the timeline's film strip to
         // see which frame each slot shows. Six seconds at ten a second; mpeg4 and sorted last, like the
@@ -3955,6 +3960,67 @@ describe.skipIf(!electron)('inspector UI', () => {
         await restoreLayers();
       }
     }, 120_000);
+
+    it('marks an interlaced clip in the library, deinterlaces the frames the preview gets, and turns it off and on from the Info tab (milestone 83)', async () => {
+      // The library's own pass reads the clip's frames: the card names its resolution as video
+      // people do, which no tag in the file could have told it.
+      const badge = (what: 'textContent' | 'tip') =>
+        onResult<string>('zz-tape', what === 'tip' ? "(li) => li.querySelector('[data-badge=resolution]')?.getAttribute('data-tip') ?? ''" : "(li) => li.querySelector('[data-badge=resolution]')?.textContent ?? ''");
+      await until(async () => (await badge('textContent')) === '576i', 'the clip marked interlaced in the library', 120_000);
+      expect(await badge('tip')).toBe('720 × 576 · Interlaced, top field first; Pulp deinterlaces it wherever it is used, and leaves the file as it is');
+      const id = (await onResult<string>('zz-tape', '(li) => li.dataset.id'))!;
+      await onResult('zz-tape', '(li) => li.click()');
+      await openTab('info');
+      const format = () => page.eval<string>(`document.querySelector('#info-item [data-section=format]')?.textContent ?? ''`);
+      await until(async () => (await format()).includes('Scan'), 'the scan row');
+      expect(await format()).toContain('Interlaced, top field first, as its frames show. Deinterlaced wherever it is drawn or rendered');
+      expect(await page.eval<boolean>(`document.getElementById('info-deinterlace').checked`)).toBe(true);
+      /**
+       * The frames the preview is handed for the clip — what the stage draws a shot from — at its
+       * own size, and how combed the most combed of them is, measured as the unit suite measures it.
+       */
+      const worstComb = () => page.eval<{ frames: number; width: number; height: number; worst: number }>(`(async () => {
+        const answer = await window.pulp.trackFrames({ cuts: [{ id: ${JSON.stringify(id)}, from: 0, to: 0.48 }], height: ${IL_HEIGHT} });
+        const srcs = answer.cuts[0] ? answer.cuts[0].srcs : [];
+        let worst = 0, width = 0, height = 0;
+        for (const src of srcs.slice(1)) {
+          const img = new Image();
+          img.src = src;
+          await img.decode();
+          width = img.naturalWidth; height = img.naturalHeight;
+          const c = document.createElement('canvas');
+          c.width = width; c.height = height;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const d = ctx.getImageData(0, 0, width, height).data;
+          const g = (x, y) => { const i = (y * width + x) * 4; return (d[i] + d[i + 1] + d[i + 2]) / 3; };
+          let sum = 0;
+          for (let y = 1; y < height - 1; y++) for (let x = 0; x < width; x++) { const a = g(x, y); sum += Math.max(0, (a - g(x, y - 1)) * (a - g(x, y + 1))); }
+          worst = Math.max(worst, sum / (width * (height - 2)));
+        }
+        return { frames: srcs.length, width, height, worst };
+      })()`);
+      try {
+        const on = await worstComb();
+        expect(on).toMatchObject({ width: IL_WIDTH, height: IL_HEIGHT });
+        expect(on.frames).toBeGreaterThanOrEqual(10);
+        expect(on.worst, 'deinterlaced for the preview').toBeLessThan(2);
+
+        // Turned off: kept with the item, said in the Info tab and on the card, and the frames read again as they are.
+        await page.eval(`document.getElementById('info-deinterlace').click()`);
+        await until(async () => (await format()).includes('Deinterlacing is off for this clip'), 'the row saying it is off');
+        expect(await page.eval<boolean>(`document.getElementById('info-deinterlace').checked`)).toBe(false);
+        expect(await badge('tip')).toContain('deinterlacing is off for this clip');
+        expect((await worstComb()).worst, 'combed, as it is').toBeGreaterThan(100);
+
+        // And on again.
+        await page.eval(`document.getElementById('info-deinterlace').click()`);
+        await until(async () => (await format()).includes('as its frames show'), 'the row saying it is deinterlaced');
+        expect((await worstComb()).worst).toBeLessThan(2);
+      } finally {
+        await page.eval(`window.pulp.setItemDeinterlace(${JSON.stringify(id)}, true)`);
+      }
+    }, 180_000);
 
     // After the right-click menu's tests too, for the reason the HDR test gives: a dropped clip is recently used.
     it('draws each shot\'s frames along it, placed by its own time through a trim, a speed and a freeze, with Off, First frame and Continuous (milestone 87)', async () => {

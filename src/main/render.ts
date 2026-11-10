@@ -40,6 +40,7 @@ import { findMediaIdByPath, findTemplate, lookupClipItem, lookupMedia } from './
 import { checkPresetSupport, detectFfmpeg, runForBuffer, runWithInput } from '../core/ffmpeg';
 import { hdrLabel } from '../core/display';
 import { hdrOf, tonemapFor } from './hdr-service';
+import { deinterlaceFor } from './interlace-service';
 import { ffmpegFeature, planLacks } from './ffmpeg-caps';
 import { missingSentence } from '../core/ffmpeg-needs';
 import { tr } from '../core/i18n';
@@ -259,8 +260,12 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
         warnings.push(tr('render.warning.hdr-unconverted', { format: hdrLabel(hdr) }));
       }
     }
+    // An interlaced shot is deinterlaced on the way in (milestone 83), as its frames showed it to
+    // be, unless it was turned off for the clip or for the render. A clip set's file is graphics.
+    const deinterlace = found.entry.clipSet ? undefined : await deinterlaceFor(ffmpeg.path, found.entry, job.options?.deinterlace === 'off');
     trackCuts.push({
       path, from: cut.from, to: cut.to,
+      ...(deinterlace ? { deinterlace } : {}),
       ...(tonemap ? { tonemap } : {}),
       // The speed or the hold ride through as the cut has them (milestone 56); the plan does the arithmetic.
       ...(cut.speed ? { speed: cut.speed } : {}),
@@ -336,6 +341,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
   // Video layers (milestone 26): what the library measured about each chosen clip, so the blocks
   // can be laid out for a moment and the host knows which window to read.
   const clipChoices = layerClipChoices(blocks);
+  // Their frames are deinterlaced as the track's shots are (milestone 83), unless the render says not.
+  const deinterlaceOption = job.options?.deinterlace === 'off' ? { deinterlace: 'off' as const } : {};
   // Media slots (milestone 22) play clips by the very path a video layer does: the same sources,
   // the same decoded windows, the same place in the mix; only where each is drawn differs.
   const mediaChoices = mediaSlotChoices(manifest.parameters, values);
@@ -559,7 +566,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     for (const choice of clipChoices) {
       if (!clipSources[choice.id] || clipData.some((c) => c.id === choice.id)) continue;
       const drawn = layerDrawnHeight(blocks, choice.id, plan.height);
-      const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
+      const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn, undefined, deinterlaceOption);
       if (!read.ok) return { ok: false, message: layerClipProblem(manifest.name, read.problem) };
       clipData.push(read.data);
     }
@@ -569,7 +576,7 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       if (!clipSources[choice.id] || clipData.some((c) => c.id === choice.id)) continue;
       const slot = mediaBoxes[choice.slot];
       const drawn = slot ? mediaSlotDrawnHeight(slot, plan.height) : plan.height;
-      const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn);
+      const read = await readClipFrames(ffmpeg.path, choice.id, choice, clipSources[choice.id]!, drawn, undefined, deinterlaceOption);
       if (!read.ok) return { ok: false, message: slotClipProblem(manifest.name, choice.slot, read.problem) };
       clipData.push(read.data);
     }

@@ -8,6 +8,7 @@ const api: PulpApi = {
   setItemThemes: (id, themes) => ipcRenderer.invoke('library:set-themes', id, themes),
   setItemFavorite: (id, favorite) => ipcRenderer.invoke('library:set-favorite', id, favorite),
   setItemSequenceFps: (id, fps) => ipcRenderer.invoke('library:set-sequence-fps', id, fps),
+  setItemDeinterlace: (id, on) => ipcRenderer.invoke('library:set-deinterlace', id, on),
   markItemUsed: (id) => ipcRenderer.invoke('library:mark-used', id),
   onLibraryChanged: (listener) => {
     const handler = (_event: IpcRendererEvent, index: LibraryIndex) => listener(index);

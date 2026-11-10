@@ -351,6 +351,8 @@ export interface PulpApi {
   setItemFavorite(id: string, favorite: boolean): Promise<LibraryIndex>;
   /** The rate a frame sequence is read at; `undefined` goes back to Pulp's stated default (milestone 30). */
   setItemSequenceFps(id: string, fps: number | undefined): Promise<LibraryIndex>;
+  /** Deinterlace an interlaced clip wherever it is drawn or rendered (the automatic choice), or read it as it is (milestone 83). */
+  setItemDeinterlace(id: string, on: boolean): Promise<LibraryIndex>;
   /** Replace an item's user themes (built-in ids or custom words, normalized like tags). */
   setItemThemes(id: string, themes: string[]): Promise<LibraryIndex>;
   /**

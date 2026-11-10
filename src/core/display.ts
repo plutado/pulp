@@ -9,6 +9,7 @@
  */
 
 import type { HdrFormat } from './hdr';
+import type { FieldOrder } from './interlace';
 import { formatNumber } from './locale-format';
 import { tr, type MessageId } from './i18n';
 import { THEME_GROUPS, STYLES, typeInfo } from './taxonomy';
@@ -114,6 +115,11 @@ export function codecLabel(codec: string): string {
  */
 export function hdrLabel(hdr: HdrFormat): string {
   return hdr === 'pq' ? tr('display.hdr.pq') : tr('display.hdr.hlg');
+}
+
+/** Which field an interlaced clip shows first, in words (milestone 83). */
+export function fieldOrderLabel(field: FieldOrder): string {
+  return field === 'tff' ? tr('display.field.tff') : tr('display.field.bff');
 }
 
 /** "1920 × 1080", with a real multiplication sign. */

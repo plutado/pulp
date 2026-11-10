@@ -314,6 +314,8 @@ export interface ImageStamp {
   id: string;
   size: number;
   mtimeMs: number;
+  /** A clip whose deinterlacing was turned off (milestone 83): the same file, another render. */
+  deinterlace?: false;
 }
 
 /** The ids an image-slot value set names, in a stable order, for cache keys and grants. */

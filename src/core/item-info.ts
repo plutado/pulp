@@ -20,8 +20,10 @@ import {
   mediaKindLabel,
   sizeLabel,
   hdrLabel,
+  fieldOrderLabel,
   typeLabel,
 } from './display';
+import { interlacedField } from './interlace';
 import { templateDefaultSize } from './aspect';
 import type { LibraryEntry } from './library-types';
 import type { LottieInfo } from './lottie-types';
@@ -145,6 +147,16 @@ export function formatRows(entry: LibraryEntry, ffmpeg: { tonemap?: boolean } = 
     rows.push(ffmpeg.tonemap === false
       ? { label: tr('info.row.hdr'), value: tr('info.value.hdr.unconverted', { format }), tone: 'warn' }
       : { label: tr('info.row.hdr'), value: tr('info.value.hdr', { format }) });
+  }
+  // Interlaced (milestone 83): how it was found — by its frames, or by its tag where they could not
+  // tell — and what becomes of it; and a file whose tag says interlaced when its frames show it is not.
+  const field = interlacedField(meta?.scan);
+  if (field && meta?.scan) {
+    const order = fieldOrderLabel(field);
+    const value = entry.kind === 'media' && entry.deinterlace === false ? 'info.value.scan.off' : meta.scan.by === 'tag' ? 'info.value.scan.tag' : 'info.value.scan.frames';
+    rows.push({ label: tr('info.row.scan'), value: tr(value, { order }) });
+  } else if (meta?.scan?.field === 'progressive' && meta.scan.by === 'frames' && (meta.fieldOrder === 'tff' || meta.fieldOrder === 'bff')) {
+    rows.push({ label: tr('info.row.scan'), value: tr('info.value.scan.untagged') });
   }
   if (entryType(entry) === 'animated-loop') rows.push({ label: tr('info.row.loop'), value: tr('info.value.loop'), icon: 'loop' });
   if (meta?.audioCodec) rows.push({ label: tr('info.row.audio'), value: audioLabel(meta.audioCodec, meta.channels, meta.sampleRate) });

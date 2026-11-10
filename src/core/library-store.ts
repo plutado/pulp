@@ -13,6 +13,7 @@
  * a throwaway store, which is what `scanLibrary` uses.
  */
 
+import type { ScanField, ScanReading } from './interlace';
 import { readdir, stat, readFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -75,6 +76,8 @@ export interface UserItemData {
    * is kept, per item, like a tag or a favorite.
    */
   sequenceFps?: number;
+  /** Deinterlacing turned off for this clip (milestone 83); absent is the automatic choice. */
+  deinterlace?: false;
 }
 
 interface RootRow {
@@ -239,6 +242,8 @@ export class LibraryStore {
     // The rate a frame sequence is read at (milestone 30) came later again.
     if (!userColumns.some((c) => c.name === 'sequence_fps')) this.db.exec('ALTER TABLE user_items ADD COLUMN sequence_fps REAL');
     if (!userColumns.some((c) => c.name === 'render_count')) this.db.exec('ALTER TABLE user_items ADD COLUMN render_count INTEGER NOT NULL DEFAULT 0');
+    // And a clip's deinterlacing turned off (milestone 83): null is the automatic choice, 0 is off.
+    if (!userColumns.some((c) => c.name === 'deinterlace')) this.db.exec('ALTER TABLE user_items ADD COLUMN deinterlace INTEGER');
     this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema', String(SCHEMA_VERSION));
   }
 
@@ -1074,7 +1079,7 @@ export class LibraryStore {
     const metaByKey = new Map(metaRows.map((m) => [m.key, m]));
     const thumbRows = this.db.prepare('SELECT key, size, mtime_ms FROM thumbs WHERE file IS NOT NULL').all() as unknown as { key: string; size: number; mtime_ms: number }[];
     const thumbByKey = new Map(thumbRows.map((t) => [t.key, t]));
-    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used, render_count, sequence_fps FROM user_items').all() as unknown as {
+    const userRows = this.db.prepare('SELECT key, tags, themes, favorite, last_used, render_count, sequence_fps, deinterlace FROM user_items').all() as unknown as {
       key: string;
       tags: string;
       themes: string;
@@ -1082,6 +1087,7 @@ export class LibraryStore {
       last_used: string | null;
       render_count: number;
       sequence_fps: number | null;
+      deinterlace: number | null;
     }[];
     const userByKey = new Map(userRows.map((u) => [u.key, u]));
     const seenIds = new Map<string, string>();
@@ -1127,6 +1133,8 @@ export class LibraryStore {
         if (rate && entry.sequence) {
           entry.meta = { ...entry.meta, fps: rate, duration: Math.round((entry.sequence.count / rate) * 1000) / 1000 };
         }
+        // Deinterlacing turned off for this clip (milestone 83).
+        if (userByKey.get(row.key)?.deinterlace === 0) entry.deinterlace = false;
         index.media.push(entry);
       }
     }
@@ -1156,6 +1164,8 @@ export class LibraryStore {
     // decodes a clip needs its codec and alpha (milestone 32) and its size.
     const m = this.db.prepare('SELECT size, mtime_ms, meta FROM media_meta WHERE key = ? AND meta IS NOT NULL').get(row.key) as { size: number; mtime_ms: number; meta: string } | undefined;
     if (m && m.size === row.size && m.mtime_ms === row.mtime_ms) entry.meta = JSON.parse(m.meta) as MediaMetadata;
+    // Deinterlacing turned off for this clip (milestone 83): what reads its pixels must know.
+    if (this.deinterlaceOff(row.key)) entry.deinterlace = false;
     return { entry, root: row.root, online: row.online === 1 };
   }
 
@@ -1169,6 +1179,41 @@ export class LibraryStore {
       )
       .all(limit) as unknown as { entry: string }[];
     return rows.map((r) => JSON.parse(r.entry) as MediaEntry);
+  }
+
+  /**
+   * Clips whose frames have not been read for their scan yet (milestone 83): video files in online
+   * roots, measured from the file itself (not a preview), with no `scan` in their metadata. A
+   * sequence, a clip set, a file known only from a catalog or a preview, and a file Pulp cannot
+   * read are left out; the caller decides from the metadata whether frames need reading at all.
+   */
+  pendingScans(limit = 20): MediaEntry[] {
+    const rows = this.db
+      .prepare(
+        'SELECT items.entry AS entry, media_meta.meta AS meta FROM items JOIN roots ON roots.path = items.root ' +
+          'JOIN media_meta ON media_meta.key = items.key AND media_meta.size = items.size AND media_meta.mtime_ms = items.mtime_ms ' +
+          "WHERE items.kind = 'media' AND roots.online = 1 AND media_meta.meta IS NOT NULL AND json_extract(media_meta.meta, '$.scan') IS NULL " +
+          "AND json_extract(media_meta.meta, '$.fromPreview') IS NULL AND json_extract(items.entry, '$.mediaKind') = 'video' " +
+          "AND json_extract(items.entry, '$.sequence') IS NULL AND json_extract(items.entry, '$.clipSet') IS NULL " +
+          "AND json_extract(items.entry, '$.missing') IS NULL AND json_extract(items.entry, '$.unreadable') IS NULL ORDER BY items.rowid LIMIT ?",
+      )
+      .all(limit) as unknown as { entry: string; meta: string }[];
+    return rows.map((r) => ({ ...(JSON.parse(r.entry) as MediaEntry), meta: JSON.parse(r.meta) as MediaMetadata }));
+  }
+
+  /**
+   * Keep what a clip's frames showed of its scan (milestone 83) with its metadata, and what its tag
+   * claims, where the metadata is still of the file as it is: false when there is none to keep it
+   * with — the file changed, or has not been probed — which the next pass puts right.
+   */
+  recordScan(key: string, size: number, mtimeMs: number, scan: ScanReading, fieldOrder?: ScanField): boolean {
+    const m = this.db.prepare('SELECT size, mtime_ms, meta FROM media_meta WHERE key = ? AND meta IS NOT NULL').get(key) as { size: number; mtime_ms: number; meta: string } | undefined;
+    if (!m || m.size !== size || m.mtime_ms !== mtimeMs) return false;
+    const meta = JSON.parse(m.meta) as MediaMetadata;
+    if (meta.fromPreview) return false;
+    const next: MediaMetadata = { ...meta, scan, ...(fieldOrder ? { fieldOrder } : {}) };
+    this.db.prepare('UPDATE media_meta SET meta = ? WHERE key = ?').run(JSON.stringify(next), key);
+    return true;
   }
 
   /** Store a probe result for the item as it is now; null records that ffprobe could not read it, so it is not retried until the file changes. */
@@ -1312,8 +1357,14 @@ export class LibraryStore {
         | { size: number; mtime_ms: number; meta: string }
         | undefined;
       if (m && m.size === row.size && m.mtime_ms === row.mtime_ms) entry.meta = JSON.parse(m.meta) as MediaMetadata;
+      if (this.deinterlaceOff(row.key)) entry.deinterlace = false;
     }
     return entry;
+  }
+
+  /** Whether a person turned deinterlacing off for the item behind this key (milestone 83). */
+  private deinterlaceOff(key: string): boolean {
+    return (this.db.prepare('SELECT deinterlace FROM user_items WHERE key = ?').get(key) as { deinterlace: number | null } | undefined)?.deinterlace === 0;
   }
 
   itemCount(): number {
@@ -1340,8 +1391,8 @@ export class LibraryStore {
   }
 
   getUserData(key: string): UserItemData {
-    const row = this.db.prepare('SELECT tags, themes, favorite, last_used, sequence_fps FROM user_items WHERE key = ?').get(key) as
-      | { tags: string; themes: string; favorite: number; last_used: string | null; sequence_fps: number | null }
+    const row = this.db.prepare('SELECT tags, themes, favorite, last_used, sequence_fps, deinterlace FROM user_items WHERE key = ?').get(key) as
+      | { tags: string; themes: string; favorite: number; last_used: string | null; sequence_fps: number | null; deinterlace: number | null }
       | undefined;
     if (!row) return { tags: [], themes: [], favorite: false };
     return {
@@ -1350,6 +1401,7 @@ export class LibraryStore {
       favorite: row.favorite === 1,
       ...(row.last_used ? { lastUsed: row.last_used } : {}),
       ...(row.sequence_fps ? { sequenceFps: row.sequence_fps } : {}),
+      ...(row.deinterlace === 0 ? { deinterlace: false as const } : {}),
     };
   }
 
@@ -1364,11 +1416,11 @@ export class LibraryStore {
     const next = { ...this.getUserData(key), ...patch };
     this.db
       .prepare(
-        'INSERT INTO user_items (key, tags, themes, favorite, last_used, sequence_fps) VALUES (?, ?, ?, ?, ?, ?) ' +
+        'INSERT INTO user_items (key, tags, themes, favorite, last_used, sequence_fps, deinterlace) VALUES (?, ?, ?, ?, ?, ?, ?) ' +
           'ON CONFLICT(key) DO UPDATE SET tags = excluded.tags, themes = excluded.themes, favorite = excluded.favorite, ' +
-          'last_used = excluded.last_used, sequence_fps = excluded.sequence_fps',
+          'last_used = excluded.last_used, sequence_fps = excluded.sequence_fps, deinterlace = excluded.deinterlace',
       )
-      .run(key, JSON.stringify(next.tags), JSON.stringify(next.themes), next.favorite ? 1 : 0, next.lastUsed ?? null, next.sequenceFps ?? null);
+      .run(key, JSON.stringify(next.tags), JSON.stringify(next.themes), next.favorite ? 1 : 0, next.lastUsed ?? null, next.sequenceFps ?? null, next.deinterlace === false ? 0 : null);
     return next;
   }
 }

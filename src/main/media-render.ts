@@ -18,6 +18,7 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { detectFfmpeg, runForBuffer, type FfmpegStatus } from '../core/ffmpeg';
 import { canTonemap } from './hdr-service';
+import { deinterlaceFor } from './interlace-service';
 import { ffmpegFeature, planLacks } from './ffmpeg-caps';
 import { missingSentence } from '../core/ffmpeg-needs';
 import { clipSetLayersStitchArgs, stitchHasSound } from '../core/clip-set';
@@ -208,7 +209,10 @@ export async function renderMedia(job: MediaRenderJob): Promise<RenderResult> {
   if (problem) return { ok: false, message: problem };
   const scratch = await mkdtemp(join(tmpdir(), 'pulp-media-'));
   try {
-    const source = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) }, job.options);
+    const measured = await mediaSourceFor(job.entry, ffmpeg, scratch, job.params, { ...(job.options?.width ? { width: job.options.width } : {}), ...(job.options?.height ? { height: job.options.height } : {}) }, job.options);
+    // An interlaced clip is deinterlaced on the way in (milestone 83), unless it was turned off.
+    const deinterlace = measured.kind === 'video' ? await deinterlaceFor(ffmpeg.path, job.entry, job.options?.deinterlace === 'off') : undefined;
+    const source = deinterlace ? { ...measured, deinterlace } : measured;
     const tonemap = await canTonemap(ffmpeg.path);
     // An HDR item this ffmpeg cannot convert (milestone 88): refused where asked to be, written as it is with a warning otherwise.
     if (source.hdr && !tonemap && job.requireFeatures) {

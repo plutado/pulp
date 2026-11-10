@@ -21,7 +21,7 @@ import { blockStates, layerClipChoices, layerImageChoices, type BlockState } fro
 import { mediaSlotChoices, mediaSlotDrawnHeight, mediaSlots } from '../core/media-slot';
 import { clipAudible, clipProxySize, type ClipSource, type ClipValue } from '../core/video-layer';
 import type { LayerValues } from '../core/layers';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import type { TemplateManifest } from '../core/manifest';
 import { mediaDefaultFps } from '../core/media-render';
@@ -584,7 +584,8 @@ function syncImages(): void {
     ...requests.map((r) => imageRequestKey(r)),
     // The proxy step, not the exact height: a window nudged a few pixels wider asks for the
     // same frames, so nothing is decoded again for it (milestone 26).
-    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${c.value.lut ?? ''}|${clipProxySize(c.drawnHeight * 2)}`),
+    // And whether the clip's deinterlacing is off (milestone 83), which makes other frames of it.
+    ...clipRequests.map((c) => `clip:${c.id}|${c.value.inPoint}|${c.value.outPoint}|${c.value.lut ?? ''}|${clipProxySize(c.drawnHeight * 2)}|${mediaEntryFor(c.id)?.deinterlace === false ? 'as-is' : ''}`),
   ].sort().join(',');
   if (key === s.imagesKey) return;
   s.imagesKey = key;
@@ -1346,6 +1347,15 @@ export function initStage(): void {
     const hidden = psdHidden.value;
     if (!s.psd) return;
     els.mediaImage.src = psdCompositeUrlFor(s.psd.id, hidden[s.psd.id] ?? []);
+  });
+  // A clip's deinterlacing turned off or on (milestone 83): the frame is drawn again, which reads
+  // that clip's frames again wherever it plays — on the track or in a layer.
+  let deinterlaceChoices = '';
+  effect(() => {
+    const choices = (appState.value.index?.media ?? []).filter((m) => m.deinterlace === false).map((m) => m.id).join(',');
+    if (choices === deinterlaceChoices) return;
+    deinterlaceChoices = choices;
+    if (s.manifest) untracked(() => requestFrame(s.frame));
   });
   // The Output tab's aspect or resolution changed: reshape the box and draw the frame for the new canvas.
   effect(() => {

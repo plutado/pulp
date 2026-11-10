@@ -6,6 +6,7 @@
 
 import type { ClipSetSound, ClipSetTiming } from './clip-set';
 import { hdrFromTransfer, type HdrFormat } from './hdr';
+import { fieldOrderFromTag, type ScanField, type ScanReading } from './interlace';
 import { tr } from './i18n';
 import { moodsFromText } from './taxonomy';
 
@@ -29,6 +30,18 @@ export interface MediaMetadata {
    * they are read; the file itself is left exactly as it is.
    */
   hdr?: HdrFormat;
+  /**
+   * The scan the file's own `field_order` tag claims (milestone 83), where it
+   * claims one. Often wrong, so it is a hint: what decides is `scan`.
+   */
+  fieldOrder?: ScanField;
+  /**
+   * What the clip's frames showed it to be (milestone 83): progressive, or
+   * interlaced with its first field, and what decided it. Absent until the
+   * frames have been read; an interlaced clip is deinterlaced wherever its
+   * pixels are read, and the file is left as it is.
+   */
+  scan?: ScanReading;
   audioCodec?: string;
   channels?: number;
   sampleRate?: number;
@@ -96,6 +109,7 @@ interface ProbeStream {
   height?: number;
   pix_fmt?: string;
   color_transfer?: string;
+  field_order?: string;
   r_frame_rate?: string;
   avg_frame_rate?: string;
   duration?: string;
@@ -138,6 +152,9 @@ export function parseFfprobe(json: string): MediaMetadata | null {
     // HDR by the file's own transfer tag (milestone 81); anything else is standard range.
     const hdr = hdrFromTransfer(video.color_transfer);
     if (hdr) meta.hdr = hdr;
+    // What the file's tag says of its scan (milestone 83): a hint the frames are read against.
+    const fieldOrder = fieldOrderFromTag(video.field_order);
+    if (fieldOrder) meta.fieldOrder = fieldOrder;
     const alphaTag = video.tags?.alpha_mode ?? video.tags?.ALPHA_MODE;
     meta.alpha = (video.pix_fmt !== undefined && ALPHA_PIX_FMT.test(video.pix_fmt)) || alphaTag === '1' || hevcAlpha(video);
   }

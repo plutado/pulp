@@ -29,9 +29,10 @@ export interface CacheKeyInput {
 
 /** Stable key for a render: same inputs, same key. 24 hex characters. */
 /** The key for a media item rendered itself (milestone 15): the file as it is, the preset, the options and the collected choice. */
-export function mediaCacheKey(input: { id: string; size: number; mtimeMs: number; presetId: string; options?: RenderOptions; params: Record<string, unknown> }): string {
+export function mediaCacheKey(input: { id: string; size: number; mtimeMs: number; presetId: string; options?: RenderOptions; params: Record<string, unknown>; deinterlace?: false }): string {
   const params = Object.fromEntries(Object.entries(input.params).sort(([a], [b]) => a.localeCompare(b)));
-  const payload = JSON.stringify({ media: input.id, size: input.size, mtime: input.mtimeMs, preset: input.presetId, o: input.options ?? {}, p: params });
+  // Deinterlacing turned off for the clip (milestone 83) is another render; the key is unchanged otherwise.
+  const payload = JSON.stringify({ media: input.id, size: input.size, mtime: input.mtimeMs, preset: input.presetId, o: input.options ?? {}, p: params, ...(input.deinterlace === false ? { d: false } : {}) });
   return createHash('sha256').update(payload).digest('hex').slice(0, 24);
 }
 

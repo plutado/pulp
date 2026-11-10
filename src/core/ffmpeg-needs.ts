@@ -84,6 +84,8 @@ export const CORE_FILTERS: readonly string[] = [
   'scale', 'format', 'crop', 'pad', 'setsar', 'overlay', 'color', 'null', 'anull', 'split', 'fps', 'trim', 'setpts', 'tpad', 'concat',
   'xfade', 'fade', 'select', 'showinfo', 'setparams', 'unpremultiply', 'alphaextract', 'colorchannelmixer', 'lut3d', 'tile',
   'palettegen', 'paletteuse', 'minterpolate', 'chromakey', 'despill', 'unsharp',
+  // Old footage (milestone 83): its scan read, and an interlaced clip made whole frames.
+  'idet', 'bwdif',
   // Sound: the mix, the dips, the voices, the leveling, the silences.
   'aresample', 'atrim', 'asetpts', 'adelay', 'afade', 'aloop', 'amix', 'anullsrc', 'apad', 'atempo', 'volume', 'loudnorm',
   'asplit', 'acrossfade', 'aformat', 'acompressor', 'afftdn', 'deesser', 'equalizer', 'highpass', 'lowpass', 'silencedetect',

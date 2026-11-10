@@ -23,7 +23,7 @@ import { clipStamps } from './clip-grant';
 import { soundStamps } from './sound-grant';
 import { clipIdsInLayers } from '../core/video-layer';
 import { soundIdsInLayers } from '../core/sound-layer';
-import { splitLayers } from '../core/params';
+import { splitLayers, trackIn } from '../core/params';
 import { cacheFileForKey, dragFileFor, evictIfNeeded, isCachedFile } from './render-cache-service';
 import { existsSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
@@ -167,7 +167,7 @@ async function prepareMediaDrag(request: RenderRequest & { mediaId: string }): P
   const planned = await planMediaRender(entry, request.presetId, request.options, request.params, join(homedir(), `render${facts.extension}`));
   if (!planned.ok) return { ok: false, message: planned.message };
   const timing = planned.plan.timing;
-  const key = mediaCacheKey({ id: entry.id, size: entry.size, mtimeMs: entry.mtimeMs, presetId: request.presetId, options: request.options, params: request.params });
+  const key = mediaCacheKey({ id: entry.id, size: entry.size, mtimeMs: entry.mtimeMs, presetId: request.presetId, options: request.options, params: request.params, ...(entry.deinterlace === false ? { deinterlace: false as const } : {}) });
   const { path: outputPath } = await cacheFileForKey(key, entry.name, facts.extension, facts.sequence);
   const existing = dragFileFor(outputPath, timing.firstFrame);
   const job = { templateId: '', mediaId: entry.id, templateName: entry.name, presetId: request.presetId, outputPath, totalFrames: timing.totalFrames, firstFrame: timing.firstFrame, ...platformOf(request.options) };
@@ -207,7 +207,11 @@ export async function prepareDrag(request: RenderRequest): Promise<PrepareDragRe
     images: imageStamps(imageIdsIn(template.manifest.parameters, request.params)),
     // A clip a layer plays is an input like a chosen still: re-export it and this is a new render.
     // The layers' clips and the media slots' (milestone 22): a replaced file under the same id renders afresh.
-    clips: clipStamps([...new Set([...clipIdsInLayers(splitLayers(request.params).layers), ...mediaIdsIn(template.manifest.parameters, splitLayers(request.params).params)])].sort()),
+    // The track's shots too: one whose deinterlacing was turned off is another render (milestone 83).
+    clips: clipStamps([...new Set([
+      ...clipIdsInLayers(splitLayers(request.params).layers), ...mediaIdsIn(template.manifest.parameters, splitLayers(request.params).params),
+      ...(trackIn(request.params)?.cuts.map((c) => c.id) ?? []),
+    ])].sort()),
     // And a sound an audio layer plays (milestone 48), by the same rule.
     sounds: soundStamps(soundIdsInLayers(splitLayers(request.params).layers)),
   });

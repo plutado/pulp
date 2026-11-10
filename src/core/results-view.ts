@@ -10,7 +10,8 @@ import { unreadableNote } from './unreadable-media';
 import { versionLabel } from './music-groups';
 import { entryLabel } from './app-state';
 import { orientationOf, templateDefaultSize, templateOrientations } from './aspect';
-import { dimensionsLabel, hdrLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
+import { dimensionsLabel, fieldOrderLabel, hdrLabel, mediaKindLabel, runningTime, themeLabel, typeLabel } from './display';
+import { interlacedField } from './interlace';
 import { tr } from './i18n';
 import type { LibraryEntry } from './library-types';
 import { resolutionTag } from './media-meta';
@@ -252,7 +253,13 @@ export function entryBadges(entry: LibraryEntry): ResultBadge[] {
   const badges: ResultBadge[] = [];
   const { width, height } = entrySize(entry);
   const tag = resolutionTag(width, height);
-  if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
+  // Interlaced, as its frames showed it to be (milestone 83): the resolution is named as video people
+  // name it — 576i, 1080i — and the tooltip says what becomes of it.
+  const field = entry.kind === 'media' ? interlacedField(entry.meta?.scan) : undefined;
+  if (tag && width && height && field) {
+    const tip = tr(entry.kind === 'media' && entry.deinterlace === false ? 'results.badge.interlaced.tip-off' : 'results.badge.interlaced.tip', { order: fieldOrderLabel(field) });
+    badges.push({ id: 'resolution', label: tr('results.resolution.interlaced', { lines: Math.min(width, height) }), tip: `${dimensionsLabel(width, height)} · ${tip}` });
+  } else if (tag && width && height) badges.push({ id: 'resolution', label: tag, tip: dimensionsLabel(width, height) });
   if (hasAlpha(entry)) badges.push({ id: 'alpha', label: tr('results.badge.alpha'), tip: tr('results.badge.alpha.tip') });
   // Recorded in HDR (milestone 81): converted to standard range wherever it is used, file untouched.
   if (entry.kind === 'media' && entry.meta?.hdr) badges.push({ id: 'hdr', label: tr('results.badge.hdr'), tip: tr('results.badge.hdr.tip', { format: hdrLabel(entry.meta.hdr) }) });

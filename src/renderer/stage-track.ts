@@ -27,6 +27,7 @@ import { tileHolds, tileKey, tilesWanted, TRACK_HELD_FRAMES_BUDGET, type Tile } 
 import { clipProxySize } from '../core/video-layer';
 import { aspectOf } from '../core/aspect';
 import { coverWindow } from '../core/reframe';
+import { appState } from './store';
 
 interface CutFrames {
   imgs: HTMLImageElement[];
@@ -88,7 +89,9 @@ export function trackPictureSync(track: CutTrack | null, displayedHeight: number
   // for the whole of it (a wipe is short) lets the draw spread its timeline over the transition's
   // own duration, which is what a wipe's scale structure means.
   const wipeIds = [...new Set(track.cuts.flatMap((cut) => (cut.transition?.type === 'wipe' && cut.transition.template ? [cut.transition.template] : [])))];
-  const wanted = JSON.stringify({ cuts: track.cuts.map((c) => [c.id, c.from, c.to, c.hold ?? null, c.speed ?? null]), wipes: wipeIds, height: wantedHeight });
+  // A clip whose deinterlacing was turned off or on (milestone 83) is read again: its frames differ.
+  const off = (id: string) => appState.value.index?.media.find((m) => m.id === id)?.deinterlace === false;
+  const wanted = JSON.stringify({ cuts: track.cuts.map((c) => [c.id, c.from, c.to, c.hold ?? null, c.speed ?? null, off(c.id)]), wipes: wipeIds, height: wantedHeight });
   if (wanted === key) return;
   key = wanted;
   height = wantedHeight;

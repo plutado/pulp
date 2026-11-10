@@ -34,6 +34,7 @@ import { isValidColor, type TemplateManifest } from './manifest';
 import { fpsToRational, isStandardFrameRate, STANDARD_FRAME_RATES } from './timecode';
 import { isCubeFile, lutFilter } from './clip-clean';
 import { tonemapSteps, type HdrFormat } from './hdr';
+import { deinterlaceSteps, type FieldOrder } from './interlace';
 import { tr } from './i18n';
 import { reframeCropFilter } from './reframe';
 
@@ -454,6 +455,11 @@ export interface RenderOptions {
    */
   stems?: 'mix' | 'files';
   /**
+   * Interlaced clips (milestone 83): deinterlaced as found (`auto`, and absent), or every clip read
+   * as it is (`off`) — the command line's `--deinterlace`; in the window it is each clip's own choice.
+   */
+  deinterlace?: 'auto' | 'off';
+  /**
    * An animated image's own rate and width (milestone 82): GIF, animated WebP
    * and APNG only, ignored by every other preset. The rate is one of
    * `ANIMATED_IMAGE_FPS` and only ever drops frames; the width only ever
@@ -659,6 +665,12 @@ export interface RenderPlanInput {
        * clip, and for an HDR one this ffmpeg cannot convert.
        */
       tonemap?: HdrFormat;
+      /**
+       * The field order of an interlaced cut's file (milestone 83): deinterlaced
+       * first of all, before the HDR conversion and the speed, which would mix
+       * its fields. Absent for a progressive clip, and where it was turned off.
+       */
+      deinterlace?: FieldOrder;
     }[];
     /** Bundled wipes over the joins, captured by the caller as numbered RGBA frames at the output's own rate. */
     wipes?: { pattern: string; at: number; seconds: number }[];
@@ -869,7 +881,7 @@ export function buildRenderPlan(input: RenderPlanInput): RenderPlan {
       const framing = cut.reframe && cut.reframe.length > 0
         ? [reframeCropFilter({ width, height }, cut.reframe, (clipSeconds) => cutTimelineTime(cut, clipSeconds))]
         : [`scale=${width}:${height}:force_original_aspect_ratio=decrease`, `pad=${width}:${height}:-1:-1:color=${pad}`];
-      const steps = [...(cut.tonemap ? tonemapSteps(cut.tonemap) : []), ...cutSpeedSteps(cut, timing.fps), ...framing, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
+      const steps = [...deinterlaceSteps(cut.deinterlace), ...(cut.tonemap ? tonemapSteps(cut.tonemap) : []), ...cutSpeedSteps(cut, timing.fps), ...framing, 'setsar=1', 'format=yuv420p', 'setpts=PTS-STARTPTS'];
       const seconds = Math.max(0.001, cutSeconds(cut));
       const into = i > 0 ? track.cuts[i - 1]!.transition : undefined;
       if (into?.type === 'dip') steps.push(`fade=t=in:st=0:d=${sec(into.seconds / 2)}:color=${hexToFfmpegColor(into.color ?? '#000000')}`);

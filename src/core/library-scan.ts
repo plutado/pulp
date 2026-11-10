@@ -17,7 +17,9 @@ import type { LottieFormat } from './lottie-types';
 import { inferTemplateType, inferThemes } from './taxonomy';
 
 export const MEDIA_EXTENSIONS: Record<MediaKind, readonly string[]> = {
-  video: ['.mov', '.mp4', '.m4v', '.mkv', '.webm', '.mxf', '.avi'],
+  // Old footage comes off discs and tape as MPEG-2 and DV (milestone 83): program streams, a DVD's
+  // VOBs, HDV and Blu-ray transport streams. Not `.ts` or `.mts`, which are TypeScript's names too.
+  video: ['.mov', '.mp4', '.m4v', '.mkv', '.webm', '.mxf', '.avi', '.mpg', '.mpeg', '.m2v', '.vob', '.dv', '.m2t', '.m2ts'],
   // A layered still is a still too (milestone 33): Photoshop, OpenRaster, Krita, SVG, and the PDF
   // an .ai carries — browsed as its composite, placed whole or as layers.
   image: ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.exr', '.webp', '.gif', '.bmp', '.dpx', '.svg', '.psd', '.ora', '.kra', '.ai', '.pdf'],
