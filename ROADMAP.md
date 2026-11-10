@@ -101,9 +101,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 84. A flash warning before export (post-1.0) | 4-7 h |
 | 85. Timeline lanes that say what they are (post-1.0, **done**) | 3-5 h |
 | 86. The docs and pictures caught up (post-1.0) | 4-7 h |
+| 87. A film strip on the timeline (post-1.0) | 10-16 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1186-1954 h** |
+| **Total including post-1.0 items** | **1196-1970 h** |
 
 ## 0. Foundation (done)
 
@@ -1048,3 +1049,13 @@ Decided 2026-11-10. The README and the user guides say nothing of the newest wor
 - [ ] **What it does, said:** the README's feature list and the user guide in English, German and Chinese cover motion tracking (76), stabilize (78), auto-reframe (77), the music dip (80), HDR clips (81), and Arabic, Hebrew and Indic text with the mirrored window (70) (2-3 h)
 - [ ] **What it has been tested with, said:** Where things stand names these as tested with generated clips only, not real footage, and the new scripts as not yet read by a fluent speaker (1 h)
 - [ ] **Pictures made by a script, not by hand:** the sample frames and the GIF rendered through Pulp's own command line and the window captured as the end-to-end suite does, in one command, and all five made again with it (1-3 h)
+
+## 87. A film strip on the timeline (10-16 h, after 1.0; GitHub issue #89)
+
+Decided 2026-11-10. A shot on the cut track (milestone 49) is a thin bar with its name and its waveform, so nothing on the timeline shows what is in it. Editing apps draw a clip's frames along it, like a film strip running across, with a choice of none, the first frame, or a continuous strip, and a taller track while they show. Builds on the hover scrub's strip of frames (milestone 12) and goes best right after milestone 85, which reshapes the same lanes.
+
+- [ ] **A strip of frames per clip:** denser than the hover scrub's eight, small, cached by the file and made in the background, so the timeline never waits for it (2-3 h)
+- [ ] **Drawn along each shot:** each frame placed by the clip's own time, so trims, speed changes and ramps, freeze frames and reverse show the right pictures; frames repeat or thin out as a shot widens or narrows; the name and the waveform stay readable over them (3-5 h)
+- [ ] **Thumbnails: Off, First frame or Continuous:** a choice kept with the other settings, the cut track taller while frames show, and the stage keeping its room as milestone 42 asks (2-3 h)
+- [ ] **The other lanes too:** clips on the picture track (milestone 57) drawn the same way, and the layer bars showing their template's own frames (1-2 h)
+- [ ] **Tests:** a generated clip with its frame number drawn on every frame, read back off the track through a trim, a speed change and a freeze; and a timeline of many shots that stays quick to scroll and trim (2-3 h)
