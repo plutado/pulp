@@ -3975,7 +3975,8 @@ describe.skipIf(!electron)('inspector UI', () => {
       /** The mean brightness of each frame of a file. */
       const means = (file: string) => [...spawnSync(ffmpeg.path, ['-v', 'error', '-i', file, '-vf', 'scale=1:1,format=gray', '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 1 << 20 }).stdout];
       const swing = (list: number[]) => Math.max(...list) - Math.min(...list);
-      const cardFor = (part: string) => `[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => (c.dataset.file || '').split(/[\\/]/).pop().startsWith(${JSON.stringify(part)}))`;
+      // The file's own name, by either separator: inside this template a regex's backslash must be doubled to reach the page.
+      const cardFor = (part: string) => `[...document.querySelectorAll('#queue .job-card[draggable="true"]')].find((c) => (c.dataset.file || '').split(/[\\\\/]/).pop().startsWith(${JSON.stringify(part)}))`;
       const flashText = (part: string) => page.eval<string>(`(() => { const c = ${cardFor(part)}; return c ? (c.querySelector('.job-flash')?.textContent ?? '') : ''; })()`);
       const made: number[] = [];
       try {
