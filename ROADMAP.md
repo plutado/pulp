@@ -723,7 +723,7 @@ Decided 2026-11-01. With sound in a project (48), a talking head recorded on a l
 
 ## 7. Signing and auto-update (4-7 h; GitHub issue #7)
 
-**Blocked on David's accounts** (an Apple Developer account and an Azure Artifact Signing account). The publisher is decided (2026-11-11): **Youth Empowerment America, Inc.**, the nonprofit, signs Pulp, so both accounts are enrolled as that organization, and the builds' copyright, the package's author and the license already name it. The bundle identifier stays `com.davidfugate.pulp`, so the builds already released upgrade in place. Builds come from milestone 17.
+**Blocked on David's accounts** (an Apple Developer account and an Azure Artifact Signing account). The publisher is decided (2026-11-11): **Youth Empowerment America, Inc.**, the nonprofit, signs Pulp, so both accounts are enrolled under that legal name (Apple accepts no trade name, so the signature carries it alone), while the builds' copyright, the package's author and the license name it with its trade name: "Youth Empowerment America, Inc. d/b/a ht.live". The bundle identifier stays `com.davidfugate.pulp`, so the builds already released upgrade in place. Builds come from milestone 17.
 
 - [ ] macOS: signing and notarization (2-3 h)
 - [ ] Windows: code signing (1-2 h)
