@@ -104,9 +104,10 @@ Milestones keep the number they were given when they were added. Milestones 1 to
 | 87. A film strip on the timeline (post-1.0, **done**) | 10-16 h |
 | 88. Features that know what the ffmpeg can do (post-1.0, **done**) | 8-13 h |
 | 89. Reframe when the action is wider than the frame (post-1.0, **done**) | 2-3 h |
+| 90. Pulp on the Mac App Store (post-1.0) | 21-40 h |
 | **Total through 1.0 (every milestone above not marked post-1.0)** | **742-1197 h** |
 | **Still open through 1.0 (unticked items only)** | **11-19 h** |
-| **Total including post-1.0 items** | **1206-1986 h** |
+| **Total including post-1.0 items** | **1227-2026 h** |
 
 ## 0. Foundation (done)
 
@@ -1078,3 +1079,16 @@ Decided 2026-11-10. Auto-reframe (milestone 77) follows one subject. When what m
 
 - [x] **Noticed and offered:** a shot whose found interest spreads wider than the crop is marked, with Letterbox suggested for it, rather than cut quietly (1-2 h) *Built 2026-11-10. Each frame's found subject now carries how far it spreads: the extent of the blocks that decided its center, by their centers, the faintest 2% of their weight trimmed at each end so a stray block does not widen it, and none measured when those blocks cover over a third of the frame (a texture, not a subject). A shot whose spread is wider (or taller) than the cover window in at least half its frames is marked (`wideShots` in `src/core/reframe.ts`), as a stretch of the clip in its own seconds. Follow the Subject keeps the marks on the cut by shape (`reframeWide`, beside `reframe`), through a hand's key and Keep the Middle, clipped to the cut's window so a trim that leaves the shot out leaves the mark out; Letterbox takes them off with the keys. The cut wears a red edge along its top, its tooltip and name say where and that Letterbox is suggested, the menu reads **Letterbox (Suggested)**, and the status line says it in place of the usual count. The mark is per shape: a 1:1 crop of 720p is 720 px across and may hold what 9:16 cannot.*
 - [x] **Tests:** two generated markers 557 px apart in a 1280 × 720 shot, the shot marked, and Letterbox keeping both (1 h) *Built 2026-11-10. Units paint the frames at the tracker's 320 × 180 proxy: the pair measured wider than the 405 px window and the shot marked in clip seconds; a pair 250 px apart, a single walker, a checkerboard, and the same pair at 16:9 and 1:1 left unmarked; only the wide shot of two across a hard cut; two faces a room apart; the mark kept, cleared, clipped and read back from a project; and a cut with no reframe rendered as a letterbox, never a crop. The render suite draws the pair with ffmpeg, reads it through the real proxy, sees the one shot marked, renders it letterboxed at 9:16 with both squares where they belong, and renders the reframe's own crop holding fewer than two. The UI suite drops the pair on a 9:16 project, follows the subject through the real frames, sees the cut marked with its tooltip and the menu suggesting Letterbox, takes it, and reads both squares off the letterboxed stage; milestone 77's walker is held to no mark.*
+
+## 90. Pulp on the Mac App Store (21-40 h, after 1.0; GitHub issue #92)
+
+Decided 2026-11-11. Pulp on the Mac App Store, beside the signed download from GitHub. It comes after milestone 7: the same Apple Developer membership, enrolled as Youth Empowerment America, Inc., covers both, and the Developer ID build stays the main one.
+
+The work is less the build than what the App Store asks of an app. It runs in Apple's sandbox; every program it runs is inside it and signed with it; it opens only what the person has chosen; and the store updates it. Pulp today finds ffmpeg, whisper.cpp and llama.cpp on the machine or fetches them, reads whole library folders, and its usual ffmpeg is GPL, which the App Store's terms are widely held not to suit (ADR 0022). So the store build carries its own LGPL ffmpeg, encodes H.264 and HEVC with the Mac's own hardware encoder rather than x264, and says what that build lacks.
+
+- [ ] **Decided and recorded:** what the store build carries and what it leaves out, in a decision record beside 0022 (1-2 h)
+- [ ] **A store build:** the `mas` target, sandbox entitlements, the provisioning profile and the two distribution certificates, made in the release workflow beside the Developer ID build (2-4 h)
+- [ ] **Its own helpers:** an LGPL-only ffmpeg built for both architectures with VideoToolbox for H.264 and HEVC, and whisper.cpp and llama.cpp, inside the bundle and signed with it; no program is fetched in the store build, while models are still fetched as data after asking (8-14 h)
+- [ ] **File access that lasts:** security-scoped bookmarks for library folders, projects, output folders and recent files, so they open again after a restart; a folder that has lost access asks again rather than vanishing (6-12 h)
+- [ ] **The store build says what it is:** Settings → FFmpeg names the built-in ffmpeg and what it lacks through milestone 88's table, there is no update check of its own, and the user guide says how the two builds differ (2-4 h)
+- [ ] **Submitted:** the App Store Connect record, privacy answers, screenshots, review notes, and a TestFlight build tried on a Mac that has never run Pulp (2-4 h)
