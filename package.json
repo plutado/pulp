@@ -4,7 +4,7 @@
   "private": true,
   "description": "Desktop app for browsing, previewing, customizing and rendering open-format motion-graphics templates.",
   "license": "MIT",
-  "author": "David Fugate",
+  "author": "Youth Empowerment America, Inc.",
   "desktopName": "pulp.desktop",
   "main": "out/main/index.js",
   "bin": {
