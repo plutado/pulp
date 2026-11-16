@@ -41,6 +41,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **A clip rendered to PNG, GIF, APNG, animated WebP or QuickTime Animation keeps its colors.** Limited-range video, which is most video, came out shifted (a BT.709 red of 197, 39, 39 rendered as 178, 36, 52) because the RGB tags were stamped on the frames before they were converted, so the conversion read them as full range. The conversion now reads the clip by its own range and matrix, and the tags describe the result (#93).
+
 - **Zipped downloads over 4 GB open in a stock library.** A ZIP64 archive — over 4 GB, or over 65,535 files — was refused as not yet read; its end record and each entry's ZIP64 extra field are read now, and a file is unpacked by streaming rather than held whole, so a multi-gigabyte clip passes through a small buffer.
 
 - **A password-protected zip in a stock library says so instead of failing.** Each protected file is listed by name as an item Pulp cannot open, with a plain note to unpack the archive with the password it came with; it is never read, probed or offered to place, and files in the same archive that are not protected work as ever.

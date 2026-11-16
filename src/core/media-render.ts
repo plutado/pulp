@@ -448,8 +448,13 @@ function videoPlan(input: MediaRenderInput, preset: OutputPreset): MediaRenderPl
   const end = (timing.firstFrame + timing.totalFrames) / timing.fps;
   const trimV = `trim=start=${start}:end=${end},setpts=PTS-STARTPTS`;
   const trimA = `atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS`;
-  const toOutput = preset.color === 'rec709' ? [REC709_CONVERT, REC709_TAGS] : [RGB_FULL_TAGS];
-  toOutput.push(`format=${preset.pixelFormat}`);
+  // A clip is still Y'CbCr here, unlike a template's frames. For an RGB preset the format step
+  // converts it by the clip's own range and matrix first, and only then do the full-range RGB tags
+  // describe the result: tagged before it, they would overwrite the clip's tags and the conversion
+  // would read limited-range video as full range (issue #93).
+  const toOutput = preset.color === 'rec709'
+    ? [REC709_CONVERT, REC709_TAGS, `format=${preset.pixelFormat}`]
+    : [`format=${preset.pixelFormat}`, RGB_FULL_TAGS];
   // An animated image's own rate, width and palette (milestone 82), by the template's one rule.
   const image = animatedImageOutput(preset, options, { fps: timing.fps, frames: timing.totalFrames });
   if (image?.steps) toOutput.push(image.steps);
