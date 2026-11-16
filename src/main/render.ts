@@ -240,7 +240,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
     // A clip set on the track is its set file (milestone 32): the parts stitched once, with their sound.
     let path = found.entry.path;
     if (found.entry.clipSet) {
-      const made = await clipSetFile(cut.id);
+      // Its interlaced parts deinterlaced each by its own frames (milestone 83), unless turned off for the render.
+      const made = await clipSetFile(cut.id, undefined, job.options?.deinterlace === 'off' ? { deinterlace: 'off' } : {});
       if (!made.ok) return { ok: false, message: tr('render.track.clip-unreadable') };
       path = made.path;
     }
@@ -261,7 +262,8 @@ export async function renderTemplate(job: RenderJob): Promise<RenderResult> {
       }
     }
     // An interlaced shot is deinterlaced on the way in (milestone 83), as its frames showed it to
-    // be, unless it was turned off for the clip or for the render. A clip set's file is graphics.
+    // be, unless it was turned off for the clip or for the render. A clip set's file was stitched
+    // from parts already deinterlaced one by one (src/main/clip-set-service.ts), so is read as it is.
     const deinterlace = found.entry.clipSet ? undefined : await deinterlaceFor(ffmpeg.path, found.entry, job.options?.deinterlace === 'off');
     trackCuts.push({
       path, from: cut.from, to: cut.to,

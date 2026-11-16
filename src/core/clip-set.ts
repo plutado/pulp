@@ -12,6 +12,8 @@
  * function, so a set cannot play one way on the stage and another in the file.
  */
 
+import { deinterlacePrefix, type FieldOrder } from './interlace';
+
 /** The three parts, in the order they play. */
 export const CLIP_SET_PARTS = ['intro', 'loop', 'outro'] as const;
 export type ClipSetPart = (typeof CLIP_SET_PARTS)[number];
@@ -274,6 +276,27 @@ export interface StitchLayer {
   decoder?: string;
   /** Which parts carry sound; absent is none. A part without it is silence for its span, so the parts need not match. */
   sound?: ClipSetSound;
+  /**
+   * The field order of each part that is interlaced (milestone 83), as that part's own frames
+   * showed it; a part not named is progressive and read as it is. Each part is its own file, so
+   * each is read for its own scan: an interlaced intro beside a progressive loop is deinterlaced
+   * alone, before anything else touches its picture.
+   */
+  deinterlace?: ClipSetFields;
+}
+
+/** Which of a set's parts are interlaced, and which field each catches first; a part not named is progressive. */
+export type ClipSetFields = Partial<Record<ClipSetPart, FieldOrder>>;
+
+/**
+ * What a stitch's deinterlacing adds to the name of a file made from it, or '' when no part of
+ * any layer is deinterlaced. A set stitched before its parts were read — or with deinterlacing
+ * turned off — is then never served for the clean one, while a set of progressive parts keeps
+ * the name it always had.
+ */
+export function stitchDeinterlaceKey(layers: readonly Pick<StitchLayer, 'deinterlace'>[]): string {
+  const said = layers.map((l, k) => CLIP_SET_PARTS.filter((part) => l.deinterlace?.[part]).map((part) => `${k}.${part}=${l.deinterlace![part]}`).join(',')).filter(Boolean);
+  return said.length > 0 ? `deinterlace:${said.join(';')}` : '';
 }
 
 /** Whether any part of any layer carries sound: whether a stitch has an audio stream to write. */
@@ -311,7 +334,10 @@ export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: 
       if (loop) inputs.push('-stream_loop', '-1');
       if (layer.decoder) inputs.push('-c:v', layer.decoder);
       inputs.push('-i', file);
-      chains.push(`[${n}:v]trim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},setpts=PTS-STARTPTS,${norm}[p${n}]`);
+      // An interlaced part is made whole first (milestone 83), by its own field order: before the
+      // trim's cut, the rate, the scale and the pad, any of which would mix its two fields. One
+      // frame out for each in, so the part's timing — and the set's rate and length — are kept.
+      chains.push(`[${n}:v]${deinterlacePrefix(layer.deinterlace?.[part])}trim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},setpts=PTS-STARTPTS,${norm}[p${n}]`);
       labels.push(`[p${n}]`);
       if (!sound) return;
       if (layer.sound?.[part]) chains.push(`[${n}:a]atrim=start=${from.toFixed(6)}:duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS,${anorm}[q${n}]`);
@@ -349,7 +375,8 @@ export function clipSetLayersStitchArgs(layers: readonly StitchLayer[], length: 
  * ffmpeg arguments that write frames `window.first` to `window.first + window.frames - 1` of a
  * set's parts laid end to end, each once, to stdout as a PNG stream: what a video layer is handed
  * (src/main/clip-grant.ts). `filters` (a grade, a scale) run after the parts are joined, at the
- * set's own size.
+ * set's own size; an interlaced part's deinterlacing is the part's own (`StitchLayer.deinterlace`),
+ * never a step in `filters`, since the joined picture is no one file's.
  */
 export function clipSetFramesArgs(
   paths: ClipSetFiles,
@@ -357,8 +384,9 @@ export function clipSetFramesArgs(
   own: { fps: number; width: number; height: number },
   window: { first: number; frames: number },
   filters: string,
+  deinterlace?: ClipSetFields,
 ): string[] {
-  return clipSetLayersFramesArgs([{ files: paths, timing }], own, window, filters);
+  return clipSetLayersFramesArgs([{ files: paths, timing, ...(deinterlace ? { deinterlace } : {}) }], own, window, filters);
 }
 
 /**

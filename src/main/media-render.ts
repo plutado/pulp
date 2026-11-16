@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { detectFfmpeg, runForBuffer, type FfmpegStatus } from '../core/ffmpeg';
 import { canTonemap } from './hdr-service';
-import { deinterlaceFor } from './interlace-service';
+import { deinterlaceFor, withClipSetFields } from './interlace-service';
 import { ffmpegFeature, planLacks } from './ffmpeg-caps';
 import { missingSentence } from '../core/ffmpeg-needs';
 import { clipSetLayersStitchArgs, stitchHasSound } from '../core/clip-set';
@@ -124,8 +124,10 @@ async function clipSetSource(entry: MediaEntry, ffmpeg: FfmpegStatus & { ok: tru
   if (!scratchDir) return measured;
   const stitched = join(scratchDir, 'clip-set.mov');
   // A set of several layers (milestone 32) is stitched layer by layer and composited, its parts'
-  // sounds with it: the render that follows hears the set as it plays.
-  const layers = stitchLayersFor(entry, meta);
+  // sounds with it: the render that follows hears the set as it plays. Each part is read for its
+  // own scan and an interlaced one deinterlaced before it is joined (milestone 83), unless turned
+  // off for the set or the render; the stitched file is then progressive, and read as it is.
+  const layers = await withClipSetFields(ffmpeg.path, entry, stitchLayersFor(entry, meta), options.deinterlace === 'off');
   const sound = stitchHasSound(layers);
   const args = [...clipSetLayersStitchArgs(layers, length, { fps, width: meta.width, height: meta.height }, true), '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', ...(sound ? ['-c:a', 'pcm_s16le'] : []), '-y', stitched];
   const run = await runForBuffer(ffmpeg.path, args);

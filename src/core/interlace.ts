@@ -30,6 +30,12 @@
  * one frame out for each frame in, so a clip's timing is untouched. The file
  * itself is only ever read. A person can turn it off for a clip.
  *
+ * **A clip set, part by part.** A set's intro, loop and outro are separate
+ * files, and each is its own case: each is read for its own scan, and an
+ * interlaced part is deinterlaced in its own chain, by its own field order,
+ * before the parts are trimmed, brought to the set's rate and joined
+ * (src/core/clip-set.ts). A progressive part is read as it is.
+ *
  * Both filters are ffmpeg's own (no library behind them), so every build has
  * them (src/core/ffmpeg-needs.ts).
  */

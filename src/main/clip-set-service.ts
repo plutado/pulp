@@ -8,13 +8,19 @@
  * full-quality ProRes 4444 with PCM sound, which stands for the set wherever
  * Pulp needs a single file — a cut on the track, a layer's sound in the mix,
  * an exported edit, a clean-up — so a set works everywhere one clip does.
+ *
+ * Both are stitched clean (milestone 83): each part is read for its own scan
+ * and an interlaced one deinterlaced by its own field order before it is
+ * joined, a progressive one read as it is. Which parts were deinterlaced is
+ * part of the name, so a file stitched before that — combed — is never served
+ * again, and turning deinterlacing off for the set makes its own.
  */
 
 import { app } from 'electron';
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { clipSetLayersStitchArgs, clipSetNaturalSeconds, stitchHasSound, type StitchLayer } from '../core/clip-set';
+import { clipSetLayersStitchArgs, clipSetNaturalSeconds, stitchDeinterlaceKey, stitchHasSound, type StitchLayer } from '../core/clip-set';
 import type { MediaEntry, MediaMetadata } from '../core/library-types';
 import { detectFfmpeg, runForBuffer } from '../core/ffmpeg';
 import { ffprobePathFor } from '../core/media-probe';
@@ -22,6 +28,7 @@ import { alphaDecoderFor } from '../core/media-meta';
 import { clipSetPreviewUrlFor } from '../core/media-serve';
 import { tr } from '../core/i18n';
 import { lookupMedia, probeClipSet } from './library-service';
+import { withClipSetFields } from './interlace-service';
 
 /** Previews kept; the oldest go first. Each is a few seconds of small video. */
 const CACHE_KEEP = 24;
@@ -51,6 +58,12 @@ export function stitchLayersFor(entry: MediaEntry, meta: MediaMetadata): StitchL
   return files.map((f, i) => ({ files: f, timing: timings[i]!, ...(decoder ? { decoder } : {}), ...(sounds[i] && Object.keys(sounds[i]!).length > 0 ? { sound: sounds[i]! } : {}) }));
 }
 
+/** Which parts a stitch deinterlaces, for its name: nothing for a set of progressive parts, which keeps the name it had. */
+function keyed(layers: readonly StitchLayer[]): string {
+  const key = stitchDeinterlaceKey(layers);
+  return key ? `|${key}` : '';
+}
+
 /** Every part of every layer with its modification time: what a stitched file is named by. */
 async function stampsOf(layers: readonly StitchLayer[]): Promise<string[] | null> {
   return Promise.all(layers.flatMap((l) => Object.values(l.files)).map(async (p) => `${p}|${(await stat(p)).mtimeMs}`)).catch(() => null);
@@ -67,11 +80,12 @@ export async function clipSetPreview(id: string, length: number | undefined): Pr
   const meta = entry.meta?.parts ? entry.meta : await probeClipSet(ffprobePathFor(ffmpeg.path), entry);
   if (!meta?.parts || !meta.width || !meta.height) return { ok: false, message: tr('clip-set.preview.unreadable') };
   const seconds = Math.min(MAX_PREVIEW_SECONDS, length !== undefined && Number.isFinite(length) && length > 0 ? length : clipSetNaturalSeconds(meta.parts));
-  // A set of several layers (milestone 32) is stitched layer by layer and composited, its sound with it.
-  const layers = stitchLayersFor(entry, meta);
-  const stamps = await stampsOf(layers);
+  // A set of several layers (milestone 32) is stitched layer by layer and composited, its sound with
+  // it; each interlaced part deinterlaced on its own (milestone 83).
+  const stamps = await stampsOf(stitchLayersFor(entry, meta));
   if (!stamps) return { ok: false, message: tr('stage.empty.file-offline') };
-  const name = `${createHash('sha1').update(`${stamps.join('|')}|${seconds}|sound`).digest('hex')}.webm`;
+  const layers = await withClipSetFields(ffmpeg.path, entry, stitchLayersFor(entry, meta));
+  const name = `${createHash('sha1').update(`${stamps.join('|')}|${seconds}|sound${keyed(layers)}`).digest('hex')}.webm`;
   const running = inFlight.get(name);
   if (running) return running;
   const work = make(ffmpeg.path, ffmpeg.encoders, layers, seconds, { fps: meta.fps ?? 30, width: meta.width, height: meta.height }, name);
@@ -90,7 +104,7 @@ const filesInFlight = new Map<string, Promise<ClipSetFileResult>>();
  * mix, a clip an exported edit references, a clean-up. Made once per set, length and modification
  * time of its parts; the same ask twice at once is made once.
  */
-export async function clipSetFile(id: string, length?: number): Promise<ClipSetFileResult> {
+export async function clipSetFile(id: string, length?: number, options: { deinterlace?: 'off' } = {}): Promise<ClipSetFileResult> {
   const found = lookupMedia(id);
   if (!found || !found.entry.clipSet) return { ok: false, message: tr('clip-set.preview.not-a-set') };
   if (!found.online) return { ok: false, message: tr('stage.empty.file-offline') };
@@ -100,11 +114,12 @@ export async function clipSetFile(id: string, length?: number): Promise<ClipSetF
   const meta = entry.meta?.parts ? entry.meta : await probeClipSet(ffprobePathFor(ffmpeg.path), entry);
   if (!meta?.parts || !meta.width || !meta.height) return { ok: false, message: tr('clip-set.preview.unreadable') };
   const seconds = length !== undefined && Number.isFinite(length) && length > 0 ? length : clipSetNaturalSeconds(meta.parts);
-  const layers = stitchLayersFor(entry, meta);
-  const stamps = await stampsOf(layers);
+  const stamps = await stampsOf(stitchLayersFor(entry, meta));
   if (!stamps) return { ok: false, message: tr('stage.empty.file-offline') };
+  // Each interlaced part deinterlaced on its own (milestone 83), unless turned off for the set or the render.
+  const layers = await withClipSetFields(ffmpeg.path, entry, stitchLayersFor(entry, meta), options.deinterlace === 'off');
   const hasAudio = stitchHasSound(layers);
-  const name = `${createHash('sha1').update(`${stamps.join('|')}|${seconds}|file`).digest('hex')}.mov`;
+  const name = `${createHash('sha1').update(`${stamps.join('|')}|${seconds}|file${keyed(layers)}`).digest('hex')}.mov`;
   const running = filesInFlight.get(name);
   if (running) return running;
   const work = (async (): Promise<ClipSetFileResult> => {

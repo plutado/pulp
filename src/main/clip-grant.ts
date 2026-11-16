@@ -23,11 +23,11 @@ import { clipProxySize, clipWindow, EMPTY_CLIP, sanitizeClipValue, type ClipSour
 import { isCubeFile, lutFilter } from '../core/clip-clean';
 import { tonemapPrefix, tonemapSteps, type HdrFormat } from '../core/hdr';
 import { tonemapFor } from './hdr-service';
-import { deinterlacePrefix, deinterlaceSteps, type FieldOrder } from '../core/interlace';
-import { deinterlaceFor } from './interlace-service';
+import { deinterlacePrefix, type FieldOrder } from '../core/interlace';
+import { clipSetFieldsFor, deinterlaceFor } from './interlace-service';
 import type { MediaEntry, TemplateEntry } from '../core/library-types';
 import { lookupClipItem, lookupMedia, probeClipSet, prepareForUse } from './library-service';
-import { clipSetLayersFramesArgs } from '../core/clip-set';
+import { clipSetLayersFramesArgs, stitchDeinterlaceKey, type ClipSetFields } from '../core/clip-set';
 import { clipSetFile } from './clip-set-service';
 import { templateDefaultSize } from '../core/aspect';
 
@@ -208,29 +208,34 @@ export function clipStamps(ids: readonly string[]): { id: string; size: number; 
  *
  * `read.deinterlace` is the field order of an interlaced clip (milestone 83):
  * its step comes before everything, the HDR conversion included, since any
- * filter that resamples the picture would mix its two fields.
+ * filter that resamples the picture would mix its two fields. A clip set's
+ * parts are separate files, each with its own scan: `read.setFields` names
+ * each layer's interlaced parts, and each is deinterlaced on its own before
+ * the parts are joined; a progressive part is read as it is.
  */
 export function clipFramesArgs(
   entry: MediaEntry,
   source: ClipSource,
   window: { first: number; frames: number },
   maxSide: number,
-  read: { lut?: string; tonemap?: HdrFormat; deinterlace?: FieldOrder } = {},
+  read: { lut?: string; tonemap?: HdrFormat; deinterlace?: FieldOrder; setFields?: readonly ClipSetFields[] } = {},
 ): string[] {
-  const { lut, tonemap, deinterlace } = read;
+  const { lut, tonemap, deinterlace, setFields } = read;
   const side = Math.max(16, Math.min(MAX_CLIP_FRAME_SIDE, Math.round(maxSide)));
   const scale = `scale=w='min(iw,${side})':h='min(ih,${side})':force_original_aspect_ratio=decrease`;
   // A clip set is decoded as its parts end to end, each once: the frames the timing counts in.
   if (entry.clipSet && source.set) {
     const grade = lut && isCubeFile(lut) ? lutFilter(lut) : '';
     const own = { fps: source.fps, width: entry.meta?.width ?? side, height: entry.meta?.height ?? side };
-    const filters = [...deinterlaceSteps(deinterlace), ...(tonemap ? tonemapSteps(tonemap) : []), grade, scale].filter(Boolean).join(',');
+    // The joined picture is no one file's: each part is deinterlaced on its own, as its frames say.
+    const filters = [...(tonemap ? tonemapSteps(tonemap) : []), grade, scale].filter(Boolean).join(',');
     const decoder = alphaDecoderFor(entry.meta);
+    const fieldsOf = (i: number) => (setFields?.[i] && Object.keys(setFields[i]!).length > 0 ? { deinterlace: setFields[i]! } : {});
     // A set of several layers is composited into the frames it is handed (milestone 32).
     if (entry.clipSetLayers && source.setLayers?.length === entry.clipSetLayers.length) {
-      return clipSetLayersFramesArgs(entry.clipSetLayers.map((l, i) => ({ files: l.files, timing: source.setLayers![i]!, ...(decoder ? { decoder } : {}) })), own, window, filters);
+      return clipSetLayersFramesArgs(entry.clipSetLayers.map((l, i) => ({ files: l.files, timing: source.setLayers![i]!, ...(decoder ? { decoder } : {}), ...fieldsOf(i) })), own, window, filters);
     }
-    return clipSetLayersFramesArgs([{ files: entry.clipSet, timing: source.set, ...(decoder ? { decoder } : {}) }], own, window, filters);
+    return clipSetLayersFramesArgs([{ files: entry.clipSet, timing: source.set, ...(decoder ? { decoder } : {}), ...fieldsOf(0) }], own, window, filters);
   }
   // A WebM with alpha is read through libvpx, or its picture comes back opaque (milestone 32).
   const decoder = alphaDecoderFor(entry.meta);
@@ -304,12 +309,19 @@ export async function readClipFrames(
   // of the key, so turning it off or on reads the frames again. The clip's own file is measured,
   // not a stitched clip set's.
   const deinterlace = found.kind === 'media' && asFile === undefined ? await deinterlaceFor(ffmpegPath, found.entry, options.deinterlace === 'off') : undefined;
-  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${tonemap ?? ''}|${deinterlace ?? ''}|${asFile ?? ''}`;
+  // A clip set's parts are each read for their own scan, and each interlaced one deinterlaced alone
+  // before they are joined: part of the key too. A set read from its stitched file (`asFile`) was
+  // stitched clean already (src/main/clip-set-service.ts).
+  const setFields = found.kind === 'media' && found.entry.clipSet && asFile === undefined
+    ? await clipSetFieldsFor(ffmpegPath, found.entry, found.entry.clipSetLayers && source.setLayers?.length === found.entry.clipSetLayers.length ? found.entry.clipSetLayers : [{ files: found.entry.clipSet }], options.deinterlace === 'off')
+    : undefined;
+  const setKey = setFields ? stitchDeinterlaceKey(setFields.map((deinterlace) => ({ deinterlace }))) : '';
+  const key = `${found.kind}|${id}|${found.size}|${found.mtimeMs}|${window.first}|${window.frames}|${side}|${value.lut ?? ''}|${tonemap ?? ''}|${deinterlace ?? ''}|${asFile ?? ''}|${setKey}`;
   const cached = cacheTake(key);
   if (cached) return { ok: true, data: cached };
   const frames = found.kind === 'drawn'
     ? await drawnClipFrames(found.entry, window, side)
-    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, { ...(value.lut ? { lut: value.lut } : {}), ...(tonemap ? { tonemap } : {}), ...(deinterlace ? { deinterlace } : {}) });
+    : await ffmpegClipFrames(ffmpegPath, found.entry, source, window, side, { ...(value.lut ? { lut: value.lut } : {}), ...(tonemap ? { tonemap } : {}), ...(deinterlace ? { deinterlace } : {}), ...(setFields ? { setFields } : {}) });
   if (!frames.ok) return { ok: false, problem: { kind: 'failed', detail: frames.message } };
   const data: ClipFrameData = { id, kind: 'clip', srcs: frames.pngs.map((f) => `data:image/png;base64,${f.toString('base64')}`) };
   cachePut(key, data);
@@ -329,7 +341,7 @@ export type ClipReadProblem =
 
 type FramesRead = { ok: true; pngs: Buffer[] } | { ok: false; message: string };
 
-async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, read: { lut?: string; tonemap?: HdrFormat; deinterlace?: FieldOrder }): Promise<FramesRead> {
+async function ffmpegClipFrames(ffmpegPath: string, entry: MediaEntry, source: ClipSource, window: { first: number; frames: number }, side: number, read: { lut?: string; tonemap?: HdrFormat; deinterlace?: FieldOrder; setFields?: readonly ClipSetFields[] }): Promise<FramesRead> {
   const result = await runForBuffer(ffmpegPath, clipFramesArgs(entry, source, window, side, read));
   if (result.code !== 0) return { ok: false, message: `ffmpeg exited with ${result.code}: ${result.stderr.trim() || 'no error output'}` }; // i18n-exempt(diagnostic)
   const pngs = splitPngStream(result.stdout);
