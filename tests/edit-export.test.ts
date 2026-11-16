@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { withCutTransition, type CutTrack } from '../src/core/cut-track';
-import { dissolveHandles, edlEdit, fcpxmlEdit, fileUrl, timecode, type EditClip } from '../src/core/edit-export';
+import { dissolveHandles, edlEdit, fcpxmlEdit, fileUrl, frameDuration, timecode, type EditClip } from '../src/core/edit-export';
 import { parseXml, findElement } from '../src/core/xml';
 
 const clips: Record<string, EditClip> = {
@@ -23,6 +23,18 @@ describe('times and paths', () => {
     expect(timecode(3661.5, 30)).toBe('01:01:01:15');
     expect(fileUrl('/shots/day one/red & blue.mp4')).toBe('file:///shots/day%20one/red%20&%20blue.mp4');
     expect(fileUrl('C:\\shots\\tall.mov')).toBe('file:///C:/shots/tall.mov');
+  });
+
+  it('counts NTSC rates at their nominal frames per second, so every frame field is whole (#94)', () => {
+    expect(timecode(1, 29.97)).toBe('00:00:01:00');
+    // 61 s is frame 1828: 60 timecode seconds of 30 and 28 frames over.
+    expect(timecode(61, 29.97)).toBe('00:01:00:28');
+    expect(timecode(1, 23.976)).toBe('00:00:01:00');
+    expect(timecode(10, 59.94)).toBe('00:00:09:59');
+    expect(frameDuration(29.97)).toEqual({ num: 30000, den: 1001 });
+    expect(frameDuration(23.976)).toEqual({ num: 24000, den: 1001 });
+    expect(frameDuration(25)).toEqual({ num: 25, den: 1 });
+    expect(frameDuration(12.5)).toEqual({ num: 25, den: 2 });
   });
 });
 
@@ -78,6 +90,20 @@ describe('the EDL', () => {
     const wedl = edlEdit(input(wiped));
     expect(wedl).toContain('002  AX       V     W001 030 ');
     expect(wedl).toContain('* WIPE: pulp.samples.circle-wipe');
+  });
+
+  it('writes whole frame numbers at NTSC rates, and FCPXML times as 1001-based rationals (#94)', () => {
+    const ntsc = { ...input(), fps: 29.97 };
+    const edl = edlEdit(ntsc);
+    const times = edl.match(/\b\d\d:\d\d:\d\d:[\d.]+/g)!;
+    expect(times.length).toBeGreaterThan(0);
+    for (const time of times) expect(time).toMatch(/^\d\d:\d\d:\d\d:\d\d$/);
+    // The first cut runs from 1 s to 3 s of its file: frames 30 to 90 at 29.97, 00:00:01:00 to 00:00:03:00 counted at 30.
+    expect(edl).toContain('001  AX       V     C        00:00:01:00 00:00:03:00 00:00:00:00 00:00:02:00');
+    const xml = fcpxmlEdit(ntsc);
+    expect(xml).toContain('frameDuration="1001/30000s"');
+    expect(xml).toContain('start="30030/30000s" duration="60060/30000s"');
+    expect(xml).not.toMatch(/\/29\.97s/);
   });
 });
 

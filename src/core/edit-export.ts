@@ -23,6 +23,7 @@
  */
 
 import { cutRates, cutSeconds, cutSourceTime, cutWindows, transitionAt, type Cut, type CutTrack } from './cut-track';
+import { formatTimecode, fpsToRational } from './timecode';
 
 /** What a cut's clip resolves to: the file as it lies, and what was measured about it. */
 export interface EditClip {
@@ -85,8 +86,26 @@ export function fileUrl(path: string): string {
   return encodeURI(`file://${slashed.startsWith('/') ? '' : '/'}${slashed}`).replace(/#/g, '%23');
 }
 
-/** Seconds as a whole-frame rational, the only time FCPXML trusts. */
-const rational = (seconds: number, fps: number): string => `${Math.round(seconds * fps)}/${fps}s`;
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+
+/**
+ * One frame's duration as a whole-number fraction of a second, `den / num`:
+ * 1/30 at 30, and 1001/30000 at 29.97, as FCPXML writes NTSC rates (issue
+ * #94). A rate with no standard rational is taken to the thousandth.
+ */
+export function frameDuration(fps: number): { num: number; den: number } {
+  const exact = fpsToRational(fps).split('/').map(Number);
+  let [num, den] = exact.length === 2 && Number.isInteger(exact[0]) && Number.isInteger(exact[1]) ? exact as [number, number] : [fps, 1];
+  if (!Number.isInteger(num)) [num, den] = [Math.round(num * 1000), 1000];
+  const shared = gcd(num, den);
+  return { num: num / shared, den: den / shared };
+}
+
+/** Seconds as a whole-frame rational, the only time FCPXML trusts: a whole number of frames, each `frameDuration` long. */
+const rational = (seconds: number, fps: number): string => {
+  const { num, den } = frameDuration(fps);
+  return `${Math.round(seconds * fps) * den}/${num}s`;
+};
 
 /**
  * A dissolve may only travel to FCPXML where both sides hold the handle
@@ -116,7 +135,7 @@ export function fcpxmlEdit(input: EditExportInput): string {
     '<!DOCTYPE fcpxml>',
     '<fcpxml version="1.10">',
     '  <resources>',
-    `    <format id="r1" frameDuration="1/${fps}s" width="${input.width}" height="${input.height}"/>`,
+    `    <format id="r1" frameDuration="${frameDuration(fps).den}/${frameDuration(fps).num}s" width="${input.width}" height="${input.height}"/>`,
   ];
   for (const id of ids) {
     const clip = clips[id]!;
@@ -242,13 +261,13 @@ function motionLines(cut: Cut, fps: number): string[] {
   return lines;
 }
 
-/** Frames as a non-drop timecode at the sequence's rate. */
+/**
+ * Whole frames at the sequence's rate as non-drop timecode, counted at the
+ * rate's nominal frames per second: 30 for 29.97, 24 for 23.976, so the frame
+ * field is always a whole number (issue #94).
+ */
 export function timecode(seconds: number, fps: number): string {
-  const frames = Math.round(seconds * fps);
-  const f = frames % fps;
-  const total = Math.floor(frames / fps);
-  const two = (v: number) => String(v).padStart(2, '0');
-  return `${two(Math.floor(total / 3600))}:${two(Math.floor(total / 60) % 60)}:${two(total % 60)}:${two(f)}`;
+  return formatTimecode(Math.round(seconds * fps), fps);
 }
 
 /**

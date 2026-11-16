@@ -41,6 +41,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **An edit exported at 23.976, 29.97 or 59.94 writes whole frame numbers.** The EDL's timecodes split the frame count by the actual rate, so 61 seconds at 29.97 came out as `00:01:00:29.8`; they're counted at the nominal rate now (`00:01:00:28`), matching the file's non-drop header. The FCPXML writes NTSC frame durations and times as 1001-based rationals (`1001/30000s`) rather than `1/29.97s` (#94).
+
 - **A clip rendered to PNG, GIF, APNG, animated WebP or QuickTime Animation keeps its colors.** Limited-range video, which is most video, came out shifted (a BT.709 red of 197, 39, 39 rendered as 178, 36, 52) because the RGB tags were stamped on the frames before they were converted, so the conversion read them as full range. The conversion now reads the clip by its own range and matrix, and the tags describe the result (#93).
 
 - **Zipped downloads over 4 GB open in a stock library.** A ZIP64 archive — over 4 GB, or over 65,535 files — was refused as not yet read; its end record and each entry's ZIP64 extra field are read now, and a file is unpacked by streaming rather than held whole, so a multi-gigabyte clip passes through a small buffer.
