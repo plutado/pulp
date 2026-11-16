@@ -19,8 +19,8 @@ const ffmpeg = await detectFfmpeg();
 const SIZE = 64;
 
 /** The first pixel of a picture file (or a clip's first frame), as 8-bit RGB. */
-function firstPixel(path: string): number[] {
-  const out = spawnSync(ffmpeg.path, ['-hide_banner', '-loglevel', 'error', '-i', path, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 16 * 1024 * 1024 });
+function firstPixel(ffmpegPath: string, path: string): number[] {
+  const out = spawnSync(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-i', path, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 16 * 1024 * 1024 });
   expect(out.status, String(out.stderr)).toBe(0);
   return [...out.stdout.subarray(0, 3)];
 }
@@ -45,7 +45,7 @@ describe.skipIf(!ffmpeg.ok)('an RGB render of a clip keeps its colors (needs ffm
         '-colorspace', clip.tag, '-color_range', clip.range, '-c:v', 'ffv1', file,
       ]);
       expect(made.status, String(made.stderr)).toBe(0);
-      const straight = firstPixel(file);
+      const straight = firstPixel(ffmpeg.path, file);
 
       const source: MediaSource = { kind: 'video', input: { path: file }, width: SIZE, height: SIZE, duration: 0.4, fps: 25, alpha: false, hasAudio: false };
       const plan = buildMediaRenderPlan({ source, presetId: 'png-still', outputPath: join(dir, `${clip.name}-still`), overwrite: true });
@@ -53,7 +53,7 @@ describe.skipIf(!ffmpeg.ok)('an RGB render of a clip keeps its colors (needs ffm
         const ran = spawnSync(ffmpeg.path, stage.args);
         expect(ran.status, `${clip.name}: ${ran.stderr}`).toBe(0);
       }
-      const rendered = firstPixel(plan.output);
+      const rendered = firstPixel(ffmpeg.path, plan.output);
       // Within 8-bit rounding of the clip as decoded straight: before the fix limited BT.709 red came out 178, 36, 52.
       for (let c = 0; c < 3; c += 1) expect(Math.abs(rendered[c]! - straight[c]!), `${clip.name}: ${rendered} against ${straight}`).toBeLessThanOrEqual(2);
     }
