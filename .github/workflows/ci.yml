@@ -72,7 +72,9 @@ jobs:
     # Full render path on macOS, the main development platform and the only one with
     # VideoToolbox (HEVC with alpha; that test skips itself where the encoder is missing).
     runs-on: macos-latest
-    timeout-minutes: 60
+    # Its tests run close to an hour on a slow runner (59 minutes on 2026-11-16), and twice
+    # were cancelled at a 60-minute limit with nothing failed; 90 leaves room.
+    timeout-minutes: 90
     env:
       PULP_E2E: '1'
     steps:
